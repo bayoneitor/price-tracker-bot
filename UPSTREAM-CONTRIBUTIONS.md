@@ -15,6 +15,7 @@ Last updated: 2026-09-04.
 | [#30](https://github.com/bernalli/price-tracker-bot/pull/30) — `fix(i18n): make every user-facing string translatable, add Spanish` | `fix/i18n-english-msgids-and-spanish` | Open, awaiting review | 50 files, +6562/−1066 |
 | — Telegram command menu | `feat/telegram-command-menu` | **Not submitted yet**, waiting on #30 | 12 files, +1131/−412 |
 | — Store name on product views | `feat/store-name-in-product-views` | **Not submitted yet**, waiting on #30 | 11 files, +560/−80 |
+| — Paginated `/list` | `feat/paginated-product-list` | **Not submitted yet**, waiting on #30 and the store branch | 10 files, +700/−140 |
 
 ### CI on #29 and #30
 
@@ -36,7 +37,9 @@ without the catalogs that branch adds.
 Opening either now would produce a pull request carrying #30's commit as well,
 which makes review harder for no benefit. Open them once #30 is merged, against
 an updated `main`; the diffs then drop to the files that are actually theirs.
-They are siblings, not stacked on each other, so they can go in either order.
+The first two are siblings, so they can go in either order. `feat/paginated-product-list`
+is stacked on `feat/store-name-in-product-views` — the product card shows the
+store — so that one goes first.
 
 Their catalog changes conflict with each other by construction — both add
 msgids to the same `.po` files. Do not hand-merge those: take one side, re-run
@@ -102,6 +105,20 @@ and `format_error_notification` were plain English literals that never went
 through gettext, so the bot's most visible message stayed English for every
 reader. That sweep looked for Italian text and these were already English.
 
+### Paginated /list
+
+`/list` sent one message per product plus a trailer: a dozen products meant
+thirteen messages that buried the chat and could not be dismissed. It is now a
+single message, edited in place — an index of every product, the selected one's
+full card, ◀ ▶ paging, numbered jump buttons, the per-product actions, and a
+close button that deletes the message. Typing a bare index number also jumps the
+listing.
+
+The selected index travels in the callback data rather than server state, so a
+listing survives a restart. Every navigation re-reads the products and clamps
+the index, so a stale button from a listing whose products were since deleted
+lands somewhere valid.
+
 ## Testing all three together
 
 This `integration` branch merges all three. It exists so the whole set can be
@@ -110,7 +127,7 @@ run before upstream has merged anything; it is never pushed to a pull request.
 ```bash
 git switch integration
 python -m venv .venv && .venv/bin/pip install -e ".[dev]"
-.venv/bin/python -m pytest -q          # 937 tests
+.venv/bin/python -m pytest -q          # 956 tests
 .venv/bin/ruff check . && .venv/bin/mypy --strict src/price_tracker tests
 ./scripts/audit_english.sh
 ```
@@ -130,6 +147,8 @@ Things worth checking by hand once it is running:
   (verified against SKU 1667552 at 259 EUR).
 - `/list` and the price-drop alert name the store the product comes from, and the
   alert's link is labelled with it instead of "View product".
+- `/list` is one message: paging with the arrows and the numbered buttons, jumping by
+  typing an index number, and closing it removes the message from the chat.
 - With `LOCALE=en` and a Spanish or English client, no Italian text appears
   anywhere — the admin menus were the worst offenders.
 

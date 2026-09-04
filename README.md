@@ -88,7 +88,7 @@ and follows the client's language; admin commands appear only in admins' own cha
 - `/menu` — open the inline menu
 - `/help` — command reference
 - `/add <url>` (`/aggiungi`) — start tracking a product
-- `/list` (`/lista`) — tracked products with current price, store, drop since tracking start, and per-product buttons
+- `/list` (`/lista`) — one paginated message: an index of every product, the selected product's card (price, store, drop since tracking start), and buttons to page, jump, act on it or close the listing. Typing an index number jumps straight to that product
 - `/delete <id>` (`/elimina`) — stop tracking
 - `/check <id>` (`/controlla`) — check one product now
 - `/checkall` — check every product now

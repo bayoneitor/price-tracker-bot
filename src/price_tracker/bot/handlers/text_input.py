@@ -13,6 +13,7 @@ from decimal import Decimal, InvalidOperation
 from typing import TYPE_CHECKING
 
 from telegram.constants import ParseMode
+from telegram.error import BadRequest
 from telegram.ext import (
     Application,
     MessageHandler,
@@ -54,6 +55,48 @@ async def handle_url(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
     await _add_product(update, context, url)
 
 
+async def _try_list_jump(update: Update, context: ContextTypes.DEFAULT_TYPE, text: str) -> bool:
+    """Jump an open /list to the index the user typed. Returns True if handled."""
+    from price_tracker.bot.handlers.product_list import (  # noqa: PLC0415
+        LIST_MESSAGE_KEY,
+        build_list_view,
+    )
+
+    message_id = context.user_data.get(LIST_MESSAGE_KEY)
+    if message_id is None or not text.isdigit():
+        return False
+
+    products = await _db(context).get_active_products(update.effective_user.id)
+    if not products:
+        return False
+
+    # Users type the 1-based number they see in the index.
+    position = int(text) - 1
+    if not 0 <= position < len(products):
+        await update.message.reply_text(
+            _("❌ No product {n} — the list has {count}.").format(n=text, count=len(products))
+        )
+        return True
+
+    view_text, keyboard = build_list_view(products, position)
+    try:
+        await context.bot.edit_message_text(
+            chat_id=update.effective_chat.id,
+            message_id=message_id,
+            text=view_text,
+            parse_mode=ParseMode.HTML,
+            disable_web_page_preview=True,
+            reply_markup=keyboard,
+        )
+    except BadRequest as exc:
+        # The listing was deleted or is too old to edit — drop the stale
+        # reference so later numbers are not silently swallowed.
+        logger.debug("Could not steer the open listing: %s", exc)
+        context.user_data.pop(LIST_MESSAGE_KEY, None)
+        return False
+    return True
+
+
 @with_locale
 @restricted
 async def handle_text_input(  # noqa: PLR0915 — verbatim port; cyclomatic split planned for F6
@@ -71,6 +114,10 @@ async def handle_text_input(  # noqa: PLR0915 — verbatim port; cyclomatic spli
     # Handle pending actions from inline button pickers
     pending_action = context.user_data.get("pending_action")
     if not pending_action:
+        # No pending prompt: a bare number steers an open /list instead of
+        # being dropped. Checked after pending_action so a number answering a
+        # "type the target price" prompt still goes to that prompt.
+        await _try_list_jump(update, context, text)
         return
 
     action_type, product_id = pending_action

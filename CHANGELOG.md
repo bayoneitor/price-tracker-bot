@@ -26,6 +26,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   to admins' own chats rather than shown to everyone.
 - `/import` as an English alias for `/importa`, so the menu has no Italian entry.
 - Spanish (`es_ES`) joins English and Italian as a shipped locale.
+- The store a product comes from is now shown wherever the product appears: in the
+  price-drop alert, `/list`, the check button and the history chart. A tracked URL is
+  often a wall of tracking parameters, and an alert arrives with no context, so the
+  shop is the part worth reading.
 
 ### Changed
 
@@ -47,6 +51,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Price-drop alerts were never translated.** `format_alert`,
+  `format_back_in_stock` and `format_error_notification` were plain English
+  literals that never went through gettext, so the bot's most visible message
+  stayed English whatever the reader's language.
 - **Digest plural forms were never translated.** String extraction did not pass the
   `ngettext` argument positions, so the two forms were recorded as unrelated singular
   entries and no locale could resolve either.

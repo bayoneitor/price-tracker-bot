@@ -20,6 +20,7 @@ from price_tracker.bot.handlers._helpers import (
     _safe_dec,
 )
 from price_tracker.bot.messages import _
+from price_tracker.core.url_utils import store_label
 
 logger = logging.getLogger(__name__)
 
@@ -63,6 +64,10 @@ async def cmd_list(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         )
 
         parts = [f"<b>#{pid}</b> {_escape_html(name_short)}", f"💰 {price_str}"]
+
+        store = store_label(url=url, domain=p.get("domain", ""))
+        if store:
+            parts.append(_("🌐 Store: {store}").format(store=_escape_html(store)))
 
         if initial and current and initial != current and initial > 0:
             diff = (initial - current) / initial * 100

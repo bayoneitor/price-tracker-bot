@@ -88,7 +88,7 @@ and follows the client's language; admin commands appear only in admins' own cha
 - `/menu` — open the inline menu
 - `/help` — command reference
 - `/add <url>` (`/aggiungi`) — start tracking a product
-- `/list` (`/lista`) — tracked products with current price, drop since tracking start, and per-product buttons
+- `/list` (`/lista`) — tracked products with current price, store, drop since tracking start, and per-product buttons
 - `/delete <id>` (`/elimina`) — stop tracking
 - `/check <id>` (`/controlla`) — check one product now
 - `/checkall` — check every product now

@@ -31,6 +31,7 @@ from price_tracker.bot.handlers._helpers import (
 from price_tracker.bot.handlers.history import _generate_chart
 from price_tracker.bot.keyboards import build_threshold_keyboard
 from price_tracker.bot.messages import _
+from price_tracker.core.url_utils import store_label
 
 if TYPE_CHECKING:
     from telegram.ext import ContextTypes
@@ -150,6 +151,9 @@ async def handle_check_button(
     text = _("✅ <b>#{pid}</b> {name}\n💰 Price: {price}").format(
         pid=product_id, name=_escape_html(name), price=price_str
     )
+    store = store_label(url=product.get("url", ""), domain=product.get("domain", ""))
+    if store:
+        text += _("\n🌐 Store: {store}").format(store=_escape_html(store))
     if initial and current and initial > 0 and initial != current:
         diff = (initial - current) / initial * 100
         if diff > 0:
@@ -193,9 +197,13 @@ async def handle_chart_button(
     chart = await _generate_chart(db, product_id, product)
     if chart:
         name = (product.get("name") or _("Product"))[:50]
+        caption = f"📊 <b>#{product_id}</b> {_escape_html(name)}"
+        store = store_label(url=product.get("url", ""), domain=product.get("domain", ""))
+        if store:
+            caption += _("\n🌐 Store: {store}").format(store=_escape_html(store))
         await query.message.reply_photo(
             photo=InputFile(chart, filename=f"chart_{product_id}.png"),
-            caption=f"📊 <b>#{product_id}</b> {_escape_html(name)}",
+            caption=caption,
             parse_mode=ParseMode.HTML,
         )
     else:

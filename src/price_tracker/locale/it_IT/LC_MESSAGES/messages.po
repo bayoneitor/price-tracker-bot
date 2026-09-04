@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-09-04 14:56+0200\n"
+"POT-Creation-Date: 2026-09-04 15:15+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: it_IT\n"
@@ -37,29 +37,34 @@ msgstr ""
 msgid "⛔ Admin-only command."
 msgstr "⛔ Solo l'amministratore può usare questo comando."
 
-#: src/price_tracker/bot/handlers/_helpers.py:84
-#: src/price_tracker/bot/handlers/callbacks/_actions.py:59
 #: src/price_tracker/bot/keyboards.py:19
+msgid "✖ Close"
+msgstr "✖ Chiudi"
+
+#: src/price_tracker/bot/handlers/_helpers.py:84
+#: src/price_tracker/bot/handlers/callbacks/_actions.py:60
+#: src/price_tracker/bot/keyboards.py:28
 msgid "🔔 Every drop"
 msgstr "🔔 Ogni ribasso"
 
-#: src/price_tracker/bot/handlers/callbacks/_actions.py:62
-#: src/price_tracker/bot/keyboards.py:25
+#: src/price_tracker/bot/handlers/callbacks/_actions.py:63
+#: src/price_tracker/bot/keyboards.py:34
 #, python-format
 msgid "📉 Threshold % or €"
 msgstr "📉 Soglia % o €"
 
-#: src/price_tracker/bot/handlers/callbacks/_actions.py:65
-#: src/price_tracker/bot/keyboards.py:31
+#: src/price_tracker/bot/handlers/callbacks/_actions.py:66
+#: src/price_tracker/bot/keyboards.py:40
 msgid "💰 Target price"
 msgstr "💰 Prezzo target"
 
-#: src/price_tracker/bot/keyboards.py:37
+#: src/price_tracker/bot/keyboards.py:46
 #, python-format
 msgid "👍 -10% is fine (default)"
 msgstr "👍 Va bene -10% (default)"
 
-#: src/price_tracker/bot/handlers/__init__.py:97 src/price_tracker/bot/keyboards.py:47
+#: src/price_tracker/bot/handlers/__init__.py:97
+#: src/price_tracker/bot/keyboards.py:56
 msgid "◀️ Menu"
 msgstr "◀️ Menu"
 
@@ -165,14 +170,14 @@ msgstr "{n} minuti"
 
 #: src/price_tracker/bot/handlers/_helpers.py:125
 #: src/price_tracker/bot/handlers/_helpers.py:126
-#: src/price_tracker/bot/handlers/callbacks/_actions.py:47
-#: src/price_tracker/bot/handlers/callbacks/_actions.py:108
-#: src/price_tracker/bot/handlers/callbacks/_actions.py:135
-#: src/price_tracker/bot/handlers/callbacks/_actions.py:173
-#: src/price_tracker/bot/handlers/callbacks/_actions.py:203
-#: src/price_tracker/bot/handlers/callbacks/_actions.py:224
-#: src/price_tracker/bot/handlers/callbacks/_actions.py:245
-#: src/price_tracker/bot/handlers/callbacks/_actions.py:264
+#: src/price_tracker/bot/handlers/callbacks/_actions.py:48
+#: src/price_tracker/bot/handlers/callbacks/_actions.py:112
+#: src/price_tracker/bot/handlers/callbacks/_actions.py:139
+#: src/price_tracker/bot/handlers/callbacks/_actions.py:177
+#: src/price_tracker/bot/handlers/callbacks/_actions.py:207
+#: src/price_tracker/bot/handlers/callbacks/_actions.py:228
+#: src/price_tracker/bot/handlers/callbacks/_actions.py:249
+#: src/price_tracker/bot/handlers/callbacks/_actions.py:268
 #: src/price_tracker/bot/handlers/callbacks/_product.py:55
 #: src/price_tracker/bot/handlers/callbacks/_product.py:145
 #: src/price_tracker/bot/handlers/callbacks/_product.py:325
@@ -238,15 +243,16 @@ msgstr ""
 msgid "❌ Usage: /removeuser &lt;telegram_id&gt;"
 msgstr "❌ Uso: /removeuser &lt;telegram_id&gt;"
 
-#: src/price_tracker/bot/handlers/auth.py:82 src/price_tracker/bot/handlers/auth.py:173
-#: src/price_tracker/bot/handlers/callbacks/_actions.py:40
-#: src/price_tracker/bot/handlers/callbacks/_actions.py:101
-#: src/price_tracker/bot/handlers/callbacks/_actions.py:128
-#: src/price_tracker/bot/handlers/callbacks/_actions.py:165
-#: src/price_tracker/bot/handlers/callbacks/_actions.py:196
-#: src/price_tracker/bot/handlers/callbacks/_actions.py:218
-#: src/price_tracker/bot/handlers/callbacks/_actions.py:239
-#: src/price_tracker/bot/handlers/callbacks/_actions.py:258
+#: src/price_tracker/bot/handlers/auth.py:82
+#: src/price_tracker/bot/handlers/auth.py:173
+#: src/price_tracker/bot/handlers/callbacks/_actions.py:41
+#: src/price_tracker/bot/handlers/callbacks/_actions.py:105
+#: src/price_tracker/bot/handlers/callbacks/_actions.py:132
+#: src/price_tracker/bot/handlers/callbacks/_actions.py:169
+#: src/price_tracker/bot/handlers/callbacks/_actions.py:200
+#: src/price_tracker/bot/handlers/callbacks/_actions.py:222
+#: src/price_tracker/bot/handlers/callbacks/_actions.py:243
+#: src/price_tracker/bot/handlers/callbacks/_actions.py:262
 #: src/price_tracker/bot/handlers/callbacks/_admin.py:135
 #: src/price_tracker/bot/handlers/callbacks/_admin.py:171
 #: src/price_tracker/bot/handlers/callbacks/_ops.py:65
@@ -284,10 +290,13 @@ msgid "✅ User <code>{tg_id}</code> removed."
 msgstr "✅ Utente <code>{tg_id}</code> rimosso."
 
 #: src/price_tracker/bot/handlers/auth.py:103
-msgid "Their products remain in the database but they will no longer receive notifications."
+msgid ""
+"Their products remain in the database but they will no longer receive "
+"notifications."
 msgstr "I suoi prodotti restano nel database ma non riceverà più notifiche."
 
-#: src/price_tracker/bot/handlers/auth.py:110 src/price_tracker/bot/handlers/auth.py:180
+#: src/price_tracker/bot/handlers/auth.py:110
+#: src/price_tracker/bot/handlers/auth.py:180
 #, python-brace-format
 msgid "❌ User <code>{tg_id}</code> not found."
 msgstr "❌ Utente <code>{tg_id}</code> non trovato."
@@ -301,8 +310,8 @@ msgid "<b>👥 Authorized Users</b>\n"
 msgstr "<b>👥 Utenti autorizzati</b>\n"
 
 #: src/price_tracker/bot/handlers/auth.py:131
-#: src/price_tracker/bot/handlers/callbacks/_actions.py:56
-#: src/price_tracker/bot/handlers/callbacks/_actions.py:175
+#: src/price_tracker/bot/handlers/callbacks/_actions.py:57
+#: src/price_tracker/bot/handlers/callbacks/_actions.py:179
 #: src/price_tracker/bot/handlers/callbacks/_admin.py:83
 #: src/price_tracker/bot/handlers/callbacks/_admin.py:175
 #: src/price_tracker/bot/handlers/callbacks/_menu.py:305
@@ -500,11 +509,11 @@ msgstr "  ❌ {n} letture fallite"
 
 #: src/price_tracker/bot/handlers/debug.py:498
 msgid ""
-"ℹ️ Sites in 🔒 quarantine resume on their own; use /reactivate to bring a paused "
-"product back."
+"ℹ️ Sites in 🔒 quarantine resume on their own; use /reactivate to bring a "
+"paused product back."
 msgstr ""
-"ℹ️ I siti in 🔒 quarantena riprendono da soli; usa /reactivate per riattivare un "
-"prodotto sospeso."
+"ℹ️ I siti in 🔒 quarantena riprendono da soli; usa /reactivate per "
+"riattivare un prodotto sospeso."
 
 #: src/price_tracker/bot/handlers/callbacks/_product.py:199
 #: src/price_tracker/bot/handlers/history.py:118
@@ -524,14 +533,14 @@ msgstr "📭 Non hai prodotti tracciati."
 msgid "📊 <b>Pick a product to see its history:</b>"
 msgstr "📊 <b>Scegli un prodotto per lo storico:</b>"
 
-#: src/price_tracker/bot/handlers/callbacks/_actions.py:44
-#: src/price_tracker/bot/handlers/callbacks/_actions.py:105
-#: src/price_tracker/bot/handlers/callbacks/_actions.py:132
-#: src/price_tracker/bot/handlers/callbacks/_actions.py:169
-#: src/price_tracker/bot/handlers/callbacks/_actions.py:200
-#: src/price_tracker/bot/handlers/callbacks/_actions.py:222
-#: src/price_tracker/bot/handlers/callbacks/_actions.py:243
-#: src/price_tracker/bot/handlers/callbacks/_actions.py:262
+#: src/price_tracker/bot/handlers/callbacks/_actions.py:45
+#: src/price_tracker/bot/handlers/callbacks/_actions.py:109
+#: src/price_tracker/bot/handlers/callbacks/_actions.py:136
+#: src/price_tracker/bot/handlers/callbacks/_actions.py:173
+#: src/price_tracker/bot/handlers/callbacks/_actions.py:204
+#: src/price_tracker/bot/handlers/callbacks/_actions.py:226
+#: src/price_tracker/bot/handlers/callbacks/_actions.py:247
+#: src/price_tracker/bot/handlers/callbacks/_actions.py:266
 #: src/price_tracker/bot/handlers/callbacks/_ops.py:69
 #: src/price_tracker/bot/handlers/callbacks/_product.py:127
 #: src/price_tracker/bot/handlers/callbacks/_product.py:143
@@ -763,7 +772,7 @@ msgstr "📦 <b>Scegli prodotto da eliminare:</b>"
 msgid "🗑 Yes, delete"
 msgstr "🗑 Sì, elimina"
 
-#: src/price_tracker/bot/handlers/callbacks/_actions.py:144
+#: src/price_tracker/bot/handlers/callbacks/_actions.py:148
 #: src/price_tracker/bot/handlers/callbacks/_ops.py:147
 #: src/price_tracker/bot/handlers/callbacks/_product.py:83
 #: src/price_tracker/bot/handlers/product.py:161
@@ -1084,11 +1093,6 @@ msgstr ""
 "📭 Non hai prodotti tracciati.\n"
 "Incollami un link per iniziare!"
 
-#: src/price_tracker/bot/handlers/product_list.py:166
-#: src/price_tracker/bot/handlers/product_list.py:225
-msgid "✖ Close"
-msgstr "✖ Chiudi"
-
 #: src/price_tracker/bot/handlers/product_list.py:174
 #, python-brace-format
 msgid "<b>📦 Your products ({count})</b>"
@@ -1259,15 +1263,15 @@ msgstr ""
 "🔄 Check: ogni <b>{interval}</b>\n"
 "📦 {name}"
 
-#: src/price_tracker/bot/handlers/callbacks/_actions.py:52
+#: src/price_tracker/bot/handlers/callbacks/_actions.py:53
 msgid "not set"
 msgstr "non impostato"
 
-#: src/price_tracker/bot/handlers/callbacks/_actions.py:69
+#: src/price_tracker/bot/handlers/callbacks/_actions.py:70
 msgid "🔄 Reset base price"
 msgstr "🔄 Azzera prezzo base"
 
-#: src/price_tracker/bot/handlers/callbacks/_actions.py:74
+#: src/price_tracker/bot/handlers/callbacks/_actions.py:78
 #, python-brace-format
 msgid ""
 "✏️ <b>Edit #{pid}</b> {name}\n"
@@ -1286,7 +1290,7 @@ msgstr ""
 "\n"
 "<b>Cosa vuoi modificare?</b>"
 
-#: src/price_tracker/bot/handlers/callbacks/_actions.py:111
+#: src/price_tracker/bot/handlers/callbacks/_actions.py:115
 #, python-brace-format
 msgid ""
 "⏸ <b>Paused:</b> {name}\n"
@@ -1295,20 +1299,20 @@ msgstr ""
 "⏸ <b>In pausa:</b> {name}\n"
 "Usa /riattiva {pid} per riattivarlo."
 
-#: src/price_tracker/bot/handlers/callbacks/_actions.py:140
+#: src/price_tracker/bot/handlers/callbacks/_actions.py:144
 msgid "🗑 Yes, delete everything"
 msgstr "🗑 Sì, elimina tutto"
 
-#: src/price_tracker/bot/handlers/callbacks/_actions.py:143
+#: src/price_tracker/bot/handlers/callbacks/_actions.py:147
 msgid "⏸ Just pause"
 msgstr "⏸ Solo pausa"
 
-#: src/price_tracker/bot/handlers/callbacks/_actions.py:149
+#: src/price_tracker/bot/handlers/callbacks/_actions.py:153
 #, python-brace-format
 msgid "❓ What do you want to do with <b>{name}</b>?"
 msgstr "❓ Cosa vuoi fare con <b>{name}</b>?"
 
-#: src/price_tracker/bot/handlers/callbacks/_actions.py:178
+#: src/price_tracker/bot/handlers/callbacks/_actions.py:182
 #, python-brace-format
 msgid ""
 "✅ Base price updated!\n"
@@ -1321,21 +1325,21 @@ msgstr ""
 "📦 <b>#{pid}</b> {name}\n"
 "💰 Nuovo base: <b>{price}</b>"
 
-#: src/price_tracker/bot/handlers/callbacks/_actions.py:183
+#: src/price_tracker/bot/handlers/callbacks/_actions.py:187
 msgid "❌ Update failed."
 msgstr "❌ Impossibile aggiornare."
 
-#: src/price_tracker/bot/handlers/callbacks/_actions.py:205
+#: src/price_tracker/bot/handlers/callbacks/_actions.py:209
 #, python-brace-format
 msgid "▶️ <b>Reactivated:</b> {name}"
 msgstr "▶️ <b>Riattivato:</b> {name}"
 
-#: src/price_tracker/bot/handlers/callbacks/_actions.py:226
+#: src/price_tracker/bot/handlers/callbacks/_actions.py:230
 #, python-brace-format
 msgid " (current: €{price:.2f})"
 msgstr " (attuale: €{price:.2f})"
 
-#: src/price_tracker/bot/handlers/callbacks/_actions.py:230
+#: src/price_tracker/bot/handlers/callbacks/_actions.py:234
 #, python-brace-format
 msgid ""
 "🎯 <b>{name}</b>{price_info}\n"
@@ -1346,7 +1350,7 @@ msgstr ""
 "\n"
 "Scrivi il prezzo target (es. <code>29.99</code>):"
 
-#: src/price_tracker/bot/handlers/callbacks/_actions.py:249
+#: src/price_tracker/bot/handlers/callbacks/_actions.py:253
 #, python-brace-format
 msgid ""
 "🎯 <b>{name}</b>\n"
@@ -1357,16 +1361,18 @@ msgstr ""
 "\n"
 "Scrivi la soglia (es. <code>20%</code> o <code>50</code>):"
 
-#: src/price_tracker/bot/handlers/callbacks/_actions.py:268
+#: src/price_tracker/bot/handlers/callbacks/_actions.py:272
 #, python-brace-format
 msgid ""
 "🔄 <b>{name}</b>\n"
 "\n"
-"Type the interval in minutes (e.g. <code>30</code>, <code>720</code> for 12h):"
+"Type the interval in minutes (e.g. <code>30</code>, <code>720</code> for "
+"12h):"
 msgstr ""
 "🔄 <b>{name}</b>\n"
 "\n"
-"Scrivi l'intervallo in minuti (es. <code>30</code>, <code>720</code> per 12h):"
+"Scrivi l'intervallo in minuti (es. <code>30</code>, <code>720</code> per "
+"12h):"
 
 #: src/price_tracker/bot/handlers/callbacks/_admin.py:36
 #: src/price_tracker/bot/handlers/callbacks/_admin.py:122
@@ -1492,7 +1498,7 @@ msgstr ""
 "\n"
 "Incolla l'URL del prodotto da analizzare:"
 
-#: src/price_tracker/bot/handlers/callbacks/_list.py:76
+#: src/price_tracker/bot/handlers/callbacks/_list.py:91
 msgid "📦 Listing closed — send /list to open it again."
 msgstr "📦 Elenco chiuso — invia /list per riaprirlo."
 
@@ -1720,8 +1726,12 @@ msgstr "🗑 Sì, elimina {n}"
 
 #: src/price_tracker/bot/handlers/callbacks/_ops.py:152
 #, python-brace-format
-msgid "🗑 Delete {n} products on {domain} and their price history? This cannot be undone."
-msgstr "🗑 Eliminare {n} prodotti su {domain} e il loro storico prezzi? Non si può annullare."
+msgid ""
+"🗑 Delete {n} products on {domain} and their price history? This cannot be"
+" undone."
+msgstr ""
+"🗑 Eliminare {n} prodotti su {domain} e il loro storico prezzi? Non si può"
+" annullare."
 
 #: src/price_tracker/bot/handlers/callbacks/_ops.py:177
 #, python-brace-format
@@ -1755,15 +1765,15 @@ msgstr "⚠️ Sì, elimina tutti ({count})"
 msgid ""
 "🚨 <b>Warning!</b>\n"
 "\n"
-"You are about to <b>permanently delete {count} products</b> and all their price "
-"history.\n"
+"You are about to <b>permanently delete {count} products</b> and all their"
+" price history.\n"
 "\n"
 "This action is <b>not reversible</b>."
 msgstr ""
 "🚨 <b>Attenzione!</b>\n"
 "\n"
-"Stai per eliminare <b>definitivamente {count} prodotti</b> e tutto il loro storico "
-"prezzi.\n"
+"Stai per eliminare <b>definitivamente {count} prodotti</b> e tutto il "
+"loro storico prezzi.\n"
 "\n"
 "Questa azione <b>non è reversibile</b>."
 
@@ -1889,12 +1899,14 @@ msgid ""
 "👍 <b>Default threshold -10%</b> for #{pid}\n"
 "📦 {name}\n"
 "\n"
-"You will get a notification when the price drops 10% from the initial price."
+"You will get a notification when the price drops 10% from the initial "
+"price."
 msgstr ""
 "👍 <b>Soglia default -10%</b> per #{pid}\n"
 "📦 {name}\n"
 "\n"
-"Riceverai una notifica quando il prezzo scende del 10% dal prezzo iniziale."
+"Riceverai una notifica quando il prezzo scende del 10% dal prezzo "
+"iniziale."
 
 #: src/price_tracker/core/alert.py:58
 #, python-brace-format
@@ -1903,11 +1915,11 @@ msgstr "Prezzo illeggibile su {domain}"
 
 #: src/price_tracker/core/alert.py:60
 msgid ""
-"The pages load, but the price could not be read anymore (layout change or a different"
-" offer)."
+"The pages load, but the price could not be read anymore (layout change or"
+" a different offer)."
 msgstr ""
-"Le pagine si aprono, ma il prezzo non si legge più (layout cambiato o offerta "
-"diversa)."
+"Le pagine si aprono, ma il prezzo non si legge più (layout cambiato o "
+"offerta diversa)."
 
 #: src/price_tracker/core/alert.py:63
 msgid "Reactivate to run a fresh check right now."
@@ -1923,8 +1935,12 @@ msgid "These pages answer HTTP 404/410: the store took them off the catalog."
 msgstr "Le pagine rispondono HTTP 404/410: lo store li ha tolti dal catalogo."
 
 #: src/price_tracker/core/alert.py:71
-msgid "Deleting keeps your list clean. Reactivate only if the store restores them."
-msgstr "Eliminarli tiene pulita la lista. Riattivali solo se lo store li rimette in vendita."
+msgid ""
+"Deleting keeps your list clean. Reactivate only if the store restores "
+"them."
+msgstr ""
+"Eliminarli tiene pulita la lista. Riattivali solo se lo store li rimette "
+"in vendita."
 
 #: src/price_tracker/core/alert.py:80 src/price_tracker/core/alert.py:86
 #, python-brace-format
@@ -1951,7 +1967,9 @@ msgstr "Il sito rifiuta i controlli automatici (anti-bot)."
 
 #: src/price_tracker/core/alert.py:94
 msgid "Domain quarantine already paces retries. Reactivate once it clears."
-msgstr "La quarantena del dominio gestisce già i tentativi. Riattiva quando si sblocca."
+msgstr ""
+"La quarantena del dominio gestisce già i tentativi. Riattiva quando si "
+"sblocca."
 
 #: src/price_tracker/core/alert.py:99
 #, python-brace-format
@@ -2018,11 +2036,11 @@ msgstr "Controlli in errore su {domain}"
 #: src/price_tracker/core/alert.py:214
 #, python-brace-format
 msgid ""
-"{n} products failed {count}/{max} checks in a row. If it keeps failing they will be "
-"suspended automatically."
+"{n} products failed {count}/{max} checks in a row. If it keeps failing "
+"they will be suspended automatically."
 msgstr ""
-"{n} prodotti hanno fallito {count}/{max} controlli di fila. Se continua, verranno "
-"sospesi automaticamente."
+"{n} prodotti hanno fallito {count}/{max} controlli di fila. Se continua, "
+"verranno sospesi automaticamente."
 
 #: src/price_tracker/core/alert.py:226
 msgid "Details with /errors."
@@ -2108,16 +2126,16 @@ msgid ""
 "🔒 <b>Site auto-paused</b>\n"
 "\n"
 "<b>{domain}</b> failed too many checks ({reason}).\n"
-"I am suspending checks on this site for a while rather than hammering against a "
-"block.{until}\n"
+"I am suspending checks on this site for a while rather than hammering "
+"against a block.{until}\n"
 "\n"
 "Details with /errors."
 msgstr ""
 "🔒 <b>Sito in pausa automatica</b>\n"
 "\n"
 "<b>{domain}</b> ha fallito troppi controlli ({reason}).\n"
-"Sospendo temporaneamente i check su questo sito per non insistere contro un "
-"blocco.{until}\n"
+"Sospendo temporaneamente i check su questo sito per non insistere contro "
+"un blocco.{until}\n"
 "\n"
 "Dettagli con /errori."
 
@@ -2231,22 +2249,26 @@ msgstr "Usa /reactivate o /errori per i dettagli."
 #~ msgid "These pages answer HTTP 404/410: the store took them off the catalog."
 #~ msgstr "Le pagine rispondono HTTP 404/410: lo store li ha tolti dal catalogo."
 
-#~ msgid "Deleting keeps your list clean. Reactivate only if the store restores them."
+#~ msgid ""
+#~ "Deleting keeps your list clean. "
+#~ "Reactivate only if the store restores"
+#~ " them."
 #~ msgstr ""
-#~ "Eliminarli tiene pulita la lista. Riattivali "
-#~ "solo se lo store li rimette in vendita."
+#~ "Eliminarli tiene pulita la lista. "
+#~ "Riattivali solo se lo store li "
+#~ "rimette in vendita."
 
 #~ msgid "Price unreadable on {domain}"
 #~ msgstr "Prezzo illeggibile su {domain}"
 
 #~ msgid ""
-#~ "The pages load, but the price could not"
-#~ " be read anymore (layout change or a "
-#~ "different offer)."
+#~ "The pages load, but the price "
+#~ "could not be read anymore (layout "
+#~ "change or a different offer)."
 #~ msgstr ""
-#~ "Le pagine si aprono, ma il prezzo non"
-#~ " si legge più (layout cambiato o offerta"
-#~ " diversa)."
+#~ "Le pagine si aprono, ma il prezzo"
+#~ " non si legge più (layout cambiato"
+#~ " o offerta diversa)."
 
 #~ msgid "Reactivate to run a fresh check right now."
 #~ msgstr "Riattiva per fare subito un nuovo controllo."
@@ -2264,7 +2286,10 @@ msgstr "Usa /reactivate o /errori per i dettagli."
 #~ msgstr "Il sito rifiuta i controlli automatici (anti-bot)."
 
 #~ msgid "Domain quarantine already paces retries. Reactivate once it clears."
-#~ msgstr "La quarantena del dominio gestisce già i tentativi. Riattiva quando si sblocca."
+#~ msgstr ""
+#~ "La quarantena del dominio gestisce già"
+#~ " i tentativi. Riattiva quando si "
+#~ "sblocca."
 
 #~ msgid "Tracking suspended on {domain}"
 #~ msgstr "Tracking sospeso su {domain}"

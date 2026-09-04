@@ -40,6 +40,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- The edit panel can be dismissed. It opens as a new message rather than replacing the
+  one you tapped, so until now it could only be scrolled past; it carries a close button
+  like the listing does.
 - `/list` is now a single message instead of one per product. It shows an index of
   every tracked product with the selected one's full card below, pages with buttons or
   by typing the index number, and closes with a button — twelve products used to mean

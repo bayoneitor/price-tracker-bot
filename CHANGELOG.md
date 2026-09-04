@@ -20,6 +20,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `LISTING_GONE_CONFIRMATIONS` environment variable.
 - Suspension provenance: an automatic suspension is now distinguishable from a manual
   pause, so bulk actions never sweep up a product a user paused on purpose.
+- A command menu behind Telegram's Menu button: the commands are now published on
+  startup with descriptions, so they can be tapped from the chat instead of typed and
+  remembered. Descriptions follow the client's language, and admin commands are scoped
+  to admins' own chats rather than shown to everyone.
+- `/import` as an English alias for `/importa`, so the menu has no Italian entry.
+- Spanish (`es_ES`) joins English and Italian as a shipped locale.
 
 ### Changed
 
@@ -32,12 +38,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Queued digest entries survive the deletion of the product that generated them.
 - The old `Tracking suspended` message has been replaced by the reason-aware operational
   notice described above.
-- A command menu behind Telegram's Menu button: the commands are now published on
-  startup with descriptions, so they can be tapped from the chat instead of typed and
-  remembered. Descriptions follow the client's language, and admin commands are scoped
-  to admins' own chats rather than shown to everyone.
-- `/import` as an English alias for `/importa`, so the menu has no Italian entry.
-- Spanish (`es_ES`) joins English and Italian as a shipped locale.
 - The whole interface is now translatable. The bot began as an Italian project and the
   i18n pass only covered part of it, so 206 Italian literals never reached gettext and
   17 catalog msgids were themselves Italian — `LOCALE=en` still produced a largely
@@ -57,9 +57,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   literal percent in prose ("-10% since tracking") as a printf template and then refuses
   any translation whose following word starts with a different letter. Compilation now
   goes through the Babel API instead.
-
-### Fixed
-
 - **MediaMarkt products no longer track.** Their pages moved the JSON-LD `Product`
   inside a `BuyAction` and dropped the DOM wrapper the price fallback selected, so
   every MediaMarkt product reported "Price not found in page" while still resolving

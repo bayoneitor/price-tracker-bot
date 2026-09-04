@@ -12,6 +12,7 @@ import httpx  # noqa: F401  — kept for future direct use; build_client returns
 import structlog
 from telegram.ext import Application, ContextTypes
 
+from price_tracker.bot.commands import publish_command_menu
 from price_tracker.bot.handlers import register_handlers
 from price_tracker.config import Config, parse_bind
 from price_tracker.core.health import HealthManager
@@ -64,6 +65,14 @@ async def post_init(application: Application[Any, Any, Any, Any, Any, Any]) -> N
         await repo.ensure_user(user_id=uid, is_admin=True)
 
     application.bot_data["http_client"] = build_client(timeout=float(config.request_timeout))
+
+    # Publish the command menu (Telegram's Menu button). Best-effort and
+    # non-blocking for startup: see bot.commands.publish_command_menu.
+    await publish_command_menu(
+        application.bot,
+        admin_ids=config.admin_users,
+        default_language=config.lang,
+    )
 
     # Wire DigestService so /digest_now and other digest-driven flows can
     # reach it via context.bot_data.

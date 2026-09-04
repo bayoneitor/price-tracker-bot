@@ -39,7 +39,7 @@ Self-hosted Telegram bot for multi-site price tracking with auto-quarantine, str
 - Prometheus exporter on `127.0.0.1:9090` + structured JSON logging via structlog
 - Grafana dashboard with 14 panels (latency, block rate, quarantine map, alerts, currency)
 - Plugin extension point at `plugins/` for custom scrapers
-- Bilingual UI (English + Italian) with auto-detect from Telegram `language_code`
+- Trilingual UI (English + Italian + Spanish) with auto-detect from Telegram `language_code`
 - Hardened Docker deploy: non-root, read-only root fs, dropped capabilities, no-new-privileges, resource limits
 
 ## Quick start
@@ -79,6 +79,10 @@ See [docs/operations.md](docs/operations.md) for full operational reference.
 Every command has an English name and, where it existed first, an Italian alias — both
 are registered, so `/list` and `/lista` are the same command.
 
+Telegram's **Menu button** (bottom-left of the chat) lists the commands with a
+description, so they can be tapped instead of typed. The list is published on startup
+and follows the client's language; admin commands appear only in admins' own chats.
+
 ### Tracking
 - `/start` — register and view the main menu
 - `/menu` — open the inline menu
@@ -109,7 +113,7 @@ are registered, so `/list` and `/lista` are the same command.
 
 ### Data
 - `/export` (`/esporta`) — CSV export of tracked products
-- `/importa` — import products from a CSV file
+- `/import` (`/importa`) — import products from a CSV file
 - `/status` (`/stato`) — bot status and counters
 - `/errors` (`/errori`) — recent per-product read failures with the reason
 
@@ -135,7 +139,7 @@ Drop a custom scraper file in `plugins/<name>.py` (gitignored except `README.md`
 
 ## Localization
 
-Two locales shipped: `en` (source language) and `it` (Italian translation). Runtime selection auto-detects from Telegram `language_code`, falls back to the `LOCALE` environment variable, then to `en`. To add a translation, see [docs/i18n.md](docs/i18n.md).
+Three locales shipped: `en` (source language), `it_IT` and `es_ES`. Runtime selection auto-detects from Telegram `language_code`, falls back to the `LOCALE` environment variable, then to `en`. `LOCALE` is the fallback for clients whose language has no catalog — a supported client language always wins over it. To add a translation, see [docs/i18n.md](docs/i18n.md).
 
 ## Project structure
 

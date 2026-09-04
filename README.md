@@ -79,6 +79,10 @@ See [docs/operations.md](docs/operations.md) for full operational reference.
 Every command has an English name and, where it existed first, an Italian alias — both
 are registered, so `/list` and `/lista` are the same command.
 
+Telegram's **Menu button** (bottom-left of the chat) lists the commands with a
+description, so they can be tapped instead of typed. The list is published on startup
+and follows the client's language; admin commands appear only in admins' own chats.
+
 ### Tracking
 - `/start` — register and view the main menu
 - `/menu` — open the inline menu
@@ -109,7 +113,7 @@ are registered, so `/list` and `/lista` are the same command.
 
 ### Data
 - `/export` (`/esporta`) — CSV export of tracked products
-- `/importa` — import products from a CSV file
+- `/import` (`/importa`) — import products from a CSV file
 - `/status` (`/stato`) — bot status and counters
 - `/errors` (`/errori`) — recent per-product read failures with the reason
 

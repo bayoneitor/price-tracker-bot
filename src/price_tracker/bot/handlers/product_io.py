@@ -200,3 +200,4 @@ def register(app: Application) -> None:
     app.add_handler(CommandHandler("export", cmd_export))
     app.add_handler(MessageHandler(filters.Document.FileExtension("csv"), cmd_import))
     app.add_handler(CommandHandler("importa", cmd_import))
+    app.add_handler(CommandHandler("import", cmd_import))

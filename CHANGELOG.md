@@ -32,6 +32,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Queued digest entries survive the deletion of the product that generated them.
 - The old `Tracking suspended` message has been replaced by the reason-aware operational
   notice described above.
+- A command menu behind Telegram's Menu button: the commands are now published on
+  startup with descriptions, so they can be tapped from the chat instead of typed and
+  remembered. Descriptions follow the client's language, and admin commands are scoped
+  to admins' own chats rather than shown to everyone.
+- `/import` as an English alias for `/importa`, so the menu has no Italian entry.
 - Spanish (`es_ES`) joins English and Italian as a shipped locale.
 - The whole interface is now translatable. The bot began as an Italian project and the
   i18n pass only covered part of it, so 206 Italian literals never reached gettext and

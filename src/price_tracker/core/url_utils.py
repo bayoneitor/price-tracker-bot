@@ -86,3 +86,19 @@ def extract_etld_plus_one(url: str) -> str:
     if not parts.suffix or not parts.domain:
         return ""
     return f"{parts.domain}.{parts.suffix}"
+
+
+def store_label(*, url: str = "", domain: str = "") -> str:
+    """Return a short, human-readable store name for a tracked product.
+
+    Prefers the stored ``domain`` column and falls back to deriving it from the
+    URL, so rows written before the column existed still render. The result is
+    the registrable domain (``mediamarkt.es``) rather than the full host: it is
+    what a reader recognises as "the shop", and it stays stable across a site's
+    regional subdomains. Returns an empty string when neither input yields one,
+    so callers can omit the line rather than print a placeholder.
+    """
+    candidate = (domain or "").strip()
+    if not candidate:
+        candidate = extract_etld_plus_one(url)
+    return candidate.removeprefix("www.")

@@ -25,6 +25,7 @@ from price_tracker.bot.handlers._helpers import (
     _safe_dec,
 )
 from price_tracker.bot.messages import _
+from price_tracker.core.url_utils import store_label
 
 logger = logging.getLogger(__name__)
 
@@ -161,6 +162,9 @@ async def cmd_history(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         lowest = _safe_dec(product.get("lowest_price"))
         highest = _safe_dec(product.get("highest_price"))
         caption = f"📊 <b>#{product_id}</b> {_escape_html(name)}"
+        store = store_label(url=product.get("url", ""), domain=product.get("domain", ""))
+        if store:
+            caption += _("\n🌐 Store: {store}").format(store=_escape_html(store))
         if lowest:
             caption += _("\n📉 Min: €{price:.2f}").format(price=lowest)
         if highest:

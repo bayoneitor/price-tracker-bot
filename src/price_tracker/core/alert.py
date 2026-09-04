@@ -24,6 +24,7 @@ from price_tracker.core.textlimits import (
     WHY_BUDGET,
     truncate_visible,
 )
+from price_tracker.core.url_utils import store_label
 
 ThresholdType = Literal["percentage", "absolute", "target", "any_drop"]
 
@@ -283,33 +284,53 @@ def crosses_threshold(
     return False
 
 
+def _product_link(url: str, *, domain: str = "") -> str:
+    """Render the product URL as a link labelled with the store it points at.
+
+    The store name is the useful half of a tracked URL — an alert arrives with
+    no context, and the raw link is often a wall of tracking parameters. Falls
+    back to a generic label when the domain cannot be derived.
+    """
+    label = store_label(url=url, domain=domain) or _("View product")
+    return f'<a href="{_escape_html(url)}">🌐 {_escape_html(label)}</a>'
+
+
 def format_alert(alert: PriceAlert) -> str:
     """Format a price-drop alert as Telegram HTML."""
     sym = _currency_symbol(alert.currency)
     name = _escape_html(alert.product_name)
-    url = _escape_html(alert.url)
     old = alert.old_price
     new = alert.new_price
     drop = old - new
     drop_pct = (drop / old * 100) if old > 0 else Decimal("0")
 
-    return (
-        f"📉 <b>Price drop!</b>\n\n"
-        f"<b>{name}</b>\n"
-        f'<a href="{url}">View product</a>\n\n'
-        f"Was: <s>{old} {sym}</s>\n"
-        f"Now: <b>{new} {sym}</b>\n"
-        f"Drop: -{drop} {sym} ({drop_pct:.1f}%)"
+    return _(
+        "📉 <b>Price drop!</b>\n\n"
+        "<b>{name}</b>\n"
+        "{link}\n\n"
+        "Was: <s>{old} {sym}</s>\n"
+        "Now: <b>{new} {sym}</b>\n"
+        "Drop: -{drop} {sym} ({pct:.1f}%)"
+    ).format(
+        name=name,
+        link=_product_link(alert.url),
+        old=old,
+        new=new,
+        drop=drop,
+        sym=sym,
+        pct=drop_pct,
     )
 
 
 def format_back_in_stock(*, product_name: str, url: str, price: Decimal, currency: str) -> str:
     """Announce that a previously sold-out listing is purchasable again."""
-    return (
-        f"📦 <b>Back in stock!</b>\n\n"
-        f"<b>{_escape_html(product_name)}</b>\n"
-        f'<a href="{_escape_html(url)}">View product</a>\n\n'
-        f"Price: <b>{price} {_currency_symbol(currency)}</b>"
+    return _(
+        "📦 <b>Back in stock!</b>\n\n<b>{name}</b>\n{link}\n\nPrice: <b>{price} {sym}</b>"
+    ).format(
+        name=_escape_html(product_name),
+        link=_product_link(url),
+        price=price,
+        sym=_currency_symbol(currency),
     )
 
 
@@ -322,12 +343,11 @@ def format_error_notification(
 ) -> str:
     """Format an alert for a product that has hit max consecutive errors."""
     name = _escape_html(product.get("name") or product.get("url", "?"))
-    return (
-        f"⚠️ <b>Tracking suspended</b>\n\n"
-        f"<b>{name}</b>\n"
-        f"Failed {error_count}/{max_errors} consecutive checks. "
-        f"Use /reactivate to retry."
-    )
+    return _(
+        "⚠️ <b>Tracking suspended</b>\n\n"
+        "<b>{name}</b>\n"
+        "Failed {count}/{max} consecutive checks. Use /reactivate to retry."
+    ).format(name=name, count=error_count, max=max_errors)
 
 
 def format_quarantine_notification(

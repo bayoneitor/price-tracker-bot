@@ -37,6 +37,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   price-drop alert, `/list`, the check button and the history chart. A tracked URL is
   often a wall of tracking parameters, and an alert arrives with no context, so the
   shop is the part worth reading.
+
+### Changed
+
+- `/list` is now a single message instead of one per product. It shows an index of
+  every tracked product with the selected one's full card below, pages with buttons or
+  by typing the index number, and closes with a button — twelve products used to mean
+  thirteen messages that buried the chat and could not be dismissed.
 - The whole interface is now translatable. The bot began as an Italian project and the
   i18n pass only covered part of it, so 206 Italian literals never reached gettext and
   17 catalog msgids were themselves Italian — `LOCALE=en` still produced a largely

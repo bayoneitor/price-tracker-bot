@@ -14,6 +14,7 @@ Last updated: 2026-09-04.
 | [#29](https://github.com/bernalli/price-tracker-bot/pull/29) — `fix(scrapers): restore MediaMarkt price extraction` | `fix/mediamarkt-price-extraction` | Open, awaiting review | 7 files, +408/−28 |
 | [#30](https://github.com/bernalli/price-tracker-bot/pull/30) — `fix(i18n): make every user-facing string translatable, add Spanish` | `fix/i18n-english-msgids-and-spanish` | Open, awaiting review | 50 files, +6562/−1066 |
 | — Telegram command menu | `feat/telegram-command-menu` | **Not submitted yet**, waiting on #30 | 12 files, +1131/−412 |
+| — Store name on product views | `feat/store-name-in-product-views` | **Not submitted yet**, waiting on #30 | 11 files, +560/−80 |
 
 ### CI on #29 and #30
 
@@ -25,16 +26,22 @@ workflows"** button appears on the PR page until then.
 The same workflow also runs on `push` to any branch, so it does execute in this
 fork: https://github.com/bayoneitor/price-tracker-bot/actions
 
-### Why the command menu is not submitted
+### Why the last two are not submitted
 
-`feat/telegram-command-menu` is branched off `fix/i18n-english-msgids-and-spanish`,
-not off `main`. It needs that branch: the menu publishes one command list per
-locale via `language_code`, and the Spanish catalog only exists there.
+Both are branched off `fix/i18n-english-msgids-and-spanish` rather than `main`,
+and both need it: the menu publishes one command list per locale via
+`language_code`, and the store change translates the alerts — neither works
+without the catalogs that branch adds.
 
-Opening it now would produce a pull request carrying both commits (62 files),
-which makes review harder for no benefit. Open it once #30 is merged, against
-an updated `main`, and the diff drops to the 12 files that are actually about
-the menu.
+Opening either now would produce a pull request carrying #30's commit as well,
+which makes review harder for no benefit. Open them once #30 is merged, against
+an updated `main`; the diffs then drop to the files that are actually theirs.
+They are siblings, not stacked on each other, so they can go in either order.
+
+Their catalog changes conflict with each other by construction — both add
+msgids to the same `.po` files. Do not hand-merge those: take one side, re-run
+`./scripts/i18n.sh extract && ./scripts/i18n.sh update`, then translate whatever
+comes back empty. That is how the conflict was resolved on this branch.
 
 ## What each change does
 
@@ -82,6 +89,19 @@ one list per locale, and admin commands scoped to admins' own chats.
 
 Adds `/import` as an English alias for `/importa`, which had none.
 
+### Store name on product views
+
+The shop a product comes from was only shown once, when the product was added.
+It now appears on the price-drop alert, `/list`, the check button and the
+history chart. In the alert it replaces the generic "View product" link text,
+so the link reads as the store and stays clickable; the href is still the exact
+URL submitted.
+
+Also fixes a gap the i18n sweep missed: `format_alert`, `format_back_in_stock`
+and `format_error_notification` were plain English literals that never went
+through gettext, so the bot's most visible message stayed English for every
+reader. That sweep looked for Italian text and these were already English.
+
 ## Testing all three together
 
 This `integration` branch merges all three. It exists so the whole set can be
@@ -90,7 +110,7 @@ run before upstream has merged anything; it is never pushed to a pull request.
 ```bash
 git switch integration
 python -m venv .venv && .venv/bin/pip install -e ".[dev]"
-.venv/bin/python -m pytest -q          # 923 tests
+.venv/bin/python -m pytest -q          # 937 tests
 .venv/bin/ruff check . && .venv/bin/mypy --strict src/price_tracker tests
 ./scripts/audit_english.sh
 ```
@@ -108,6 +128,8 @@ Things worth checking by hand once it is running:
   set to, and admin commands appear only for admin accounts.
 - A MediaMarkt product tracks and reports a price
   (verified against SKU 1667552 at 259 EUR).
+- `/list` and the price-drop alert name the store the product comes from, and the
+  alert's link is labelled with it instead of "View product".
 - With `LOCALE=en` and a Spanish or English client, no Italian text appears
   anywhere — the admin menus were the worst offenders.
 

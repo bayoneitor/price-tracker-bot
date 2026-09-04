@@ -15,12 +15,12 @@ from telegram.error import BadRequest
 
 from price_tracker.bot.handlers.callbacks._list import handle_list_navigation
 from price_tracker.bot.handlers.product_list import (
-    LIST_CLOSE,
     LIST_GOTO_PREFIX,
     MAX_JUMP_BUTTONS,
     build_list_view,
     cmd_list,
 )
+from price_tracker.bot.keyboards import CLOSE_CALLBACK
 
 
 def _product(pid: int, name: str = "Widget") -> dict[str, Any]:
@@ -53,7 +53,7 @@ def test_view_is_one_message_with_index_and_current_card() -> None:
     assert "<b>▸ 2. Widget 2</b>" in text
     assert "<b>#2</b>" in text
     assert "🌐 Store: mediamarkt.es" in text
-    assert LIST_CLOSE in _button_data(markup)
+    assert CLOSE_CALLBACK in _button_data(markup)
 
 
 def test_paging_wraps_at_both_ends() -> None:
@@ -76,7 +76,7 @@ def test_index_is_clamped_not_raised() -> None:
 def test_empty_listing_still_offers_close() -> None:
     text, markup = build_list_view([], 0)
     assert "no tracked products" in text
-    assert _button_data(markup) == [LIST_CLOSE]
+    assert _button_data(markup) == [CLOSE_CALLBACK]
 
 
 def test_single_product_has_no_pager() -> None:
@@ -167,15 +167,32 @@ async def test_navigation_rejects_tampered_index() -> None:
 
 
 @pytest.mark.asyncio
-async def test_close_deletes_the_message() -> None:
-    query = MagicMock(message=MagicMock(delete=AsyncMock()))
+async def test_close_deletes_the_message_and_forgets_the_listing() -> None:
+    query = MagicMock(message=MagicMock(message_id=555, delete=AsyncMock()))
     context = MagicMock(user_data={"list_message_id": 555})
 
-    handled = await handle_list_navigation(query, context, AsyncMock(), 7, LIST_CLOSE)
+    handled = await handle_list_navigation(query, context, AsyncMock(), 7, CLOSE_CALLBACK)
 
     assert handled is True
     query.message.delete.assert_awaited_once()
     assert "list_message_id" not in context.user_data
+
+
+@pytest.mark.asyncio
+async def test_closing_another_panel_keeps_the_listing_reference() -> None:
+    """The same button closes the edit panel; that must not orphan an open listing.
+
+    Otherwise dismissing the edit panel would stop a typed index number from
+    steering the listing still on screen above it.
+    """
+    query = MagicMock(message=MagicMock(message_id=999, delete=AsyncMock()))
+    context = MagicMock(user_data={"list_message_id": 555})
+
+    handled = await handle_list_navigation(query, context, AsyncMock(), 7, CLOSE_CALLBACK)
+
+    assert handled is True
+    query.message.delete.assert_awaited_once()
+    assert context.user_data["list_message_id"] == 555
 
 
 @pytest.mark.asyncio
@@ -187,7 +204,7 @@ async def test_close_collapses_when_the_message_is_too_old_to_delete() -> None:
     )
 
     handled = await handle_list_navigation(
-        query, MagicMock(user_data={}), AsyncMock(), 7, LIST_CLOSE
+        query, MagicMock(user_data={}), AsyncMock(), 7, CLOSE_CALLBACK
     )
 
     assert handled is True
@@ -296,3 +313,25 @@ async def test_a_stale_listing_reference_is_dropped() -> None:
     await handle_text_input(_text_update("2"), context)
 
     assert "list_message_id" not in context.user_data
+
+
+# ── The edit panel must be dismissable too ───────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_edit_panel_offers_a_close_button() -> None:
+    """It opens as a new message, so without this it could only be scrolled past."""
+    from price_tracker.bot.handlers.callbacks._actions import handle_edit_button
+
+    query = MagicMock(message=MagicMock(reply_text=AsyncMock()), edit_message_text=AsyncMock())
+    db = AsyncMock()
+    context = MagicMock()
+    context.bot_data = {"db": db}
+    db.is_user_admin = AsyncMock(return_value=False)
+    db.get_product_for_user = AsyncMock(return_value=_product(3))
+
+    handled = await handle_edit_button(query, context, db, 7, "edit_3")
+
+    assert handled is True
+    markup = query.message.reply_text.await_args.kwargs["reply_markup"]
+    assert CLOSE_CALLBACK in _button_data(markup)

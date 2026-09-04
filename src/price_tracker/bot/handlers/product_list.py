@@ -27,6 +27,7 @@ from price_tracker.bot.handlers._helpers import (
     _format_threshold,
     _safe_dec,
 )
+from price_tracker.bot.keyboards import close_button
 from price_tracker.bot.messages import _
 from price_tracker.core.textlimits import truncate_visible
 from price_tracker.core.url_utils import store_label
@@ -36,9 +37,8 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-# Callback prefixes owned by this view.
+# Callback prefix owned by this view. Closing is the shared CLOSE_CALLBACK.
 LIST_GOTO_PREFIX = "list_go_"
-LIST_CLOSE = "list_close"
 
 # user_data key holding the open listing's message id, so a plain number typed
 # in the chat can jump the listing instead of being ignored.
@@ -163,7 +163,7 @@ def build_list_view(
     if not products:
         return (
             _("📭 You have no tracked products.\nPaste me a link to get started!"),
-            InlineKeyboardMarkup([[InlineKeyboardButton(_("✖ Close"), callback_data=LIST_CLOSE)]]),
+            InlineKeyboardMarkup([[close_button()]]),
         )
 
     current = max(0, min(index, len(products) - 1))
@@ -222,7 +222,7 @@ def build_list_view(
     if url:
         action_row.insert(0, InlineKeyboardButton(_("🔗 Open"), url=url))
     rows.append(action_row)
-    rows.append([InlineKeyboardButton(_("✖ Close"), callback_data=LIST_CLOSE)])
+    rows.append([close_button()])
 
     return text, InlineKeyboardMarkup(rows)
 

@@ -1,8 +1,11 @@
-"""Callbacks for the paginated `/list` view: page, jump, close.
+"""Callbacks for the paginated `/list` view, plus the shared close button.
 
 The view carries no server-side state — the selected index travels in the
 callback data — so a listing keeps working after a restart, and two devices
 looking at the same listing never fight over a cursor.
+
+`CLOSE_CALLBACK` is handled here rather than per view: closing means deleting
+whichever message carries the button, which is the same work everywhere.
 """
 
 from __future__ import annotations
@@ -15,11 +18,11 @@ from telegram.error import BadRequest
 
 from price_tracker.bot.handlers._helpers import _parse_id
 from price_tracker.bot.handlers.product_list import (
-    LIST_CLOSE,
     LIST_GOTO_PREFIX,
     LIST_MESSAGE_KEY,
     build_list_view,
 )
+from price_tracker.bot.keyboards import CLOSE_CALLBACK
 from price_tracker.bot.messages import _
 
 if TYPE_CHECKING:
@@ -31,11 +34,10 @@ logger = logging.getLogger(__name__)
 async def handle_list_navigation(
     query: Any, context: ContextTypes.DEFAULT_TYPE, db: Any, user_id: int, data: str
 ) -> bool:
-    """Handle `list_go_<n>` and `list_close`. Returns True when handled."""
-    if data == LIST_CLOSE:
+    """Handle `list_go_<n>` and the shared close button. True when handled."""
+    if data == CLOSE_CALLBACK:
         await _close(query)
-        if context.user_data is not None:
-            context.user_data.pop(LIST_MESSAGE_KEY, None)
+        _forget_listing_if_closed(query, context)
         return True
 
     if not data.startswith(LIST_GOTO_PREFIX):
@@ -63,6 +65,19 @@ async def handle_list_navigation(
         if "message is not modified" not in str(exc).lower():
             raise
     return True
+
+
+def _forget_listing_if_closed(query: Any, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Drop the open-listing reference, but only if it was the listing we closed.
+
+    The same button dismisses other panels; forgetting unconditionally would
+    stop a typed index number from steering a listing that is still on screen.
+    """
+    if context.user_data is None:
+        return
+    closed_id = getattr(getattr(query, "message", None), "message_id", None)
+    if closed_id is not None and context.user_data.get(LIST_MESSAGE_KEY) == closed_id:
+        context.user_data.pop(LIST_MESSAGE_KEY, None)
 
 
 async def _close(query: Any) -> None:

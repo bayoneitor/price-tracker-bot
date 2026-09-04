@@ -20,6 +20,7 @@ from price_tracker.bot.handlers._helpers import (
     _parse_id,
     _safe_dec,
 )
+from price_tracker.bot.keyboards import close_button
 from price_tracker.bot.messages import _
 
 if TYPE_CHECKING:
@@ -68,6 +69,9 @@ async def handle_edit_button(
         edit_buttons.append(
             [InlineKeyboardButton(_("🔄 Reset base price"), callback_data=f"reset_{product_id}")]
         )
+    # This panel is a new message rather than an edit of the caller's, so
+    # without this it could only be scrolled past, never dismissed.
+    edit_buttons.append([close_button()])
 
     await query.message.reply_text(
         _(

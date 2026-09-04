@@ -9,6 +9,15 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 
 from price_tracker.bot.messages import _
 
+# Any view that can be dismissed uses this one callback; the handler deletes
+# whichever message carries the button, so it needs no per-view variants.
+CLOSE_CALLBACK = "close_view"
+
+
+def close_button() -> InlineKeyboardButton:
+    """The '✖ Close' button, built under the caller's locale."""
+    return InlineKeyboardButton(_("✖ Close"), callback_data=CLOSE_CALLBACK)
+
 
 def build_threshold_keyboard(product_id: int) -> InlineKeyboardMarkup:
     """Build the standard threshold/notification choice keyboard."""

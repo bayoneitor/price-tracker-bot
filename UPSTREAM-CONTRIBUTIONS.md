@@ -16,6 +16,7 @@ Last updated: 2026-09-04.
 | — Telegram command menu | `feat/telegram-command-menu` | **Not submitted yet**, waiting on #30 | 12 files, +1131/−412 |
 | — Store name on product views | `feat/store-name-in-product-views` | **Not submitted yet**, waiting on #30 | 11 files, +560/−80 |
 | — Paginated `/list` | `feat/paginated-product-list` | **Not submitted yet**, waiting on #30 and the store branch | 10 files, +700/−140 |
+| — Closable edit panel | `fix/closable-edit-panel` | **Not submitted yet**, stacked on the `/list` branch | 6 files, +90/−20 |
 
 ### CI on #29 and #30
 
@@ -119,6 +120,14 @@ listing survives a restart. Every navigation re-reads the products and clamps
 the index, so a stale button from a listing whose products were since deleted
 lands somewhere valid.
 
+### Closable edit panel
+
+Tapping ✏️ Edit opens a *new* message instead of replacing the one it came
+from, and it had no way out — no close button, nothing to edit it away. Closing
+is now a shared mechanism (`CLOSE_CALLBACK` in `bot.keyboards`) that deletes
+whichever message carries the button, used by both the listing and the edit
+panel.
+
 ## Testing all three together
 
 This `integration` branch merges all three. It exists so the whole set can be
@@ -127,7 +136,7 @@ run before upstream has merged anything; it is never pushed to a pull request.
 ```bash
 git switch integration
 python -m venv .venv && .venv/bin/pip install -e ".[dev]"
-.venv/bin/python -m pytest -q          # 956 tests
+.venv/bin/python -m pytest -q          # 958 tests
 .venv/bin/ruff check . && .venv/bin/mypy --strict src/price_tracker tests
 ./scripts/audit_english.sh
 ```
@@ -149,6 +158,8 @@ Things worth checking by hand once it is running:
   alert's link is labelled with it instead of "View product".
 - `/list` is one message: paging with the arrows and the numbered buttons, jumping by
   typing an index number, and closing it removes the message from the chat.
+- The ✏️ Edit panel closes too, and doing so does not stop a typed number from steering
+  a listing still open above it.
 - With `LOCALE=en` and a Spanish or English client, no Italian text appears
   anywhere — the admin menus were the worst offenders.
 

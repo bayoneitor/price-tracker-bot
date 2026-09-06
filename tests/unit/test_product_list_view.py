@@ -23,6 +23,7 @@ from price_tracker.bot.handlers.product_list import (
 )
 from price_tracker.bot.keyboards import CLOSE_CALLBACK
 from price_tracker.bot.navigation import PendingInput
+from price_tracker.core.textlimits import SAFE_LIMIT
 
 
 def _product(pid: int, name: str = "Widget") -> dict[str, Any]:
@@ -344,3 +345,37 @@ async def test_edit_panel_replaces_the_listing_and_can_be_dismissed() -> None:
     query.message.reply_text.assert_not_called()
     markup = query.edit_message_text.await_args.kwargs["reply_markup"]
     assert CLOSE_CALLBACK in _button_data(markup)
+
+
+# ── Names are shown whole, unless that would cost the send ───────────────
+
+
+def _long(pid: int, name: str) -> dict[str, Any]:
+    return {**_product(pid), "name": name, "domain": "amazon.es"}
+
+
+def test_a_name_is_shown_whole() -> None:
+    full = 'LG UltraGear 27GP850-B 27" QHD 180Hz Nano IPS'
+    text, _markup = build_list_view([_long(1, full)], 0)
+
+    assert f"{full} · amazon.es" in text
+    assert "…" not in text
+
+
+def test_an_index_that_would_overflow_the_message_is_abbreviated() -> None:
+    """Telegram rejects a message over 4096 characters outright, which is worse
+    than an abbreviated index — so the whole listing is never lost to one title."""
+    titles = [_long(i, "Monitor Gaming Curvo Ultrapanorámico QHD 165Hz " * 5) for i in range(1, 21)]
+
+    text, _markup = build_list_view(titles, 0)
+
+    assert len(text) <= SAFE_LIMIT
+    assert "…" in text
+
+
+def test_the_shop_survives_the_abbreviation() -> None:
+    titles = [_long(i, "Monitor Gaming Curvo Ultrapanorámico QHD 165Hz " * 5) for i in range(1, 21)]
+
+    text, _markup = build_list_view(titles, 0)
+
+    assert text.count("· amazon.es") >= 20

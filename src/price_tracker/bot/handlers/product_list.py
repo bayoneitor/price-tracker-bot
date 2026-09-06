@@ -33,6 +33,7 @@ from price_tracker.bot.keyboards import close_button, nav_row
 from price_tracker.bot.labels import product_label
 from price_tracker.bot.messages import _
 from price_tracker.bot.navigation import push_nav
+from price_tracker.core.textlimits import SAFE_LIMIT
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -48,9 +49,11 @@ LIST_GOTO_PREFIX = "list_go_"
 # in the chat can jump the listing instead of being ignored.
 LIST_MESSAGE_KEY = "list_message_id"
 
-# Index-line budget. Telegram's hard cap is 4096 characters for the whole
-# message; the index shares that with the product card and must not crowd it
-# out, so long lists are elided rather than truncating the card.
+# Names are shown whole. Telegram's hard cap is 4096 characters for the whole
+# message, which twenty ordinary names come nowhere near — but a listing of
+# Amazon titles can, so `_fits` re-renders the index under this budget rather
+# than letting the send fail. Long lists are elided rather than truncating the
+# card.
 INDEX_NAME_BUDGET = 38
 MAX_INDEX_ROWS = 20
 # Direct-jump buttons, 5 per row. Beyond this a window around the current
@@ -59,12 +62,14 @@ JUMP_BUTTONS_PER_ROW = 5
 MAX_JUMP_BUTTONS = 10
 
 
-def _index_block(products: Sequence[dict[str, Any]], current: int) -> list[str]:
+def _index_block(
+    products: Sequence[dict[str, Any]], current: int, *, budget: int | None = None
+) -> list[str]:
     """The 'all your products' index, with the selected row marked."""
     lines: list[str] = []
     shown = products[:MAX_INDEX_ROWS]
     for position, product in enumerate(shown):
-        row = f"{position + 1}. {_escape_html(product_label(product, INDEX_NAME_BUDGET))}"
+        row = f"{position + 1}. {_escape_html(product_label(product, budget))}"
         lines.append(f"<b>▸ {row}</b>" if position == current else f"   {row}")
     hidden = len(products) - len(shown)
     if hidden > 0:
@@ -87,7 +92,7 @@ def _product_card(product: dict[str, Any]) -> list[str]:
 
     # The shop is part of the name now, so it is not repeated as a field.
     lines = [
-        f"<b>#{pid}</b> {_escape_html(product_label(product, 60))}",
+        f"<b>#{pid}</b> {_escape_html(product_label(product))}",
         f"💰 {price_str}",
     ]
 
@@ -179,16 +184,23 @@ def build_list_view(
     current = max(0, min(index, len(products) - 1))
     product = products[current]
 
-    text = "\n".join(
-        [
-            _("<b>📦 Your products ({count})</b>").format(count=len(products)),
-            "",
-            *_index_block(products, current),
-            "",
-            "───────────────",
-            *_product_card(product),
-        ]
-    )
+    def render(budget: int | None) -> str:
+        return "\n".join(
+            [
+                _("<b>📦 Your products ({count})</b>").format(count=len(products)),
+                "",
+                *_index_block(products, current, budget=budget),
+                "",
+                "───────────────",
+                *_product_card(product),
+            ]
+        )
+
+    # Whole names unless they would cost the send: a message over the limit is
+    # rejected outright, which is worse than an abbreviated index.
+    text = render(None)
+    if len(text) > SAFE_LIMIT:
+        text = render(INDEX_NAME_BUDGET)
 
     pid = product["id"]
     rows: list[list[InlineKeyboardButton]] = []

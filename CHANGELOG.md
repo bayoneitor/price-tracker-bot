@@ -65,9 +65,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   re-sent rather than restored.)
 - Every product picker and every result screen now ends with a navigation row.
 - A product is named `product · shop` everywhere it appears — listing, pickers, menus,
-  comparison table, chart legends. The same product tracked at three shops was three
-  identical rows. Where a line is too short for both, the product name is what gets cut:
-  the shop is the half that tells the rows apart. Views that carried a separate
+  comparison table, group view. The same product tracked at three shops was three
+  identical rows. Names are shown whole; the only place they are not is inside a chart,
+  which labels its series A, B, C and spells them out in the caption. A listing that
+  would exceed Telegram's message limit abbreviates its index rather than failing the
+  send, and there the shop is the half that survives. Views that carried a separate
   "🌐 Store" field no longer repeat it.
 - Naming a new group opens the "add a product" picker straight away instead of returning
   to /groups.

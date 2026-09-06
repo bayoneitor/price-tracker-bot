@@ -185,7 +185,7 @@ async def product_picker(
         buttons.append(
             [
                 InlineKeyboardButton(
-                    f"#{product['id']} {product_label(product, 35)}{price_tag}",
+                    f"#{product['id']} {product_label(product)}{price_tag}",
                     callback_data=f"{callback_prefix}_{product['id']}",
                 )
             ]

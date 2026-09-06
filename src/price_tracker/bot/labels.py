@@ -5,8 +5,11 @@ several shops: three rows reading "LG 27GP850-B" tell you nothing about which is
 which. Every place that names a product uses `product_label`, so the shop is
 always there and always in the same position.
 
-The shop is what survives a tight budget. It is short and it is the part that
-distinguishes otherwise identical rows, so the product name is what gets cut.
+Nothing is cut by default. A budget is passed only where the width is genuinely
+fixed — inside a chart, where a plot is centimetres wide — and there the label is
+not used at all: series get an alias and the names go in the caption. Everywhere
+else the reader gets the whole name, and where a budget *is* given the shop is
+what survives it, being the part that distinguishes otherwise identical rows.
 """
 
 from __future__ import annotations
@@ -14,7 +17,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 from price_tracker.bot.messages import _
-from price_tracker.core.textlimits import NAME_BUDGET, truncate_visible
+from price_tracker.core.textlimits import truncate_visible
 from price_tracker.core.url_utils import store_label
 
 if TYPE_CHECKING:
@@ -25,17 +28,20 @@ if TYPE_CHECKING:
 SEPARATOR = " · "
 
 
-def product_label(product: Mapping[str, Any] | Any, budget: int = NAME_BUDGET) -> str:
-    """``Product name… · shop.com``, cut to `budget` characters.
+def product_label(product: Mapping[str, Any] | Any, budget: int | None = None) -> str:
+    """``Product name · shop.com``, whole unless a `budget` is given.
 
     Falls back to the bare name when the shop is unknown — a row written before
     the domain column existed, or a URL nothing could be derived from.
     """
     name = str(product.get("name") or _("Unknown")).strip()
     shop = store_label(url=product.get("url") or "", domain=product.get("domain") or "")
+    label = f"{name}{SEPARATOR}{shop}" if shop else name
+    if budget is None or len(label) <= budget:
+        return label
+
     if not shop:
         return truncate_visible(name, budget)
-
     tail = f"{SEPARATOR}{shop}"
     if len(tail) >= budget:
         # No room for both: the shop is the more useful half of the pair here,

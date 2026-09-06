@@ -47,7 +47,7 @@ async def handle_edit_button(
         return True
     product_id, product = resolved
 
-    name = product_label(product, 60)
+    name = product_label(product)
     threshold_type = product.get("threshold_type", "percentage")
     threshold_value = product.get("threshold_value", "10")
     threshold_str = _format_threshold(threshold_type, threshold_value)

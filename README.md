@@ -151,7 +151,7 @@ against each other. A group answers that.
 /groups                          → 🏷 Groups (0) — you have none yet
   ➕ New group  →  type: Monitors
                                  → ➕ Monitors — pick a product to add:
-                                     [#3 LG UltraGear 27GP… · mediamarkt.es]
+                                     [#3 LG UltraGear 27GP850-B · mediamarkt.es]
                                      [#7 LG UltraGear 27GP850-B · amazon.es]
 ```
 
@@ -165,18 +165,20 @@ monitor belongs in `Monitors` and in `Christmas gifts` without being tracked twi
 ```
 📊 Comparison
 
-#7 LG UltraGear 27GP850-B · amazon.es — €399.00 (-7.0%)  min €389.00
-#3 LG UltraGear 27GP… · mediamarkt.es — €429.00 (-10.4%)  min €419.00
-#9 LG UltraGear … · pccomponentes.com — €459.00 (+2.2%)  min €449.00
+#7 LG UltraGear 27GP850-B 27" QHD 180Hz Nano IPS · amazon.es — €399.00 (-7.0%)  min €389.00
+#3 LG UltraGear 27GP850-B 27" QHD 180Hz Nano IPS · mediamarkt.es — €429.00 (-10.4%)  min €419.00
+#9 LG UltraGear 27GP850-B 27" QHD 180Hz Nano IPS · pccomponentes.com — €459.00 (+2.2%)  min €449.00
 
-🥇 Cheapest now: LG UltraGear 27GP850-B · amazon.es at €399.00
+🥇 Cheapest now: LG UltraGear 27GP850-B 27" QHD 180Hz Nano IPS · amazon.es at €399.00
 ↔️ Spread: €60.00
 ```
 
-Every product is named `product · shop`, and the shop is the half that survives a tight
-line — it is what tells otherwise identical rows apart. The percentage is the change since
-you started tracking that one, so a product can be the cheapest today and still the one
-that has risen most.
+Every product is named `product · shop`, in full, everywhere except inside a chart — where
+a plot is centimetres wide, so series get a letter instead and the names go in the caption.
+The one other exception is a listing so long it would exceed Telegram's 4096-character
+message limit: rather than fail the send, the index abbreviates, and the shop is the half
+that survives. The percentage is the change since you started tracking that one, so a
+product can be the cheapest today and still the one that has risen most.
 
 **🕐 Who has been cheapest** — the same group over time, read out of the price history the
 bot already had, so a group created today covers every month its members have been tracked:

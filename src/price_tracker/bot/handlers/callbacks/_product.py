@@ -164,7 +164,7 @@ async def handle_check_button(
     price_str = _convert_display(current, p_currency) if current else _("N/A")
 
     text = _("✅ <b>#{pid}</b> {name}\n💰 Price: {price}").format(
-        pid=product_id, name=_escape_html(product_label(product, 60)), price=price_str
+        pid=product_id, name=_escape_html(product_label(product)), price=price_str
     )
     if initial and current and initial > 0 and initial != current:
         diff = (initial - current) / initial * 100
@@ -216,7 +216,7 @@ async def handle_chart_button(
         return True
 
     # The image itself carries only "#id · shop"; the caption has room for the name.
-    caption = f"📊 <b>#{product_id}</b> {_escape_html(product_label(product, 80))}"
+    caption = f"📊 <b>#{product_id}</b> {_escape_html(product_label(product))}"
 
     # Built against the panel's trail, which the photo is about to inherit.
     keyboard = result_keyboard(context, origin_id)

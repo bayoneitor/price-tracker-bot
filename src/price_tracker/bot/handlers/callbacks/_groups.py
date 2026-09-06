@@ -152,7 +152,7 @@ async def _leaders(
     products = await db.list_group_products(group.id, user_id=user_id)
     ids = [int(p["id"]) for p in products]
     histories = await db.get_price_history_for_products(ids) if ids else {}
-    names = {int(p["id"]): product_label(p, 34) for p in products}
+    names = {int(p["id"]): product_label(p) for p in products}
     await query.edit_message_text(
         render_leader_timeline(build_leader_timeline(histories), names),
         parse_mode=ParseMode.HTML,
@@ -214,7 +214,7 @@ def _build_caption(
     for alias, product in drawn:
         price = _safe_dec(product.get("current_price"))
         tail = f" — €{price:.2f}" if price else ""
-        lines.append(f"<b>{alias}</b> — {_escape_html(product_label(product, 70))}{tail}")
+        lines.append(f"<b>{alias}</b> — {_escape_html(product_label(product))}{tail}")
     if skipped > 0:
         lines.append("")
         lines.append(
@@ -291,7 +291,7 @@ async def open_add_picker(
     rows = [
         [
             InlineKeyboardButton(
-                f"#{p['id']} {product_label(p, 32)}",
+                f"#{p['id']} {product_label(p)}",
                 callback_data=f"grp_put_{group.id}_{p['id']}",
             )
         ]
@@ -320,7 +320,7 @@ async def _remove_picker(
     rows = [
         [
             InlineKeyboardButton(
-                f"➖ #{p['id']} {product_label(p, 30)}",
+                f"➖ #{p['id']} {product_label(p)}",
                 callback_data=f"grp_pull_{group.id}_{p['id']}",
             )
         ]

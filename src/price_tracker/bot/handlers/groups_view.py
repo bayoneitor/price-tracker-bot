@@ -135,7 +135,7 @@ def build_comparison_table(products: Sequence[dict[str, Any]]) -> str:
     lines = [_("📊 <b>Comparison</b>"), ""]
 
     for product, price in sorted(known, key=lambda row: row[1]):
-        name = _escape_html(product_label(product, 34))
+        name = _escape_html(product_label(product))
         line = f"<b>#{product['id']}</b> {name} — €{price:.2f}"
         initial = _safe_dec(product.get("initial_price"))
         if initial and initial > 0 and initial != price:
@@ -150,7 +150,7 @@ def build_comparison_table(products: Sequence[dict[str, Any]]) -> str:
 
     unpriced = [p for p, price in priced if price is None]
     for product in unpriced:
-        name = _escape_html(product_label(product, 34))
+        name = _escape_html(product_label(product))
         lines.append(_("<b>#{pid}</b> {name} — no price yet").format(pid=product["id"], name=name))
 
     if len(known) >= 2:
@@ -159,7 +159,7 @@ def build_comparison_table(products: Sequence[dict[str, Any]]) -> str:
         lines += [
             "",
             _("🥇 Cheapest now: <b>{name}</b> at €{price:.2f}").format(
-                name=_escape_html(product_label(cheapest[0], 34)),
+                name=_escape_html(product_label(cheapest[0])),
                 price=cheapest[1],
             ),
             _("↔️ Spread: €{spread:.2f}").format(spread=dearest[1] - cheapest[1]),
@@ -230,7 +230,7 @@ def build_group_view(
         lines = [header, ""]
         for product in products:
             price = _safe_dec(product.get("current_price"))
-            name = _escape_html(product_label(product, 34))
+            name = _escape_html(product_label(product))
             price_str = f"€{price:.2f}" if price else _("N/A")
             lines.append(f"  <b>#{product['id']}</b> {name} — {price_str}")
         text = "\n".join(lines)

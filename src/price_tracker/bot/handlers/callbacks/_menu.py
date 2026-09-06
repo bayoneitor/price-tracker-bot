@@ -108,7 +108,7 @@ async def handle_menu_navigation(
                 rows.append(
                     [
                         InlineKeyboardButton(
-                            f"#{p['id']} {product_label(p, 28)}{tag}",
+                            f"#{p['id']} {product_label(p)}{tag}",
                             callback_data=f"edit_{p['id']}",
                         )
                     ]
@@ -159,7 +159,7 @@ async def handle_menu_navigation(
             rows.append(
                 [
                     InlineKeyboardButton(
-                        f"▶️ #{p['id']} {product_label(p, 35)}",
+                        f"▶️ #{p['id']} {product_label(p)}",
                         callback_data=f"reactivate_{p['id']}",
                     )
                 ]
@@ -181,7 +181,7 @@ async def handle_menu_navigation(
             rows.append(
                 [
                     InlineKeyboardButton(
-                        f"🔍 #{p['id']} {product_label(p, 30)}",
+                        f"🔍 #{p['id']} {product_label(p)}",
                         callback_data=f"check_{p['id']}",
                     )
                 ]
@@ -206,7 +206,7 @@ async def handle_menu_navigation(
             rows.append(
                 [
                     InlineKeyboardButton(
-                        f"📊 #{p['id']} {product_label(p, 35)}",
+                        f"📊 #{p['id']} {product_label(p)}",
                         callback_data=f"chart_{p['id']}",
                     )
                 ]
@@ -225,7 +225,7 @@ async def handle_menu_navigation(
             [InlineKeyboardButton(_("⚙️ Notification settings"), callback_data="menu_delivery")],
         ]
         for p in products[:10]:
-            nm = product_label(p, 22)
+            nm = product_label(p)
             th = _format_threshold(
                 p.get("threshold_type", "percentage"),
                 p.get("threshold_value", "10"),
@@ -326,7 +326,7 @@ async def _handle_menu_checkall(
     updated = await db.get_active_products(user_id)
     txt_lines = [_("✅ <b>Done</b> — {count} products").format(count=len(updated)) + chr(10)]
     for p in updated:
-        nm = product_label(p, 35)
+        nm = product_label(p)
         cur = _safe_dec(p.get("current_price"))
         ini = _safe_dec(p.get("initial_price"))
         tag = f"€{cur:.2f}" if cur else _("N/A")

@@ -45,7 +45,7 @@ async def cmd_history(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
             buttons.append(
                 [
                     InlineKeyboardButton(
-                        f"#{p['id']} {product_label(p, 35)}",
+                        f"#{p['id']} {product_label(p)}",
                         callback_data=f"chart_{p['id']}",
                     )
                 ]
@@ -75,7 +75,7 @@ async def cmd_history(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         highest = _safe_dec(product.get("highest_price"))
         # The image itself carries only "#id · shop": a caption has room for the
         # whole name, a line on a plot does not.
-        caption = f"📊 <b>#{product_id}</b> {_escape_html(product_label(product, 80))}"
+        caption = f"📊 <b>#{product_id}</b> {_escape_html(product_label(product))}"
         if lowest:
             caption += _("\n📉 Min: €{price:.2f}").format(price=lowest)
         if highest:

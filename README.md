@@ -81,7 +81,8 @@ Every command has an English name and, where it existed first, an Italian alias 
 are registered, so `/list` and `/lista` are the same command.
 
 Telegram's **Menu button** (bottom-left of the chat) lists the most-used commands with
-a description, so they can be tapped instead of typed. That list is deliberately short:
+an icon and a description, so they can be tapped instead of typed. (The icon rides at the
+head of the description — Telegram takes only `[a-z0-9_]` in the command itself.) That list is deliberately short:
 Telegram's menu is flat — it has no submenus — so it publishes eight entries rather than
 the whole surface. Everything else still works when typed, is reachable as a button under
 `/menu`, and is listed under **Menu → Info → All commands**. The list is published on

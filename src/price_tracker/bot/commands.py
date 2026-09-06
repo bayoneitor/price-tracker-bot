@@ -41,51 +41,60 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-# (command, description msgid). Order is what the user sees — most-used first,
-# not alphabetical. Descriptions are marked with N_() and translated at publish
-# time, once per locale.
+# (command, icon, description msgid). Order is what the user sees — most-used
+# first, not alphabetical. Descriptions are marked with N_() and translated at
+# publish time, once per locale.
+#
+# The icon is a separate field rather than part of the msgid: it is presentation,
+# not translatable text, so keeping it out means an emoji change never invalidates
+# a translation, and a translator never has to carry one through. Telegram will
+# not take an emoji in the command itself — that field is lowercase letters,
+# digits and underscores only — so it goes at the head of the description, where
+# it renders as a column of icons beside the commands. Icons match the ones the
+# corresponding screens already use, so /health and its report look like the same
+# feature.
 #
 # This is the full catalogue: every command that exists, rendered by Menu → Info
 # → All commands. What Telegram's own menu shows is the subset in QUICK_COMMANDS.
-USER_COMMANDS: tuple[tuple[str, str], ...] = (
-    ("menu", N_("Open the main menu")),
-    ("list", N_("List your tracked products")),
-    ("groups", N_("Compare products grouped together")),
-    ("add", N_("Track a new product by URL")),
-    ("cancel", N_("Cancel whatever the bot is waiting for")),
-    ("check", N_("Check one product's price now")),
-    ("checkall", N_("Check every product now")),
-    ("history", N_("Price history chart")),
-    ("target", N_("Set a target price")),
-    ("threshold", N_("Set the price-drop threshold")),
-    ("refresh", N_("Set how often a product is checked")),
-    ("pause", N_("Pause tracking for a product")),
-    ("reactivate", N_("Resume a paused product")),
-    ("delete", N_("Delete a tracked product")),
-    ("reset", N_("Reset the base price to the current one")),
-    ("status", N_("Your stats and check interval")),
-    ("errors", N_("Products with recent read errors")),
-    ("prefs", N_("Show your notification settings")),
-    ("mute", N_("Mute notifications")),
-    ("unmute", N_("Unmute notifications")),
-    ("quiet_hours", N_("Set quiet hours")),
-    ("timezone", N_("Set your timezone")),
-    ("throttle", N_("Limit how often you are notified")),
-    ("digest_mode", N_("Switch between instant and digest delivery")),
-    ("digest_now", N_("Send the pending digest now")),
-    ("export", N_("Export your products as CSV")),
-    ("import", N_("Import products from a CSV file")),
-    ("help", N_("Show the menu and available commands")),
+USER_COMMANDS: tuple[tuple[str, str, str], ...] = (
+    ("menu", "📋", N_("Open the main menu")),
+    ("list", "📦", N_("List your tracked products")),
+    ("groups", "🏷", N_("Compare products grouped together")),
+    ("add", "➕", N_("Track a new product by URL")),
+    ("cancel", "✖️", N_("Cancel whatever the bot is waiting for")),
+    ("check", "🔍", N_("Check one product's price now")),
+    ("checkall", "🔄", N_("Check every product now")),
+    ("history", "📊", N_("Price history chart")),
+    ("target", "🎯", N_("Set a target price")),
+    ("threshold", "📉", N_("Set the price-drop threshold")),
+    ("refresh", "⏱", N_("Set how often a product is checked")),
+    ("pause", "⏸", N_("Pause tracking for a product")),
+    ("reactivate", "▶️", N_("Resume a paused product")),
+    ("delete", "🗑", N_("Delete a tracked product")),
+    ("reset", "📌", N_("Reset the base price to the current one")),
+    ("status", "ℹ️", N_("Your stats and check interval")),
+    ("errors", "⚠️", N_("Products with recent read errors")),
+    ("prefs", "⚙️", N_("Show your notification settings")),
+    ("mute", "🔕", N_("Mute notifications")),
+    ("unmute", "🔔", N_("Unmute notifications")),
+    ("quiet_hours", "🌙", N_("Set quiet hours")),
+    ("timezone", "🌍", N_("Set your timezone")),
+    ("throttle", "🚦", N_("Limit how often you are notified")),
+    ("digest_mode", "📥", N_("Switch between instant and digest delivery")),
+    ("digest_now", "📨", N_("Send the pending digest now")),
+    ("export", "💾", N_("Export your products as CSV")),
+    ("import", "📂", N_("Import products from a CSV file")),
+    ("help", "❓", N_("Show the menu and available commands")),
 )
 
-ADMIN_COMMANDS: tuple[tuple[str, str], ...] = (
-    ("users", N_("List authorized users")),
-    ("adduser", N_("Authorize a Telegram user")),
-    ("removeuser", N_("Revoke a user's access")),
-    ("nick", N_("Set a nickname for a user")),
-    ("setinterval", N_("Set the global check interval")),
-    ("health", N_("Scraper health and quarantine report")),
-    ("debug", N_("Inspect what a scraper reads from a URL")),
+ADMIN_COMMANDS: tuple[tuple[str, str, str], ...] = (
+    ("users", "👥", N_("List authorized users")),
+    ("adduser", "🙋", N_("Authorize a Telegram user")),
+    ("removeuser", "🚫", N_("Revoke a user's access")),
+    ("nick", "✏️", N_("Set a nickname for a user")),
+    ("setinterval", "⏲", N_("Set the global check interval")),
+    ("health", "🏥", N_("Scraper health and quarantine report")),
+    ("debug", "🔧", N_("Inspect what a scraper reads from a URL")),
 )
 
 # What Telegram's flat menu actually shows. Everything else stays typeable and
@@ -104,11 +113,11 @@ QUICK_ADMIN_COMMANDS: tuple[str, ...] = ("users", "setinterval", "health", "debu
 
 
 def _quick(
-    commands: tuple[tuple[str, str], ...], keep: tuple[str, ...]
-) -> tuple[tuple[str, str], ...]:
+    commands: tuple[tuple[str, str, str], ...], keep: tuple[str, ...]
+) -> tuple[tuple[str, str, str], ...]:
     """The published subset, in the order `keep` names them."""
-    by_name = dict(commands)
-    return tuple((name, by_name[name]) for name in keep if name in by_name)
+    by_name = {name: (name, icon, description) for name, icon, description in commands}
+    return tuple(by_name[name] for name in keep if name in by_name)
 
 
 # Telegram matches `language_code` against the viewer's client language, which
@@ -116,11 +125,13 @@ def _quick(
 MENU_LANGUAGES: tuple[str, ...] = ("en", "it", "es")
 
 
-def _render(commands: Iterable[tuple[str, str]], lang: str) -> list[BotCommand]:
+def _render(commands: Iterable[tuple[str, str, str]], lang: str) -> list[BotCommand]:
     """Translate `commands` into BotCommand objects under `lang`."""
     token = set_locale(lang)
     try:
-        return [BotCommand(name, _(description)) for name, description in commands]
+        return [
+            BotCommand(name, f"{icon} {_(description)}") for name, icon, description in commands
+        ]
     finally:
         reset_locale(token)
 

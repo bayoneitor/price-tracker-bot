@@ -46,23 +46,26 @@ def _registered_command_names() -> set[str]:
 def test_every_published_command_has_a_handler() -> None:
     """A menu entry with no handler is a dead button — the user taps and nothing happens."""
     registered = _registered_command_names()
-    published = {name for name, _ in (*USER_COMMANDS, *ADMIN_COMMANDS)}
+    published = {name for name, _icon, _text in (*USER_COMMANDS, *ADMIN_COMMANDS)}
     missing = sorted(published - registered)
     assert not missing, f"published but not registered: {missing}"
 
 
 def test_published_command_names_are_valid_for_telegram() -> None:
     """Telegram rejects names outside [a-z0-9_]{1,32}."""
-    for name, description in (*USER_COMMANDS, *ADMIN_COMMANDS):
+    for name, icon, description in (*USER_COMMANDS, *ADMIN_COMMANDS):
         assert 1 <= len(name) <= 32, name
         assert name.islower(), name
         assert all(c.isalnum() or c == "_" for c in name), name
-        assert 1 <= len(description) <= 256, name
+        assert 1 <= len(f"{icon} {description}") <= 256, name
+        # The emoji belongs to the description, never the command: Telegram takes
+        # only [a-z0-9_] there.
+        assert icon.isascii() is False, name
 
 
 def test_no_duplicate_or_italian_alias_entries() -> None:
     """Only the English names are published; aliases would double the menu."""
-    names = [name for name, _ in (*USER_COMMANDS, *ADMIN_COMMANDS)]
+    names = [name for name, _icon, _text in (*USER_COMMANDS, *ADMIN_COMMANDS)]
     assert len(names) == len(set(names)), "duplicate entries"
     italian_aliases = {
         "aggiungi",
@@ -86,8 +89,8 @@ def test_no_duplicate_or_italian_alias_entries() -> None:
 
 def test_admin_commands_are_not_in_the_public_menu() -> None:
     """An ordinary user must not be shown commands that would reject them."""
-    user_names = {name for name, _ in USER_COMMANDS}
-    admin_names = {name for name, _ in ADMIN_COMMANDS}
+    user_names = {name for name, _icon, _text in USER_COMMANDS}
+    admin_names = {name for name, _icon, _text in ADMIN_COMMANDS}
     assert not (user_names & admin_names)
 
 
@@ -136,9 +139,11 @@ async def test_descriptions_are_translated_per_language() -> None:
         call.kwargs["language_code"]: {c.command: c.description for c in call.args[0]}
         for call in bot.set_my_commands.await_args_list
     }
-    assert by_language["en"]["menu"] == "Open the main menu"
-    assert by_language["it"]["menu"] == "Apri il menu principale"
-    assert by_language["es"]["menu"] == "Abre el menú principal"
+    # The icon is presentation, not translatable text: it prefixes every locale
+    # unchanged, so an emoji change never invalidates a translation.
+    assert by_language["en"]["menu"] == "📋 Open the main menu"
+    assert by_language["it"]["menu"] == "📋 Apri il menu principale"
+    assert by_language["es"]["menu"] == "📋 Abre el menú principal"
 
 
 @pytest.mark.asyncio
@@ -176,8 +181,8 @@ def test_the_published_menu_is_short() -> None:
 
 
 def test_every_quick_command_is_a_real_command() -> None:
-    catalogue = {name for name, _ in USER_COMMANDS}
-    admin_catalogue = {name for name, _ in ADMIN_COMMANDS}
+    catalogue = {name for name, _icon, _text in USER_COMMANDS}
+    admin_catalogue = {name for name, _icon, _text in ADMIN_COMMANDS}
 
     assert set(QUICK_USER_COMMANDS) <= catalogue
     assert set(QUICK_ADMIN_COMMANDS) <= admin_catalogue
@@ -187,7 +192,13 @@ def test_every_quick_command_is_a_real_command() -> None:
 async def test_commands_kept_out_of_the_menu_still_work() -> None:
     """Trimming the menu must not unregister anything: they are still typeable."""
     registered = _registered_command_names()
-    hidden = {name for name, _ in USER_COMMANDS} - set(QUICK_USER_COMMANDS)
+    hidden = {name for name, _icon, _text in USER_COMMANDS} - set(QUICK_USER_COMMANDS)
 
     assert hidden, "the point of the subset is that something is left out"
     assert hidden <= registered
+
+
+def test_every_command_carries_an_icon() -> None:
+    """Telegram cannot show one beside the command itself, so the description does."""
+    missing = [name for name, icon, _text in (*USER_COMMANDS, *ADMIN_COMMANDS) if not icon.strip()]
+    assert not missing, f"commands with no icon: {missing}"

@@ -23,6 +23,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   limit and digest mode as buttons. They existed only as typed commands with a usage string.
 - **Menu → Info → All commands**: the full command reference inside the bot, so trimming
   Telegram's own menu costs nothing in discoverability.
+- Every command carries an icon, in Telegram's menu and in that reference, matching the
+  one its own screens use. Telegram takes only `[a-z0-9_]` in a command name, so the icon
+  heads the description; it is a field of its own rather than part of the translatable
+  string, so changing an emoji never invalidates a translation.
 
 - Removed-listing detection: a product whose page answers HTTP 404/410 for three
   consecutive checks (`LISTING_GONE_CONFIRMATIONS`, default 3) is now suspended and

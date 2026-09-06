@@ -435,9 +435,9 @@ async def _handle_menu_commands(query: Any) -> bool:
     from price_tracker.bot.commands import ADMIN_COMMANDS, USER_COMMANDS  # noqa: PLC0415
 
     lines = [_("⌨️ <b>All commands</b>"), ""]
-    lines += [f"/{name} — {_(description)}" for name, description in USER_COMMANDS]
+    lines += [f"{icon} /{name} — {_(text)}" for name, icon, text in USER_COMMANDS]
     lines += ["", _("<b>Admin</b>")]
-    lines += [f"/{name} — {_(description)}" for name, description in ADMIN_COMMANDS]
+    lines += [f"{icon} /{name} — {_(text)}" for name, icon, text in ADMIN_COMMANDS]
     await query.edit_message_text(
         "\n".join(lines),
         parse_mode=ParseMode.HTML,

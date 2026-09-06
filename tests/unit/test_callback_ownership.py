@@ -113,3 +113,56 @@ async def test_track_default_foreign_product_writes_nothing() -> None:
     assert handled is True
     db.set_threshold.assert_not_awaited()
     query.edit_message_text.assert_awaited_once_with("❌ Product not found.")
+
+
+# ── The rest of the per-product callbacks had the same hole ──────────────
+#
+# ``track_default_`` was fixed above, but its three siblings and the Amazon
+# preference buttons still wrote straight to the id in the callback data:
+# ``set_threshold`` / ``set_product_preferences`` do not filter by user_id
+# either, so any authorized user could retarget another user's product by
+# sending ``track_any_<foreign id>``.
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("data", ["track_any_42", "track_threshold_42", "track_target_42"])
+async def test_track_choice_on_a_foreign_product_writes_nothing(data: str) -> None:
+    db = _mock_db(is_admin=False, owned_product=None)
+    query = _mock_query()
+    context = _mock_context(db)
+
+    handled = await _product.handle_track_choice(query, context, db, INTRUDER_ID, data)
+
+    assert handled is True
+    db.set_threshold.assert_not_awaited()
+    assert "pending_action" not in context.user_data
+    query.edit_message_text.assert_awaited_once_with("❌ Product not found.")
+
+
+@pytest.mark.asyncio
+async def test_amazon_preference_on_a_foreign_product_writes_nothing() -> None:
+    db = _mock_db(is_admin=False, owned_product=None)
+    query = _mock_query()
+    context = _mock_context(db)
+
+    handled = await _product.handle_amazon_pref(
+        query, context, db, INTRUDER_ID, f"pref_new_{PRODUCT_ID}"
+    )
+
+    assert handled is True
+    db.set_product_preferences.assert_not_awaited()
+    query.edit_message_text.assert_awaited_once_with("❌ Product not found.")
+
+
+@pytest.mark.asyncio
+async def test_amazon_preference_on_own_product_persists() -> None:
+    db = _mock_db(is_admin=False, owned_product={"name": "Widget"})
+    query = _mock_query()
+    context = _mock_context(db)
+
+    handled = await _product.handle_amazon_pref(
+        query, context, db, OWNER_ID, f"pref_new_{PRODUCT_ID}"
+    )
+
+    assert handled is True
+    db.set_product_preferences.assert_awaited_once_with(PRODUCT_ID, condition="new", seller=None)

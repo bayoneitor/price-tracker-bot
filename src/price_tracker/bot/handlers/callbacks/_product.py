@@ -23,14 +23,15 @@ from price_tracker.bot.decorators import (
 )
 from price_tracker.bot.handlers._helpers import (
     _escape_html,
-    _get_product_name,
     _get_user_product,
     _parse_id,
     _safe_dec,
+    resolve_owned_product,
 )
 from price_tracker.bot.handlers.history import _generate_chart
 from price_tracker.bot.keyboards import build_threshold_keyboard
 from price_tracker.bot.messages import _
+from price_tracker.bot.navigation import set_pending
 from price_tracker.core.url_utils import store_label
 
 if TYPE_CHECKING:
@@ -118,14 +119,10 @@ async def handle_check_button(
     if not data.startswith("check_"):
         return False
 
-    product_id = _parse_id(data.replace("check_", ""))
-    if product_id is None:
-        await query.edit_message_text(_("❌ Invalid ID."))
+    resolved = await resolve_owned_product(query, context, data, "check_", user_id)
+    if resolved is None:
         return True
-    product = await _get_user_product(context, product_id, user_id)
-    if not product:
-        await query.edit_message_text(_("❌ Product not found."))
-        return True
+    product_id, product = resolved
 
     await query.edit_message_text(_("⏳ Checking price..."))
     from price_tracker.core.scraper_base import detect_currency  # noqa: PLC0415
@@ -185,14 +182,10 @@ async def handle_chart_button(
     if not data.startswith("chart_"):
         return False
 
-    product_id = _parse_id(data.replace("chart_", ""))
-    if product_id is None:
-        await query.edit_message_text(_("❌ Invalid ID."))
+    resolved = await resolve_owned_product(query, context, data, "chart_", user_id)
+    if resolved is None:
         return True
-    product = await _get_user_product(context, product_id, user_id)
-    if not product:
-        await query.edit_message_text(_("❌ Product not found."))
-        return True
+    product_id, product = resolved
 
     chart = await _generate_chart(db, product_id, product)
     if chart:
@@ -230,12 +223,12 @@ async def handle_amazon_pref(
     """Handle Amazon condition/seller preference buttons (`pref_*`)."""
     for prefix, (condition, seller, label) in _PREF_PROMPTS.items():
         if data.startswith(prefix):
-            product_id = _parse_id(data.replace(prefix, ""))
-            if product_id is None:
-                await query.edit_message_text(_("❌ Invalid ID."))
+            resolved = await resolve_owned_product(query, context, data, prefix, user_id)
+            if resolved is None:
                 return True
+            product_id, product = resolved
             await db.set_product_preferences(product_id, condition=condition, seller=seller)
-            name = await _get_product_name(db, product_id)
+            name = (product.get("name") or _("Unknown"))[:60]
             await query.edit_message_text(
                 _("{label} for #{pid}\n📦 {name}\n\n<b>How do you want to be notified?</b>").format(
                     label=_(label), pid=product_id, name=_escape_html(name)
@@ -252,12 +245,12 @@ async def handle_track_choice(
 ) -> bool:
     """Handle tracking-mode choice buttons (`track_*`)."""
     if data.startswith("track_any_"):
-        product_id = _parse_id(data.replace("track_any_", ""))
-        if product_id is None:
-            await query.edit_message_text(_("❌ Invalid ID."))
+        resolved = await resolve_owned_product(query, context, data, "track_any_", user_id)
+        if resolved is None:
             return True
+        product_id, product = resolved
         await db.set_threshold(product_id, "any_drop", "0")
-        name = await _get_product_name(db, product_id)
+        name = (product.get("name") or _("Unknown"))[:60]
         await query.edit_message_text(
             _(
                 "🔔 <b>Every drop</b> enabled for #{pid}\n"
@@ -269,12 +262,12 @@ async def handle_track_choice(
         return True
 
     if data.startswith("track_threshold_"):
-        product_id = _parse_id(data.replace("track_threshold_", ""))
-        if product_id is None:
-            await query.edit_message_text(_("❌ Invalid ID."))
+        resolved = await resolve_owned_product(query, context, data, "track_threshold_", user_id)
+        if resolved is None:
             return True
-        name = await _get_product_name(db, product_id)
-        context.user_data["pending_action"] = ("threshold", product_id)
+        product_id, product = resolved
+        name = (product.get("name") or _("Unknown"))[:60]
+        set_pending(context, "threshold", product_id, message=query.message)
         await query.edit_message_text(
             _(
                 "📉 <b>Set threshold for #{pid}</b>\n"
@@ -288,20 +281,19 @@ async def handle_track_choice(
         return True
 
     if data.startswith("track_target_"):
-        product_id = _parse_id(data.replace("track_target_", ""))
-        if product_id is None:
-            await query.edit_message_text(_("❌ Invalid ID."))
+        resolved = await resolve_owned_product(query, context, data, "track_target_", user_id)
+        if resolved is None:
             return True
-        name = await _get_product_name(db, product_id)
-        product = await db.get_product(product_id)
-        current = _safe_dec(product.get("current_price")) if product else None
-        currency = product.get("currency", "EUR") if product else "EUR"
+        product_id, product = resolved
+        name = (product.get("name") or _("Unknown"))[:60]
+        current = _safe_dec(product.get("current_price"))
+        currency = product.get("currency", "EUR")
         price_hint = (
             _("\n💰 Current price: {price}").format(price=_convert_display(current, currency))
             if current
             else ""
         )
-        context.user_data["pending_action"] = ("target", product_id)
+        set_pending(context, "target", product_id, message=query.message)
         await query.edit_message_text(
             _(
                 "💰 <b>Set target price for #{pid}</b>\n"
@@ -313,14 +305,10 @@ async def handle_track_choice(
         return True
 
     if data.startswith("track_default_"):
-        product_id = _parse_id(data.replace("track_default_", ""))
-        if product_id is None:
-            await query.edit_message_text(_("❌ Invalid ID."))
+        resolved = await resolve_owned_product(query, context, data, "track_default_", user_id)
+        if resolved is None:
             return True
-        product = await _get_user_product(context, product_id, user_id)
-        if not product:
-            await query.edit_message_text(_("❌ Product not found."))
-            return True
+        product_id, product = resolved
         await db.set_threshold(product_id, "percentage", "10")
         name = (product.get("name") or _("Unknown"))[:60]
         await query.edit_message_text(

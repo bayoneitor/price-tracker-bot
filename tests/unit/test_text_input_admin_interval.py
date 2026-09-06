@@ -11,6 +11,7 @@ from __future__ import annotations
 from unittest.mock import AsyncMock, MagicMock
 
 from price_tracker.bot.handlers.text_input import handle_text_input
+from price_tracker.bot.navigation import PendingInput
 from price_tracker.config import Config
 
 
@@ -35,7 +36,8 @@ async def test_admin_interval_over_seven_days_is_rejected() -> None:
     db = AsyncMock()
     db.is_user_allowed = AsyncMock(return_value=True)
     db.is_user_admin = AsyncMock(return_value=True)
-    db.get_product = AsyncMock(return_value={"name": "x"})
+    # No stubbed product on purpose: an admin prompt must never look one up.
+    db.get_product = AsyncMock(return_value=None)
     job_queue = MagicMock()
     job_queue.get_jobs_by_name.return_value = []
     update = MagicMock()
@@ -44,7 +46,7 @@ async def test_admin_interval_over_seven_days_is_rejected() -> None:
     update.message.text = "9999999"
     update.message.reply_text = AsyncMock()
     context = MagicMock()
-    context.user_data = {"pending_action": ("admin_interval", 0)}
+    context.user_data = {"pending_action": PendingInput("admin_interval")}
     context.bot_data = {"db": db, "config": _make_config()}
     context.job_queue = job_queue
 
@@ -56,4 +58,4 @@ async def test_admin_interval_over_seven_days_is_rejected() -> None:
     assert "massimo" in msg
     assert "7 giorni" in msg
     # The pending action must survive so the admin can retry with a valid value.
-    assert context.user_data["pending_action"] == ("admin_interval", 0)
+    assert context.user_data["pending_action"] == PendingInput("admin_interval")

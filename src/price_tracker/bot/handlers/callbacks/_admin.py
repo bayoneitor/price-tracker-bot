@@ -19,6 +19,7 @@ from price_tracker.bot.decorators import _config
 from price_tracker.bot.handlers._helpers import _escape_html, _parse_id
 from price_tracker.bot.keyboards import menu_back_button
 from price_tracker.bot.messages import _
+from price_tracker.bot.navigation import set_pending
 
 if TYPE_CHECKING:
     from telegram.ext import ContextTypes
@@ -96,7 +97,7 @@ async def handle_admin_menu(
     if data == "menu_admin_adduser":
         if not await db.is_user_admin(user_id):
             return True
-        context.user_data["pending_action"] = ("admin_adduser", 0)
+        set_pending(context, "admin_adduser", message=query.message)
         await query.edit_message_text(
             _("➕ <b>Add user</b>\n\nType the Telegram ID of the user to add:"),
             parse_mode=ParseMode.HTML,
@@ -170,7 +171,7 @@ async def handle_admin_menu(
         if target_id is None:
             await query.edit_message_text(_("❌ Invalid ID."))
             return True
-        context.user_data["pending_action"] = ("admin_nick", target_id)
+        set_pending(context, "admin_nick", target_id, message=query.message)
         u = await db.get_user(target_id)
         current_name = u.get("display_name", _("N/A")) if u else _("N/A")
         await query.edit_message_text(
@@ -184,7 +185,7 @@ async def handle_admin_menu(
     if data == "menu_admin_interval":
         if not await db.is_user_admin(user_id):
             return True
-        context.user_data["pending_action"] = ("admin_interval", 0)
+        set_pending(context, "admin_interval", message=query.message)
         await query.edit_message_text(
             _(
                 "⏱ <b>Global interval</b>\n\n"
@@ -197,7 +198,7 @@ async def handle_admin_menu(
     if data == "menu_admin_debug":
         if not await db.is_user_admin(user_id):
             return True
-        context.user_data["pending_action"] = ("admin_debug", 0)
+        set_pending(context, "admin_debug", message=query.message)
         await query.edit_message_text(
             _("🔧 <b>Scraper debug</b>\n\nPaste the URL of the product to analyse:"),
             parse_mode=ParseMode.HTML,

@@ -22,6 +22,7 @@ from price_tracker.bot.handlers._helpers import (
 )
 from price_tracker.bot.keyboards import close_button
 from price_tracker.bot.messages import _
+from price_tracker.bot.navigation import set_pending
 
 if TYPE_CHECKING:
     from telegram.ext import ContextTypes
@@ -228,7 +229,7 @@ async def handle_picker(
         name = (product.get("name") or _("Unknown"))[:50]
         current = _safe_dec(product.get("current_price"))
         price_info = _(" (current: €{price:.2f})").format(price=current) if current else ""
-        context.user_data["pending_action"] = ("target", product_id)
+        set_pending(context, "target", product_id, message=query.message)
         await query.edit_message_text(
             _(
                 "🎯 <b>{name}</b>{price_info}\n\nType the target price (e.g. <code>29.99</code>):"
@@ -247,7 +248,7 @@ async def handle_picker(
             await query.edit_message_text(_("❌ Product not found."))
             return True
         name = (product.get("name") or _("Unknown"))[:50]
-        context.user_data["pending_action"] = ("threshold", product_id)
+        set_pending(context, "threshold", product_id, message=query.message)
         await query.edit_message_text(
             _(
                 "🎯 <b>{name}</b>\n\nType the threshold (e.g. <code>20%</code> or <code>50</code>):"
@@ -266,7 +267,7 @@ async def handle_picker(
             await query.edit_message_text(_("❌ Product not found."))
             return True
         name = (product.get("name") or _("Unknown"))[:50]
-        context.user_data["pending_action"] = ("refresh", product_id)
+        set_pending(context, "refresh", product_id, message=query.message)
         await query.edit_message_text(
             _(
                 "🔄 <b>{name}</b>\n\n"

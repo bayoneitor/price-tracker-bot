@@ -21,6 +21,7 @@ from price_tracker.bot.handlers.product_list import (
     cmd_list,
 )
 from price_tracker.bot.keyboards import CLOSE_CALLBACK
+from price_tracker.bot.navigation import PendingInput
 
 
 def _product(pid: int, name: str = "Widget") -> dict[str, Any]:
@@ -277,7 +278,7 @@ async def test_a_number_answering_a_prompt_still_goes_to_the_prompt() -> None:
     from price_tracker.bot.handlers.text_input import handle_text_input
 
     context = _text_context([_product(1)], list_message_id=555)
-    context.user_data["pending_action"] = ("refresh", 1)
+    context.user_data["pending_action"] = PendingInput("refresh", 1)
     context.bot_data["db"].get_product = AsyncMock(return_value=_product(1))
     context.bot_data["db"].get_product_for_user = AsyncMock(return_value=_product(1))
     context.bot_data["db"].is_user_admin = AsyncMock(return_value=False)

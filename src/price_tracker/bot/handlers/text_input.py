@@ -1,8 +1,15 @@
-"""URL & text-input intake handlers.
+"""Plain-text intake: one router for pasted links, prompt answers and list jumps.
 
-Split out of `handlers/product.py` to keep each module under the 500-LOC
-budget [Task 17]. Handles paste-link UX (`handle_url`) and pending-action
-text replies (`handle_text_input`).
+There used to be two handlers here — `handle_url`, filtered on a URL regex, and
+`handle_text_input` for everything else — registered in that order and both in
+python-telegram-bot's default group, where only the first match runs. So a URL
+was *always* read as "track this product", even while the bot was waiting for the
+user to paste a URL for something else, which left `/menu → Admin → Scraper debug`
+unusable: it asked for a link and tracked it instead of analysing it.
+
+Ordering can't express "unless something else is pending", so there is now a
+single handler that asks the question in the right order: an open prompt wins,
+then a pasted link, then a bare number steering an open `/list`.
 """
 
 from __future__ import annotations
@@ -10,7 +17,7 @@ from __future__ import annotations
 import contextlib
 import logging
 from decimal import Decimal, InvalidOperation
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from telegram.constants import ParseMode
 from telegram.error import BadRequest
@@ -31,6 +38,7 @@ from price_tracker.bot.handlers._helpers import (
 )
 from price_tracker.bot.handlers.settings import _reschedule_periodic_check
 from price_tracker.bot.messages import _
+from price_tracker.bot.navigation import PendingInput, clear_pending, get_pending
 
 if TYPE_CHECKING:
     from telegram import Update
@@ -38,21 +46,83 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+# Sentinel answers that dismiss a prompt. Superseded by /cancel and the ✖ button,
+# kept so the words people already type keep working.
+_CANCEL_WORDS = frozenset({"no", "skip", "salta", "annulla", "cancel", "cancelar", "-"})
+
+
+class _Retry(Exception):  # noqa: N818 — a control-flow signal, not an error condition
+    """The answer was not usable: say why and leave the prompt open to try again."""
+
+
+# ── Router ────────────────────────────────────────────────────────
+
 
 @with_locale
 @restricted
-async def handle_url(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Detect URLs in plain-text messages and treat them as /add input."""
-    # Local import — avoids module-load cycles with `handlers.product`.
+async def handle_text_input(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Route a plain-text message to whatever it is actually answering."""
     from price_tracker.bot.handlers.product import URL_PATTERN, _add_product  # noqa: PLC0415
 
-    text = update.message.text or ""
-    match = URL_PATTERN.search(text)
-    if not match:
+    text = (update.message.text or "").strip()
+
+    pending = get_pending(context)
+    if pending is not None:
+        await _answer_prompt(update, context, pending, text)
         return
 
-    url = match.group(0).rstrip(".,;:!?)")
-    await _add_product(update, context, url)
+    match = URL_PATTERN.search(text)
+    if match:
+        await _add_product(update, context, match.group(0).rstrip(".,;:!?)"))
+        return
+
+    # A bare number steers an open /list instead of being dropped.
+    await _try_list_jump(update, context, text)
+
+
+async def _answer_prompt(
+    update: Update, context: ContextTypes.DEFAULT_TYPE, pending: PendingInput, text: str
+) -> None:
+    """Feed `text` to the open prompt, keeping it open if the answer is unusable."""
+    from price_tracker.bot.handlers.product import URL_PATTERN  # noqa: PLC0415
+
+    if text.lower() in _CANCEL_WORDS:
+        clear_pending(context)
+        await update.message.reply_text(_("👍 OK, nothing changed."))
+        return
+
+    spec = pending.spec
+    if not spec.accepts_url and URL_PATTERN.search(text):
+        # The prompt stays open: the user almost certainly meant to answer it, and
+        # silently tracking the link is what made `/debug` unreachable before.
+        await update.message.reply_text(
+            _(
+                "⏳ I am still waiting for {what}.\n"
+                "Send /cancel first if you wanted to track that link instead."
+            ).format(what=_(spec.label))
+        )
+        return
+
+    user_id = update.effective_user.id
+    product: dict[str, Any] | None = None
+    if spec.needs_product:
+        product = await _get_user_product(context, pending.target_id, user_id)
+        if not product:
+            clear_pending(context)
+            await update.message.reply_text(_("❌ Product not found."))
+            return
+    elif pending.action.startswith("admin_") and not await _db(context).is_user_admin(user_id):
+        clear_pending(context)
+        await update.message.reply_text(_("⛔ Admin-only command."))
+        return
+
+    try:
+        await _ACTIONS[pending.action](update, context, pending, text, product)
+    except _Retry as retry:
+        # Leave the prompt armed so the next message is read as another attempt.
+        await update.message.reply_text(str(retry))
+        return
+    clear_pending(context)
 
 
 async def _try_list_jump(update: Update, context: ContextTypes.DEFAULT_TYPE, text: str) -> bool:
@@ -97,194 +167,220 @@ async def _try_list_jump(update: Update, context: ContextTypes.DEFAULT_TYPE, tex
     return True
 
 
-@with_locale
-@restricted
-async def handle_text_input(  # noqa: PLR0915 — verbatim port; cyclomatic split planned for F6
-    update: Update, context: ContextTypes.DEFAULT_TYPE
+# ── One function per prompt ───────────────────────────────────────
+# Each receives the resolved product when its spec asks for one, and raises
+# `_Retry` when the answer cannot be used. Returning normally closes the prompt.
+
+
+def _product_name(product: dict[str, Any] | None) -> str:
+    return ((product or {}).get("name") or _("Unknown"))[:60]
+
+
+async def _do_target(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE,
+    pending: PendingInput,
+    text: str,
+    product: dict[str, Any] | None,
 ) -> None:
-    """Handle non-URL plain-text input that satisfies a pending inline-button action."""
-    from price_tracker.bot.handlers.product import URL_PATTERN  # noqa: PLC0415
-
-    text = (update.message.text or "").strip()
-    user_id = update.effective_user.id
-
-    if URL_PATTERN.search(text):
-        return
-
-    # Handle pending actions from inline button pickers
-    pending_action = context.user_data.get("pending_action")
-    if not pending_action:
-        # No pending prompt: a bare number steers an open /list instead of
-        # being dropped. Checked after pending_action so a number answering a
-        # "type the target price" prompt still goes to that prompt.
-        await _try_list_jump(update, context, text)
-        return
-
-    action_type, product_id = pending_action
-    del context.user_data["pending_action"]
-
-    if text.lower() in ("no", "skip", "salta", "-", "annulla", "cancel"):
-        await update.message.reply_text(_("👍 OK, nothing changed."))
-        return
+    """Set or clear a product's target price."""
+    try:
+        target = Decimal(text.replace(",", ".").replace("€", "").strip())
+    except (InvalidOperation, ValueError) as exc:
+        raise _Retry(_("❌ Invalid price. Try again.")) from exc
 
     db = _db(context)
-    product = await _get_user_product(context, product_id, user_id)
-    if not product:
-        await update.message.reply_text(_("❌ Product not found."))
+    product_id = pending.target_id
+    if target <= 0:
+        await db.set_target_price(product_id, None)
+        await update.message.reply_text(_("🎯 Target cleared for #{pid}.").format(pid=product_id))
         return
-    name = (product.get("name") or _("Unknown"))[:60]
 
-    if action_type == "target":
-        try:
-            target = Decimal(text.replace(",", ".").replace("€", "").strip())
-        except (InvalidOperation, ValueError):
-            await update.message.reply_text(_("❌ Invalid price. Try again."))
-            context.user_data["pending_action"] = pending_action
-            return
-        if target <= 0:
-            await db.set_target_price(product_id, None)
-            await update.message.reply_text(
-                _("🎯 Target cleared for #{pid}.").format(pid=product_id)
-            )
-        else:
-            await db.set_target_price(product_id, target)
-            current = _safe_dec(product.get("current_price"))
-            currency = product.get("currency", "EUR")
-            target_display = _convert_display(target, currency)
-            msg = _("🎯 Target: <b>{target}</b>\n📦 {name}").format(
-                target=target_display, name=_escape_html(name)
-            )
-            if current and target < current:
-                diff_pct = ((current - target) / current) * 100
-                current_display = _convert_display(current, currency)
-                msg += _("\n💰 Current: {price} (-{pct:.1f}% needed)").format(
-                    price=current_display, pct=diff_pct
-                )
-            await update.message.reply_text(msg, parse_mode=ParseMode.HTML)
+    await db.set_target_price(product_id, target)
+    assert product is not None
+    current = _safe_dec(product.get("current_price"))
+    currency = product.get("currency", "EUR")
+    msg = _("🎯 Target: <b>{target}</b>\n📦 {name}").format(
+        target=_convert_display(target, currency), name=_escape_html(_product_name(product))
+    )
+    if current and target < current:
+        diff_pct = ((current - target) / current) * 100
+        msg += _("\n💰 Current: {price} (-{pct:.1f}% needed)").format(
+            price=_convert_display(current, currency), pct=diff_pct
+        )
+    await update.message.reply_text(msg, parse_mode=ParseMode.HTML)
 
-    elif action_type == "threshold":
-        try:
-            threshold_type, threshold_value = _parse_threshold_input(text)
-        except ValueError:
-            await update.message.reply_text(_("❌ Invalid value. Try again (e.g. 20% or 50)."))
-            context.user_data["pending_action"] = pending_action
-            return
-        await db.set_threshold(product_id, threshold_type, threshold_value)
-        threshold_str = _format_threshold(threshold_type, threshold_value)
+
+async def _do_threshold(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE,
+    pending: PendingInput,
+    text: str,
+    product: dict[str, Any] | None,
+) -> None:
+    """Set a product's price-drop threshold."""
+    try:
+        threshold_type, threshold_value = _parse_threshold_input(text)
+    except ValueError as exc:
+        raise _Retry(_("❌ Invalid value. Try again (e.g. 20% or 50).")) from exc
+
+    await _db(context).set_threshold(pending.target_id, threshold_type, threshold_value)
+    await update.message.reply_text(
+        _("🎯 Threshold: <b>{threshold}</b>\n📦 {name}").format(
+            threshold=_format_threshold(threshold_type, threshold_value),
+            name=_escape_html(_product_name(product)),
+        ),
+        parse_mode=ParseMode.HTML,
+    )
+
+
+async def _do_refresh(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE,
+    pending: PendingInput,
+    text: str,
+    product: dict[str, Any] | None,
+) -> None:
+    """Set a product's own check interval, or hand it back to the global one."""
+    try:
+        minutes = int(text.strip())
+    except ValueError as exc:
+        raise _Retry(_("❌ Invalid number. Try again.")) from exc
+
+    db = _db(context)
+    name = _escape_html(_product_name(product))
+    if minutes <= 0:
+        await db.set_product_interval(pending.target_id, None)
         await update.message.reply_text(
-            _("🎯 Threshold: <b>{threshold}</b>\n📦 {name}").format(
-                threshold=threshold_str, name=_escape_html(name)
+            _("🔄 Interval reset to the global one ({minutes} min)\n📦 {name}").format(
+                minutes=_config(context).check_interval_minutes, name=name
             ),
             parse_mode=ParseMode.HTML,
         )
+        return
+    if minutes < 5:
+        raise _Retry(_("❌ Minimum is 5 minutes."))
 
-    elif action_type == "admin_adduser":
-        try:
-            new_uid = int(text.strip())
-        except ValueError:
-            await update.message.reply_text(_("❌ Invalid ID. It must be a number."))
-            context.user_data["pending_action"] = pending_action
-            return
-        existing = await db.get_user(new_uid)
-        if existing and existing.get("is_active"):
-            await update.message.reply_text(
-                _("ℹ️ User <code>{uid}</code> is already authorized.").format(uid=new_uid),
-                parse_mode=ParseMode.HTML,
-            )
-        else:
-            await db.add_user(new_uid, is_admin=False)
-            await update.message.reply_text(
-                _("✅ User <code>{uid}</code> added!").format(uid=new_uid),
-                parse_mode=ParseMode.HTML,
-            )
-            with contextlib.suppress(Exception):
-                await context.bot.send_message(
-                    chat_id=new_uid,
-                    text=_("🎉 You have been authorized! Send /start."),
-                )
+    await db.set_product_interval(pending.target_id, minutes)
+    await update.message.reply_text(
+        _("🔄 Check: every <b>{interval}</b>\n📦 {name}").format(
+            interval=_format_minutes(minutes), name=name
+        ),
+        parse_mode=ParseMode.HTML,
+    )
 
-    elif action_type == "admin_nick":
-        nickname = text.strip()
-        if not nickname:
-            await update.message.reply_text(_("❌ Empty nickname."))
-            return
-        await db.update_user_info(product_id, display_name=nickname)
+
+async def _do_admin_adduser(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE,
+    pending: PendingInput,
+    text: str,
+    product: dict[str, Any] | None,
+) -> None:
+    """Authorize a Telegram user by id."""
+    try:
+        new_uid = int(text.strip())
+    except ValueError as exc:
+        raise _Retry(_("❌ Invalid ID. It must be a number.")) from exc
+
+    db = _db(context)
+    existing = await db.get_user(new_uid)
+    if existing and existing.get("is_active"):
         await update.message.reply_text(
-            _("✅ Nickname updated: <b>{name}</b>").format(name=_escape_html(nickname)),
+            _("ℹ️ User <code>{uid}</code> is already authorized.").format(uid=new_uid),
             parse_mode=ParseMode.HTML,
         )
+        return
 
-    elif action_type == "admin_debug":
-        url_input = text.strip()
-        if not url_input.startswith("http"):
-            await update.message.reply_text(_("❌ Invalid URL."))
-            return
-        # Trigger the debug command
-        from price_tracker.bot.handlers.debug import cmd_debug  # noqa: PLC0415
-
-        context.args = [url_input]
-        await cmd_debug(update, context)
-
-    elif action_type == "admin_interval":
-        try:
-            minutes = int(text.strip())
-        except ValueError:
-            await update.message.reply_text(_("❌ Invalid number."))
-            context.user_data["pending_action"] = pending_action
-            return
-        if minutes < 5:
-            await update.message.reply_text(_("❌ Minimum is 5 minutes."))
-            context.user_data["pending_action"] = pending_action
-            return
-        if minutes > 1440 * 7:
-            await update.message.reply_text(_("❌ The maximum interval is 7 days."))
-            context.user_data["pending_action"] = pending_action
-            return
-        await db.set_config("check_interval_minutes", str(minutes))
-        _reschedule_periodic_check(context, minutes)
-        await update.message.reply_text(
-            _("✅ Interval updated: <b>every {interval}</b>").format(
-                interval=_format_minutes(minutes)
-            ),
-            parse_mode=ParseMode.HTML,
+    await db.add_user(new_uid, is_admin=False)
+    await update.message.reply_text(
+        _("✅ User <code>{uid}</code> added!").format(uid=new_uid),
+        parse_mode=ParseMode.HTML,
+    )
+    with contextlib.suppress(Exception):
+        await context.bot.send_message(
+            chat_id=new_uid, text=_("🎉 You have been authorized! Send /start.")
         )
 
-    elif action_type == "refresh":
-        try:
-            minutes = int(text.strip())
-        except ValueError:
-            await update.message.reply_text(_("❌ Invalid number. Try again."))
-            context.user_data["pending_action"] = pending_action
-            return
-        if minutes <= 0:
-            await db.set_product_interval(product_id, None)
-            config = _config(context)
-            await update.message.reply_text(
-                _("🔄 Interval reset to the global one ({minutes} min)\n📦 {name}").format(
-                    minutes=config.check_interval_minutes, name=_escape_html(name)
-                ),
-                parse_mode=ParseMode.HTML,
-            )
-        elif minutes < 5:
-            await update.message.reply_text(_("❌ Minimum is 5 minutes."))
-            context.user_data["pending_action"] = pending_action
-        else:
-            await db.set_product_interval(product_id, minutes)
-            await update.message.reply_text(
-                _("🔄 Check: every <b>{interval}</b>\n📦 {name}").format(
-                    interval=_format_minutes(minutes), name=_escape_html(name)
-                ),
-                parse_mode=ParseMode.HTML,
-            )
+
+async def _do_admin_nick(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE,
+    pending: PendingInput,
+    text: str,
+    product: dict[str, Any] | None,
+) -> None:
+    """Rename a user. `target_id` is a *user* id here, never a product id."""
+    nickname = text.strip()
+    if not nickname:
+        raise _Retry(_("❌ Empty nickname."))
+
+    await _db(context).update_user_info(pending.target_id, display_name=nickname)
+    await update.message.reply_text(
+        _("✅ Nickname updated: <b>{name}</b>").format(name=_escape_html(nickname)),
+        parse_mode=ParseMode.HTML,
+    )
+
+
+async def _do_admin_interval(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE,
+    pending: PendingInput,
+    text: str,
+    product: dict[str, Any] | None,
+) -> None:
+    """Set the global check interval, with the same bounds as /setinterval."""
+    try:
+        minutes = int(text.strip())
+    except ValueError as exc:
+        raise _Retry(_("❌ Invalid number.")) from exc
+    if minutes < 5:
+        raise _Retry(_("❌ Minimum is 5 minutes."))
+    if minutes > 1440 * 7:
+        raise _Retry(_("❌ The maximum interval is 7 days."))
+
+    await _db(context).set_config("check_interval_minutes", str(minutes))
+    _reschedule_periodic_check(context, minutes)
+    await update.message.reply_text(
+        _("✅ Interval updated: <b>every {interval}</b>").format(interval=_format_minutes(minutes)),
+        parse_mode=ParseMode.HTML,
+    )
+
+
+async def _do_admin_debug(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE,
+    pending: PendingInput,
+    text: str,
+    product: dict[str, Any] | None,
+) -> None:
+    """Run the scraper debug report. This is the prompt that legitimately wants a URL."""
+    url_input = text.strip()
+    if not url_input.startswith("http"):
+        raise _Retry(_("❌ Invalid URL."))
+
+    from price_tracker.bot.handlers.debug import cmd_debug  # noqa: PLC0415
+
+    context.args = [url_input]
+    await cmd_debug(update, context)
+
+
+_ACTIONS = {
+    "target": _do_target,
+    "threshold": _do_threshold,
+    "refresh": _do_refresh,
+    "admin_adduser": _do_admin_adduser,
+    "admin_nick": _do_admin_nick,
+    "admin_interval": _do_admin_interval,
+    "admin_debug": _do_admin_debug,
+}
 
 
 def register(app: Application) -> None:
-    """Register URL/text intake handlers on `app`."""
-    from price_tracker.bot.handlers.product import URL_PATTERN  # noqa: PLC0415
+    """Register the plain-text intake handler on `app`.
 
-    # URL auto-detection
-    app.add_handler(
-        MessageHandler(filters.TEXT & ~filters.COMMAND & filters.Regex(URL_PATTERN), handle_url)
-    )
-    # Generic text for pending inputs
+    One handler, not one per input shape: python-telegram-bot runs only the first
+    match in a group, so two handlers would reintroduce the ordering bug this
+    module exists to fix.
+    """
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text_input))

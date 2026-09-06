@@ -9,9 +9,13 @@ from datetime import UTC, datetime
 from decimal import Decimal, InvalidOperation
 from typing import TYPE_CHECKING, Any, cast
 
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.constants import ParseMode
+
 from price_tracker.bot.messages import _
 
 if TYPE_CHECKING:
+    from telegram import Update
     from telegram.ext import ContextTypes
 
 
@@ -124,3 +128,71 @@ async def _get_product_name(db: Any, product_id: int) -> str:
     if product:
         return (product.get("name") or _("Unknown"))[:60]
     return _("Unknown")
+
+
+async def resolve_owned_product(
+    query: Any,
+    ctx: ContextTypes.DEFAULT_TYPE,
+    data: str,
+    prefix: str,
+    user_id: int,
+) -> tuple[int, dict[str, Any]] | None:
+    """Parse `<prefix><id>` from callback data and confirm the caller owns it.
+
+    Replies with the shared error text and returns None when the id is malformed
+    or the product is not the caller's (admins see all, as everywhere else). Every
+    per-product callback needs this preamble; writing it once is what stops a
+    handler from quietly skipping the ownership check, which is how `track_any_`,
+    `track_threshold_`, `track_target_` and the `pref_*` buttons ended up writing
+    to other people's products.
+    """
+    product_id = _parse_id(data.removeprefix(prefix))
+    if product_id is None:
+        await query.edit_message_text(_("❌ Invalid ID."))
+        return None
+    product = await _get_user_product(ctx, product_id, user_id)
+    if not product:
+        await query.edit_message_text(_("❌ Product not found."))
+        return None
+    return product_id, product
+
+
+async def product_picker(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE,
+    label: str,
+    callback_prefix: str,
+) -> bool:
+    """Ask which product a command applies to, as one button per product.
+
+    `product.py` and `monitoring.py` each carried a byte-identical copy of this,
+    both with an `action` parameter no caller ever used differently from the
+    callback prefix. One copy, one parameter.
+    """
+    from price_tracker.bot.decorators import _db  # noqa: PLC0415 — module-load cycle
+
+    products = await _db(context).get_active_products(update.effective_user.id)
+    if not products:
+        await update.message.reply_text(_("📭 You have no tracked products."))
+        return True
+
+    buttons = []
+    for product in products:
+        name = (product.get("name") or _("Unknown"))[:35]
+        current = _safe_dec(product.get("current_price"))
+        price_tag = f" €{current:.2f}" if current else ""
+        buttons.append(
+            [
+                InlineKeyboardButton(
+                    f"#{product['id']} {name}{price_tag}",
+                    callback_data=f"{callback_prefix}_{product['id']}",
+                )
+            ]
+        )
+
+    await update.message.reply_text(
+        f"📦 <b>{label}:</b>",
+        parse_mode=ParseMode.HTML,
+        reply_markup=InlineKeyboardMarkup(buttons),
+    )
+    return True

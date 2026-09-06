@@ -130,6 +130,30 @@ def build_threshold_keyboard(
     return InlineKeyboardMarkup(rows)
 
 
+def build_main_menu(is_admin: bool = False) -> tuple[str, InlineKeyboardMarkup]:
+    """The main menu, built once for both the places that show it.
+
+    `/menu` sends it and the ◀️ Menu button re-renders it, and those were two
+    separate implementations that had drifted apart: two columns against one, and
+    a different label on all but one entry. Going back to the menu rearranged it
+    under the reader.
+    """
+    rows = [
+        [
+            InlineKeyboardButton(_("📦 Products"), callback_data="menu_prodotti"),
+            InlineKeyboardButton(_("🔍 Prices"), callback_data="menu_prezzi"),
+        ],
+        [
+            InlineKeyboardButton(_("🔔 Notifications"), callback_data="menu_notifiche"),
+            InlineKeyboardButton(_("💾 Data"), callback_data="menu_dati"),
+        ],
+        [InlineKeyboardButton(_("📊 Status and info"), callback_data="menu_info")],
+    ]
+    if is_admin:
+        rows.append([InlineKeyboardButton(_("👑 Admin"), callback_data="menu_admin")])
+    return _("📋 <b>Menu</b>\n\nWhat do you want to do?"), InlineKeyboardMarkup(rows)
+
+
 def menu_back_button() -> list[InlineKeyboardButton]:
     """Single-row 'back to main menu' button."""
     return [InlineKeyboardButton(_("◀️ Menu"), callback_data="menu_main")]

@@ -25,7 +25,8 @@ from price_tracker.bot.handlers._helpers import (
     _format_threshold,
     _safe_dec,
 )
-from price_tracker.bot.keyboards import menu_exit_row
+from price_tracker.bot.handlers.product_list import build_list_view
+from price_tracker.bot.keyboards import build_main_menu, menu_exit_row
 from price_tracker.bot.labels import product_label
 from price_tracker.bot.messages import _
 
@@ -60,40 +61,23 @@ async def handle_menu_navigation(
     the caller try the next handler.
     """
     if data == "cmd_lista":
+        # Reached from "… N more → /list". It used to answer with the count and
+        # tell the reader to go and type /list, which is not what the button says
+        # it does — it renders the listing itself now, in place.
         products = await db.get_active_products(user_id)
-        back_kb = InlineKeyboardMarkup([menu_exit_row()])
-        if not products:
-            await query.edit_message_text(
-                _("📭 You have no tracked products.\nPaste me a link to get started!"),
-                reply_markup=back_kb,
-            )
-        else:
-            await query.edit_message_text(
-                _(
-                    "📦 You have <b>{count}</b> tracked products.\nUse /list to see them all."
-                ).format(count=len(products)),
-                parse_mode=ParseMode.HTML,
-                reply_markup=back_kb,
-            )
+        message_id = getattr(getattr(query, "message", None), "message_id", None)
+        text, keyboard = build_list_view(products, 0, context=context, message_id=message_id)
+        await query.edit_message_text(
+            text,
+            parse_mode=ParseMode.HTML,
+            disable_web_page_preview=True,
+            reply_markup=keyboard,
+        )
         return True
 
     if data == "menu_main":
-        user = query.from_user
-        is_admin = await db.is_user_admin(user.id)
-        rows = [
-            [InlineKeyboardButton(_("📦 Products"), callback_data="menu_prodotti")],
-            [InlineKeyboardButton(_("🔍 Price check"), callback_data="menu_prezzi")],
-            [InlineKeyboardButton(_("🔔 Notifications"), callback_data="menu_notifiche")],
-            [InlineKeyboardButton(_("💾 Import / Export"), callback_data="menu_dati")],
-            [InlineKeyboardButton(_("📊 Info and stats"), callback_data="menu_info")],
-        ]
-        if is_admin:
-            rows.append([InlineKeyboardButton(_("👑 Admin"), callback_data="menu_admin")])
-        await query.edit_message_text(
-            _("📋 <b>Price Tracker menu</b>\n\nPick a category:"),
-            parse_mode=ParseMode.HTML,
-            reply_markup=InlineKeyboardMarkup(rows),
-        )
+        text, keyboard = build_main_menu(await db.is_user_admin(query.from_user.id))
+        await query.edit_message_text(text, parse_mode=ParseMode.HTML, reply_markup=keyboard)
         return True
 
     if data == "menu_prodotti":

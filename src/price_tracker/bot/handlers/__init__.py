@@ -10,11 +10,7 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from telegram import (
-    InlineKeyboardButton,
-    InlineKeyboardMarkup,
-    Update,
-)
+from telegram import Update
 from telegram.constants import ParseMode
 from telegram.ext import Application, CommandHandler, ContextTypes
 
@@ -33,6 +29,7 @@ from price_tracker.bot.handlers import (
     text_input,
 )
 from price_tracker.bot.handlers._helpers import _escape_html
+from price_tracker.bot.keyboards import build_main_menu
 from price_tracker.bot.messages import _
 from price_tracker.bot.navigation import push_nav
 
@@ -78,24 +75,8 @@ cmd_help = cmd_menu
 
 async def _send_main_menu(message: Any, is_admin: bool = False) -> Any:
     """Render the main menu inline keyboard."""
-    rows = [
-        [
-            InlineKeyboardButton(_("📦 Products"), callback_data="menu_prodotti"),
-            InlineKeyboardButton(_("🔍 Prices"), callback_data="menu_prezzi"),
-        ],
-        [
-            InlineKeyboardButton(_("🔔 Notifications"), callback_data="menu_notifiche"),
-            InlineKeyboardButton(_("💾 Data"), callback_data="menu_dati"),
-        ],
-        [InlineKeyboardButton(_("📊 Status and info"), callback_data="menu_info")],
-    ]
-    if is_admin:
-        rows.append([InlineKeyboardButton(_("👑 Settings (admin)"), callback_data="menu_admin")])
-    return await message.reply_text(
-        _("📋 <b>Menu</b>\n\nWhat do you want to do?"),
-        parse_mode=ParseMode.HTML,
-        reply_markup=InlineKeyboardMarkup(rows),
-    )
+    text, keyboard = build_main_menu(is_admin)
+    return await message.reply_text(text, parse_mode=ParseMode.HTML, reply_markup=keyboard)
 
 
 # ── Error handler ─────────────────────────────────────────────────

@@ -65,6 +65,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   them behind. (Telegram cannot edit a text message into a photo or back again, so each
   step is a send and a delete rather than an edit.)
 - Every product picker and every result screen now ends with a navigation row.
+- The main menu is built once. `/menu` sent one menu and the ◀️ Menu button rendered
+  another — two columns against one, a different label on all but one entry, a different
+  heading — so going back to the menu rearranged it under the reader.
+- "… N more → /list" in the Products menu renders the listing instead of answering with a
+  count and telling the reader to go and type /list.
 - A product is named `product · shop` everywhere it appears — listing, pickers, menus,
   comparison table, group view. The same product tracked at three shops was three
   identical rows. Names are shown whole; the only place they are not is inside a chart,

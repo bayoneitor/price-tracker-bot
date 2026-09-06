@@ -39,9 +39,9 @@ def validate_public_url(url: str) -> None:
     ``http://[::1]``). An unresolvable host is allowed (it cannot be connected to,
     so it carries no SSRF risk); the scrape simply fails later with a normal error.
 
-    Note: this validates the user-supplied URL at the storage boundary. Redirect
-    chains followed at fetch time are a separate, narrower vector and are not
-    covered here.
+    This validates the user-supplied URL at the storage boundary. The hops of a
+    redirect chain are covered separately, by the request hook the shared client
+    is built with (`core/http_client.build_client`).
     """
     parsed = urlparse(url)
     if parsed.scheme.lower() not in _ALLOWED_SCHEMES:

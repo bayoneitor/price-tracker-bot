@@ -7,39 +7,35 @@ New features are not here — those live in [roadmap.md](roadmap.md).
 
 ## Behaviour that lies
 
-- [x] **1. The per-product check interval is never honoured.** ✅ `_is_due` in
-  `core/scheduler.py` skips a product until its own interval has passed. The
-  interval is a *minimum gap*: it cannot make a product checked more often than
-  the sweep runs, so `/refresh` now says so when the number asked for is smaller
-  than the sweep, rather than letting it imply something it cannot deliver. `/refresh 3 30`
-  writes `products.check_interval_minutes` (`db/repository.py:334`), the listing
-  card renders it (`bot/handlers/product_list.py:122`), and the scheduler never
-  reads it: `run_check_all` walks every active product on every tick
-  (`core/scheduler.py:380`) and `check_interval_minutes` appears nowhere in
-  `core/`. The bot reports a setting it does not apply. Already named on the
-  README roadmap as "per-product check intervals honoured by the scheduler".
+- [x] **1. The per-product check interval was never honoured.** Fixed in `60e7750`:
+  `_is_due` (`core/scheduler.py`) skips a product until its own interval has
+  passed. The interval is a *minimum gap* — it cannot make a product checked more
+  often than the sweep itself runs — so `/refresh` now says so when the number
+  asked for is smaller than the sweep, rather than letting it imply otherwise.
 
   <details><summary>What it was</summary>
 
   `/refresh 3 30` wrote `products.check_interval_minutes`
   (`db/repository.py:334`), the listing card rendered it
-  (`bot/handlers/product_list.py:122`), and the scheduler never read it:
+  (`bot/handlers/product_list.py:122`), and the scheduler read it nowhere:
   `run_check_all` walked every active product on every tick and
-  `check_interval_minutes` appeared nowhere in `core/`.
+  `check_interval_minutes` appeared nowhere in `core/`. The bot reported a setting
+  it did not apply. It was on the README roadmap as "per-product check intervals
+  honoured by the scheduler".
   </details>
 
-- [ ] **2. `/debug` fetches any URL with no SSRF check.** `cmd_debug`
-  (`bot/handlers/debug.py`) hands its argument to httpx, then to curl_cffi and
-  Scrapling, without `validate_public_url` — the guard `/add` uses and the one
-  upstream has just applied to CSV import for this exact reason. Admin-only, but
-  the admin is the person most likely to paste an internal URL to see what a
-  scraper reads.
+- [x] **2. `/debug` fetched any URL with no SSRF check.** Fixed in `dc52a17`:
+  `cmd_debug` applies `validate_public_url` before anything is fetched. It needs
+  its own check rather than relying on the shared client, because it also reaches
+  for curl_cffi and Scrapling, which never touch it.
 
-- [ ] **3. A redirect walks past the SSRF guard.** `validate_public_url` checks
-  the URL it is given; the shared client then follows redirects
-  (`core/http_client.py:20`) without re-checking. A public host answering
-  `302 → http://169.254.169.254/` is fetched anyway. This affects `/add` and CSV
-  import, not only `/debug`.
+- [x] **3. A redirect walked past the SSRF guard.** Fixed in `dc52a17`: the
+  shared client is built with a request hook that re-applies the boundary to
+  every hop, so a public host answering `302 → http://169.254.169.254/` is
+  refused at the second request. Resolution runs in a thread — an event hook sits
+  on the event loop, and a slow DNS answer there would stall every handler. The
+  note on `validate_public_url` that called redirects "a separate, narrower
+  vector … not covered here" now points at the hook instead.
 
 ## Operational risk
 

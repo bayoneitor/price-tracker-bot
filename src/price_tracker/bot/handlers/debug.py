@@ -7,6 +7,7 @@ live in `handlers/product.py` (paste-link UX).
 
 from __future__ import annotations
 
+import asyncio
 import json as _json
 import logging
 import re as _re
@@ -123,6 +124,23 @@ async def cmd_debug(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         return
 
     url = context.args[0]
+
+    # The shared client refuses private targets on its own, but this command also
+    # reaches for curl_cffi and Scrapling, which do not go through it. Checked
+    # here so every path below the boundary starts inside it.
+    from price_tracker.core.url_utils import UnsafeURLError, validate_public_url  # noqa: PLC0415
+
+    try:
+        await asyncio.to_thread(validate_public_url, url)
+    except UnsafeURLError as exc:
+        logger.warning(
+            "Refused /debug for an unsafe URL from user %d: %s", update.effective_user.id, exc
+        )
+        await update.message.reply_text(
+            _("❌ URL not allowed: it points to a private or internal address.")
+        )
+        return
+
     msg = await update.message.reply_text(_("🔍 Analysis in progress..."))
 
     from bs4 import BeautifulSoup  # noqa: PLC0415 — heavy import deferred

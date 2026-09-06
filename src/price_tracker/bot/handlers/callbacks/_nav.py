@@ -161,14 +161,24 @@ async def handle_back(
         # nothing left to record.
         return await dispatch(query, context, db, user_id, target)
 
-    # Coming back from a chart: the photo stays as a record, stripped of buttons
-    # so it cannot be pressed twice, and the panel reopens below it.
+    # Coming back from a chart. Telegram will not turn the photo back into the
+    # panel, so the panel is sent and the photo removed — leaving it behind meant
+    # a chat that filled with old charts nobody was looking at any more.
+    #
+    # Sent first, then removed: if the send fails the reader still has the chart,
+    # which is better than losing both.
     renderer = ReplyAsEdit(query)
     handled = await dispatch(renderer, context, db, user_id, target)
     if renderer.sent is not None:
         transfer_nav(context, message_id, renderer.sent.message_id)
-        with contextlib.suppress(TelegramError):
-            await query.edit_message_reply_markup(reply_markup=None)
+        try:
+            await query.message.delete()
+        except TelegramError as exc:
+            # A bot may only delete its own messages for 48 hours. Past that, at
+            # least take the buttons off so it cannot open a second panel.
+            logger.debug("Could not delete the chart, disarming it instead: %s", exc)
+            with contextlib.suppress(TelegramError):
+                await query.edit_message_reply_markup(reply_markup=None)
     return handled
 
 

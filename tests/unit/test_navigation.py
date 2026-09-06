@@ -12,6 +12,7 @@ from typing import Any
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
+from telegram.error import BadRequest
 
 from price_tracker.bot.handlers.callbacks import _nav
 from price_tracker.bot.keyboards import (
@@ -200,11 +201,11 @@ async def test_back_with_no_trail_falls_back_to_the_main_menu() -> None:
 
 
 @pytest.mark.asyncio
-async def test_back_from_a_chart_reopens_the_panel_below_the_photo() -> None:
+async def test_back_from_a_chart_replaces_the_photo_with_the_panel() -> None:
     """Telegram will not turn a photo back into text, so the panel is re-sent.
 
-    The photo stays as a record but loses its buttons, so it cannot be pressed a
-    second time to spawn a second panel.
+    The photo is then removed: leaving every chart behind filled the chat with
+    old images nobody was looking at any more.
     """
     context = _context()
     push_nav(context, MESSAGE_ID, "list_go_2")
@@ -212,7 +213,10 @@ async def test_back_from_a_chart_reopens_the_panel_below_the_photo() -> None:
     sent = MagicMock(message_id=555)
     query = MagicMock(
         message=MagicMock(
-            message_id=MESSAGE_ID, text=None, reply_text=AsyncMock(return_value=sent)
+            message_id=MESSAGE_ID,
+            text=None,
+            reply_text=AsyncMock(return_value=sent),
+            delete=AsyncMock(),
         ),
         edit_message_reply_markup=AsyncMock(),
     )
@@ -225,7 +229,33 @@ async def test_back_from_a_chart_reopens_the_panel_below_the_photo() -> None:
 
     assert handled is True
     query.message.reply_text.assert_awaited_once()
-    query.edit_message_reply_markup.assert_awaited_once_with(reply_markup=None)
+    query.message.delete.assert_awaited_once()
     # The trail moved to the panel that is now on screen.
     assert context.user_data["nav"][555] == ["list_go_2"]
     assert context.user_data["nav"].get(MESSAGE_ID) is None
+
+
+@pytest.mark.asyncio
+async def test_a_chart_too_old_to_delete_is_at_least_disarmed() -> None:
+    """A bot may only delete its own messages for 48 hours."""
+    context = _context()
+    push_nav(context, MESSAGE_ID, "list_go_2")
+    push_nav(context, MESSAGE_ID, "chart_3")
+    query = MagicMock(
+        message=MagicMock(
+            message_id=MESSAGE_ID,
+            text=None,
+            reply_text=AsyncMock(return_value=MagicMock(message_id=555)),
+            delete=AsyncMock(side_effect=BadRequest("message can't be deleted")),
+        ),
+        edit_message_reply_markup=AsyncMock(),
+    )
+
+    async def dispatch(renderer: Any, *args: Any) -> bool:
+        await renderer.edit_message_text("the listing")
+        return True
+
+    await _nav.handle_back(query, context, AsyncMock(), 7, BACK_CALLBACK, dispatch)
+
+    # It stays, but cannot open a second panel.
+    query.edit_message_reply_markup.assert_awaited_once_with(reply_markup=None)

@@ -60,9 +60,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   than adding a confirmation, and the typed answer is deleted; the edit panel replaces the
   message it was opened from instead of stacking a new one; a second `/list` closes the
   first; exporting a CSV rewrites the panel that asked for it.
-- Opening a price chart replaces the panel it was opened from, and ◀️ Back reopens that
-  panel below the chart. (Telegram cannot edit a text message into a photo, so the panel is
-  re-sent rather than restored.)
+- Opening a price chart replaces the panel it was opened from, and ◀️ Back puts the panel
+  back and removes the chart, so a session of looking at charts does not leave a column of
+  them behind. (Telegram cannot edit a text message into a photo or back again, so each
+  step is a send and a delete rather than an edit.)
 - Every product picker and every result screen now ends with a navigation row.
 - A product is named `product · shop` everywhere it appears — listing, pickers, menus,
   comparison table, group view. The same product tracked at three shops was three

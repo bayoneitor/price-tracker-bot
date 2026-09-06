@@ -44,15 +44,10 @@ async def post_init(application: Application[Any, Any, Any, Any, Any, Any]) -> N
 
     await apply_migrations(db_conn, MIGRATIONS_DIR)
     repo = Repository(db_conn)
-    application.bot_data["repo"] = repo
     # Alias used by Plan 2 F3.D notification handlers.
-    application.bot_data["repository"] = repo
-    # Alias used by ``bot.decorators._db`` and direct
-    # ``context.bot_data["db"]`` lookups across handler modules
-    # (product_io, history, product_list, monitoring, debug, callbacks/*).
-    # Pre-refactor monolith stored the repository under ``"db"``; the
-    # Plan 1 F1 split renamed the post_init key to ``"repo"`` but left the
-    # handler-side lookups untouched, so this alias keeps them wired.
+    # One key, read through ``bot.decorators._db``. It was published twice —
+    # "repository" and "db" — and both were in use, so which one a handler
+    # reached for said nothing except when it was written.
     application.bot_data["db"] = repo
     # Alias used by ``bot.decorators._scraper`` and direct
     # ``context.bot_data["scraper"]`` lookups (product, product_io,
@@ -87,7 +82,7 @@ async def post_init(application: Application[Any, Any, Any, Any, Any, Any]) -> N
 
 async def _setup_scheduler(application: Application[Any, Any, Any, Any, Any, Any]) -> None:
     config: Config = application.bot_data["config"]
-    repo: Repository = application.bot_data["repo"]
+    repo: Repository = application.bot_data["db"]
     client = application.bot_data["http_client"]
     registry: ScraperRegistry = application.bot_data["registry"]
 

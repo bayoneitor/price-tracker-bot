@@ -42,7 +42,14 @@ pytest --cov=src/price_tracker               # with coverage report
 pytest tests/unit/scrapers/test_amazon.py -v # single file verbose
 ```
 
-Coverage: current enforced gate is ≥75% (`pyproject.toml`). Plan 3 closure targets: global ≥90%, core ≥93%, per-scraper ≥80%.
+Coverage: current enforced gate is ≥75% (`pyproject.toml`), and the suite sits at 80%.
+Targets: global ≥90%, core ≥93%, per-scraper ≥80%.
+
+The figure includes `bot/`, which used to be excluded — so it was 93% of everything
+except the user-facing surface. Measured, that surface is at 65%: the newer screens are
+well covered and the older command handlers (`monitoring`, `auth`, `history`,
+`callbacks/_menu`, `callbacks/_admin`) are between 20% and 33%. That is where a
+contribution moves the number most.
 
 ## Linting & type-checking
 

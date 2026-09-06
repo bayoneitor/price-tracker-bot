@@ -132,7 +132,7 @@ async def test_delivery_answers_are_persisted(
     repo = AsyncMock()
     repo.get_notification_prefs = AsyncMock(return_value=None)
     repo.upsert_notification_prefs = AsyncMock()
-    context.bot_data["repository"] = repo
+    context.bot_data["db"] = repo
 
     await handle_text_input(_update(answer), context)
 
@@ -157,7 +157,7 @@ async def test_a_bad_delivery_answer_keeps_the_prompt_open(action: str, answer: 
     repo = AsyncMock()
     repo.get_notification_prefs = AsyncMock(return_value=None)
     repo.upsert_notification_prefs = AsyncMock()
-    context.bot_data["repository"] = repo
+    context.bot_data["db"] = repo
 
     await handle_text_input(_update(answer), context)
 

@@ -42,10 +42,21 @@ New features are not here — those live in [roadmap.md](roadmap.md).
 
 ## Operational risk
 
-- [ ] **4. The whole bot package is excluded from coverage.**
-  `pyproject.toml` omits `src/price_tracker/bot/*` — 7,539 lines, the largest
-  module and the one under most change. The reported figure describes everything
-  *except* the user-facing surface, so a regression there fails no gate.
+- [x] **4. The whole bot package was excluded from coverage.** **Fixed.** The
+  omit entry is gone, so the reported figure now covers the user-facing surface
+  too. It fell from 92.9% to **80%**, which is the honest number and still clears
+  the 75% gate.
+
+  Measured on its own, `bot/` is at **65%**, and the split is worth knowing: the
+  screens built recently are well covered (`keyboards` 100%, `callbacks/__init__`
+  100%, `groups_view` 97%, `callbacks/_list` 97%, `callbacks/_delivery` 94%,
+  `navigation` 93%) while the older command handlers are not — `monitoring` 20%,
+  `auth` 28%, `callbacks/_admin` 28%, `history` 31%, `product` 33%,
+  `callbacks/_menu` 33%. That is where the next test is worth most.
+
+  `main.py`, `notifier/telegram.py` and five scrapers are still omitted; those are
+  I/O edges covered by end-to-end tests, and are a separate question from hiding
+  the whole bot.
 
 - [x] **5. CSV import had no bound.** **Fixed.** A file over 1 MB is refused
   before it is downloaded — Telegram reports the size up front, so pulling one in

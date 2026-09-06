@@ -427,7 +427,7 @@ async def _do_quiet_hours(
     from price_tracker.bot.handlers.settings import _valid_hhmm  # noqa: PLC0415
 
     answer = text.strip().lower()
-    repo = context.bot_data["repository"]
+    repo = _db(context)
     user_id = update.effective_user.id
     if answer in ("off", "no", "none"):
         await update_prefs(repo, user_id, quiet_hours_start=None, quiet_hours_end=None)
@@ -458,7 +458,7 @@ async def _do_timezone(
     if tz not in _VALID_TIMEZONES:
         raise _Retry(_("❌ Unknown timezone: {tz}").format(tz=_escape_html(tz[:40])))
 
-    await update_prefs(context.bot_data["repository"], update.effective_user.id, timezone=tz)
+    await update_prefs(_db(context), update.effective_user.id, timezone=tz)
     return _("🌍 Timezone set to {tz}.").format(tz=tz)
 
 
@@ -482,9 +482,7 @@ async def _do_throttle(
         if limit <= 0:
             raise _Retry(_("❌ The limit must be greater than zero."))
 
-    await update_prefs(
-        context.bot_data["repository"], update.effective_user.id, throttle_per_hour=limit
-    )
+    await update_prefs(_db(context), update.effective_user.id, throttle_per_hour=limit)
     return describe_throttle(limit)
 
 
@@ -506,7 +504,7 @@ async def _do_digest_interval(
         raise _Retry(_("❌ The interval must be greater than zero."))
 
     await update_prefs(
-        context.bot_data["repository"],
+        _db(context),
         update.effective_user.id,
         digest_mode=True,
         digest_interval_minutes=minutes,

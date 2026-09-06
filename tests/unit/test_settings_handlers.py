@@ -30,8 +30,10 @@ def _build_update(user_id: int, args: list[str]):
 def _build_context(args: list[str], **bot_data):
     context = MagicMock()
     context.args = args
-    # @restricted now gates these handlers via db.is_user_allowed; provision an
-    # allowed user by default so the handler body still runs under test.
+    # @restricted gates these handlers via db.is_user_allowed; provision an
+    # allowed user by default so the handler body still runs under test. The
+    # repository is that same object — it used to be published twice, under "db"
+    # and "repository", and both were read.
     if "db" not in bot_data:
         db = AsyncMock()
         db.is_user_allowed = AsyncMock(return_value=True)
@@ -47,7 +49,7 @@ async def test_mute_all_forever():
     repo.get_notification_prefs = AsyncMock(return_value=None)
     repo.upsert_notification_prefs = AsyncMock()
     update = _build_update(42, ["all", "forever"])
-    context = _build_context(["all", "forever"], repository=repo)
+    context = _build_context(["all", "forever"], db=repo)
     await mute_command(update, context)
     repo.upsert_notification_prefs.assert_awaited()
     args, _ = repo.upsert_notification_prefs.call_args
@@ -64,7 +66,7 @@ async def test_mute_specific_product_for_24_hours():
     repo.get_notification_prefs = AsyncMock(return_value=None)
     repo.upsert_notification_prefs = AsyncMock()
     update = _build_update(42, ["10", "24"])
-    context = _build_context(["10", "24"], repository=repo)
+    context = _build_context(["10", "24"], db=repo)
     await mute_command(update, context)
     args, _ = repo.upsert_notification_prefs.call_args
     prefs = args[0]
@@ -79,7 +81,7 @@ async def test_digest_mode_on_with_interval():
     repo.get_notification_prefs = AsyncMock(return_value=None)
     repo.upsert_notification_prefs = AsyncMock()
     update = _build_update(42, ["on", "30"])
-    context = _build_context(["on", "30"], repository=repo)
+    context = _build_context(["on", "30"], db=repo)
     await digest_mode_command(update, context)
     args, _ = repo.upsert_notification_prefs.call_args
     prefs = args[0]
@@ -93,7 +95,7 @@ async def test_quiet_hours_set():
     repo.get_notification_prefs = AsyncMock(return_value=None)
     repo.upsert_notification_prefs = AsyncMock()
     update = _build_update(42, ["22:00-08:00"])
-    context = _build_context(["22:00-08:00"], repository=repo)
+    context = _build_context(["22:00-08:00"], db=repo)
     await quiet_hours_command(update, context)
     args, _ = repo.upsert_notification_prefs.call_args
     prefs = args[0]
@@ -107,7 +109,7 @@ async def test_quiet_hours_off():
     repo.get_notification_prefs = AsyncMock(return_value=None)
     repo.upsert_notification_prefs = AsyncMock()
     update = _build_update(42, ["off"])
-    context = _build_context(["off"], repository=repo)
+    context = _build_context(["off"], db=repo)
     await quiet_hours_command(update, context)
     args, _ = repo.upsert_notification_prefs.call_args
     prefs = args[0]
@@ -119,7 +121,7 @@ async def test_quiet_hours_off():
 async def test_timezone_invalid_rejected():
     repo = AsyncMock()
     update = _build_update(42, ["Mars/Olympus"])
-    context = _build_context(["Mars/Olympus"], repository=repo)
+    context = _build_context(["Mars/Olympus"], db=repo)
     await timezone_command(update, context)
     update.message.reply_text.assert_awaited()
     msg = update.message.reply_text.call_args.args[0]
@@ -132,7 +134,7 @@ async def test_timezone_valid_persists():
     repo.get_notification_prefs = AsyncMock(return_value=None)
     repo.upsert_notification_prefs = AsyncMock()
     update = _build_update(42, ["Europe/Berlin"])
-    context = _build_context(["Europe/Berlin"], repository=repo)
+    context = _build_context(["Europe/Berlin"], db=repo)
     await timezone_command(update, context)
     args, _ = repo.upsert_notification_prefs.call_args
     prefs = args[0]
@@ -145,7 +147,7 @@ async def test_throttle_set():
     repo.get_notification_prefs = AsyncMock(return_value=None)
     repo.upsert_notification_prefs = AsyncMock()
     update = _build_update(42, ["5"])
-    context = _build_context(["5"], repository=repo)
+    context = _build_context(["5"], db=repo)
     await throttle_command(update, context)
     args, _ = repo.upsert_notification_prefs.call_args
     prefs = args[0]
@@ -166,7 +168,7 @@ async def test_prefs_renders_resolved():
         ]
     )
     update = _build_update(42, [])
-    context = _build_context([], repository=repo)
+    context = _build_context([], db=repo)
     await prefs_command(update, context)
     rendered = update.message.reply_html.call_args.args[0]
     assert "digest" in rendered.lower()
@@ -205,7 +207,7 @@ async def test_mute_preserves_existing_prefs():
     repo.get_notification_prefs = AsyncMock(return_value=existing)
     repo.upsert_notification_prefs = AsyncMock()
     update = _build_update(42, ["all", "24"])
-    context = _build_context(["all", "24"], repository=repo)
+    context = _build_context(["all", "24"], db=repo)
     await mute_command(update, context)
     repo.get_notification_prefs.assert_awaited_once_with(user_id=42, product_id=None)
     args, _ = repo.upsert_notification_prefs.call_args
@@ -237,7 +239,7 @@ async def test_unmute_preserves_existing_prefs():
     repo.get_notification_prefs = AsyncMock(return_value=existing)
     repo.upsert_notification_prefs = AsyncMock()
     update = _build_update(42, ["all"])
-    context = _build_context(["all"], repository=repo)
+    context = _build_context(["all"], db=repo)
     await unmute_command(update, context)
     repo.get_notification_prefs.assert_awaited_once_with(user_id=42, product_id=None)
     args, _ = repo.upsert_notification_prefs.call_args
@@ -256,7 +258,7 @@ async def test_mute_negative_hours_rejected():
     repo.get_notification_prefs = AsyncMock(return_value=None)
     repo.upsert_notification_prefs = AsyncMock()
     update = _build_update(42, ["all", "-5"])
-    context = _build_context(["all", "-5"], repository=repo)
+    context = _build_context(["all", "-5"], db=repo)
     await mute_command(update, context)
     repo.upsert_notification_prefs.assert_not_called()
     msg = update.message.reply_text.call_args.args[0].lower()
@@ -270,7 +272,7 @@ async def test_quiet_hours_same_start_end_rejected():
     repo.get_notification_prefs = AsyncMock(return_value=None)
     repo.upsert_notification_prefs = AsyncMock()
     update = _build_update(42, ["10:00-10:00"])
-    context = _build_context(["10:00-10:00"], repository=repo)
+    context = _build_context(["10:00-10:00"], db=repo)
     await quiet_hours_command(update, context)
     repo.upsert_notification_prefs.assert_not_called()
     msg = update.message.reply_text.call_args.args[0].lower()
@@ -283,7 +285,7 @@ async def test_prefs_rejects_zero_or_negative_product_id():
     repo = AsyncMock()
     repo.get_notification_prefs = AsyncMock(return_value=None)
     update = _build_update(42, ["0"])
-    context = _build_context(["0"], repository=repo)
+    context = _build_context(["0"], db=repo)
     await prefs_command(update, context)
     # PreferencesManager.resolve calls get_notification_prefs internally; it must
     # never be reached when validation rejects the product_id.
@@ -299,7 +301,7 @@ async def test_digest_mode_invalid_interval_rejected():
     repo.get_notification_prefs = AsyncMock(return_value=None)
     repo.upsert_notification_prefs = AsyncMock()
     update = _build_update(42, ["on", "abc"])
-    context = _build_context(["on", "abc"], repository=repo)
+    context = _build_context(["on", "abc"], db=repo)
     await digest_mode_command(update, context)
     repo.upsert_notification_prefs.assert_not_called()
     msg = update.message.reply_text.call_args.args[0].lower()

@@ -259,3 +259,30 @@ async def test_a_chart_too_old_to_delete_is_at_least_disarmed() -> None:
 
     # It stays, but cannot open a second panel.
     query.edit_message_reply_markup.assert_awaited_once_with(reply_markup=None)
+
+
+# ── The locale a handler sets must not outlive it ────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_with_locale_restores_the_language_it_found() -> None:
+    """Each update runs in its own context copy, so nothing has leaked yet — but a
+    handler that ever shares one would inherit whichever language ran last."""
+    from price_tracker.bot.decorators import with_locale
+    from price_tracker.bot.messages import _ as translate
+    from price_tracker.bot.messages import set_locale
+
+    set_locale("en")
+    before = translate("✖ Close")
+
+    @with_locale
+    async def handler(update: Any, context: Any) -> str:
+        return translate("✖ Close")
+
+    update = MagicMock()
+    update.effective_user.language_code = "es"
+
+    inside = await handler(update, MagicMock())
+
+    assert inside != before, "the handler did not get its own language"
+    assert translate("✖ Close") == before, "the language outlived the handler"

@@ -28,7 +28,7 @@ def _context(existing: NotificationPrefs | None = None) -> MagicMock:
     repo.upsert_notification_prefs = AsyncMock()
     context = MagicMock()
     context.user_data = {}
-    context.bot_data = {"repository": repo, "digest_service": AsyncMock()}
+    context.bot_data = {"db": repo, "digest_service": AsyncMock()}
     return context
 
 
@@ -37,7 +37,7 @@ def _query() -> MagicMock:
 
 
 def _written(context: MagicMock) -> Any:
-    return context.bot_data["repository"].upsert_notification_prefs.call_args.args[0]
+    return context.bot_data["db"].upsert_notification_prefs.call_args.args[0]
 
 
 def _data(markup: Any) -> list[str]:

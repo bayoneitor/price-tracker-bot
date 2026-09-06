@@ -150,10 +150,12 @@ markers = [
 #   covered by Plan 2 / Plan 3 E2E tests.
 [tool.coverage.run]
 source = ["src/price_tracker"]
+# `bot/*` was omitted here, which meant the reported figure described everything
+# except the user-facing surface — the largest module and the one under most
+# change. It is measured now; the number is lower and true.
 omit = [
     "src/price_tracker/main.py",
     "src/price_tracker/notifier/telegram.py",
-    "src/price_tracker/bot/*",
     "src/price_tracker/scrapers/amazon.py",
     "src/price_tracker/scrapers/ebay.py",
     "src/price_tracker/scrapers/generic.py",

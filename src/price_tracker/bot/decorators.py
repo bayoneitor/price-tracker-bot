@@ -17,7 +17,7 @@ from typing import TYPE_CHECKING, Any
 
 from telegram.constants import ParseMode
 
-from price_tracker.bot.messages import _, set_locale
+from price_tracker.bot.messages import _, reset_locale, set_locale
 
 if TYPE_CHECKING:
     from collections.abc import Awaitable
@@ -45,8 +45,15 @@ def with_locale(handler: HandlerFn) -> HandlerFn:
     @wraps(handler)
     async def wrapper(update: Any, context: Any, *args: Any, **kwargs: Any) -> Any:
         lang = update.effective_user.language_code if update.effective_user is not None else None
-        set_locale(lang)
-        return await handler(update, context, *args, **kwargs)
+        token = set_locale(lang)
+        try:
+            return await handler(update, context, *args, **kwargs)
+        finally:
+            # Restored, not left set. Each python-telegram-bot update runs in its
+            # own context copy, so nothing has leaked yet — but a handler that
+            # ever shares one (a gather, a background task) would inherit
+            # whichever language happened to run last.
+            reset_locale(token)
 
     return wrapper
 

@@ -151,7 +151,7 @@ def _valid_hhmm(value: str) -> bool:
 @restricted
 async def mute_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Usage: ``/mute [product_id|all] [hours|forever]`` (default: all 24h)."""
-    repo = context.bot_data["repository"]
+    repo = _db(context)
     args = context.args or []
     target = args[0] if args else "all"
     duration = args[1] if len(args) > 1 else "24"
@@ -192,7 +192,7 @@ async def mute_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
 @restricted
 async def unmute_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Usage: ``/unmute [product_id|all]``."""
-    repo = context.bot_data["repository"]
+    repo = _db(context)
     args = context.args or []
     target = args[0] if args else "all"
     product_id: int | None = None
@@ -212,7 +212,7 @@ async def unmute_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 @restricted
 async def digest_mode_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Usage: ``/digest_mode on|off [interval_min]``."""
-    repo = context.bot_data["repository"]
+    repo = _db(context)
     args = context.args or []
     if not args or args[0] not in ("on", "off"):
         await update.message.reply_text(_("Usage: /digest_mode on|off [interval_min]"))
@@ -242,7 +242,7 @@ async def digest_mode_command(update: Update, context: ContextTypes.DEFAULT_TYPE
 @restricted
 async def quiet_hours_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Usage: ``/quiet_hours HH:MM-HH:MM`` or ``/quiet_hours off``."""
-    repo = context.bot_data["repository"]
+    repo = _db(context)
     args = context.args or []
     if not args:
         await update.message.reply_text(_("Usage: /quiet_hours HH:MM-HH:MM | off"))
@@ -275,7 +275,7 @@ async def quiet_hours_command(update: Update, context: ContextTypes.DEFAULT_TYPE
 @restricted
 async def timezone_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Usage: ``/timezone <TZ>`` (e.g. ``Europe/Berlin``)."""
-    repo = context.bot_data["repository"]
+    repo = _db(context)
     args = context.args or []
     if not args:
         await update.message.reply_text(
@@ -294,7 +294,7 @@ async def timezone_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -
 @restricted
 async def throttle_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Usage: ``/throttle <N>`` or ``/throttle off``."""
-    repo = context.bot_data["repository"]
+    repo = _db(context)
     args = context.args or []
     if not args:
         await update.message.reply_text(
@@ -321,7 +321,7 @@ async def prefs_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     """Usage: ``/prefs [product_id]`` — render resolved (effective) preferences."""
     from price_tracker.notifier.preferences import PreferencesManager
 
-    repo = context.bot_data["repository"]
+    repo = _db(context)
     args = context.args or []
     user_id = update.effective_user.id
     product_id: int | None = None

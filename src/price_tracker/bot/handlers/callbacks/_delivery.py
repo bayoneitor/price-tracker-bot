@@ -18,6 +18,7 @@ from typing import TYPE_CHECKING, Any
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.constants import ParseMode
 
+from price_tracker.bot.decorators import _db
 from price_tracker.bot.handlers.settings import (
     describe_digest,
     describe_mute,
@@ -61,7 +62,7 @@ async def handle_delivery_menu(
         return False
 
     action = data.removeprefix("dlv_")
-    repo = context.bot_data["repository"]
+    repo = _db(context)
 
     if action == "unmute":
         await update_prefs(repo, user_id, mute=False, mute_until=None)
@@ -144,7 +145,7 @@ async def _render(
     A user with no row of their own still has settings — the defaults — and
     showing "not set" everywhere would be a lie.
     """
-    repo = context.bot_data["repository"]
+    repo = _db(context)
     prefs = await PreferencesManager(repo=repo).resolve_global(user_id=user_id)
 
     quiet = (

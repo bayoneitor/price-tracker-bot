@@ -131,8 +131,6 @@ async def test_post_init_populates_all_handler_lookup_keys(
         required = {
             "config",
             "db_conn",
-            "repo",
-            "repository",
             "db",
             "registry",
             "scraper",

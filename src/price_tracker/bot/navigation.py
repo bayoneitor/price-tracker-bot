@@ -52,6 +52,10 @@ PENDING_SPECS: dict[str, PendingSpec] = {
     "admin_nick": PendingSpec(label=N_("a nickname")),
     "admin_interval": PendingSpec(label=N_("a check interval in minutes")),
     "admin_debug": PendingSpec(accepts_url=True, label=N_("a product URL")),
+    "quiet_hours": PendingSpec(label=N_("quiet hours as HH:MM-HH:MM")),
+    "timezone": PendingSpec(label=N_("a timezone name")),
+    "throttle": PendingSpec(label=N_("how many alerts per hour")),
+    "digest_interval": PendingSpec(label=N_("a digest interval in minutes")),
 }
 
 

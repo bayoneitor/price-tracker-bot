@@ -3,8 +3,12 @@
 Registered on startup via ``setMyCommands`` so the client shows a tappable,
 described command list instead of requiring users to remember command names.
 
-Three things this deliberately does:
+Four things this deliberately does:
 
+- Publishes only a handful of commands. Telegram's menu is a flat list — it has
+  no submenus — so twenty-six entries made it a wall of text nobody reads. Only
+  the ones worth a tap are published; the rest still work when typed, are reachable
+  as buttons under ``/menu``, and are listed under Menu → Info → All commands.
 - Publishes only the English command names. Every command also has an Italian
   alias (``/aggiungi``, ``/soglia``, …) kept for compatibility; listing both
   would double the menu with duplicate entries.
@@ -40,10 +44,14 @@ logger = logging.getLogger(__name__)
 # (command, description msgid). Order is what the user sees — most-used first,
 # not alphabetical. Descriptions are marked with N_() and translated at publish
 # time, once per locale.
+#
+# This is the full catalogue: every command that exists, rendered by Menu → Info
+# → All commands. What Telegram's own menu shows is the subset in QUICK_COMMANDS.
 USER_COMMANDS: tuple[tuple[str, str], ...] = (
     ("menu", N_("Open the main menu")),
     ("list", N_("List your tracked products")),
     ("add", N_("Track a new product by URL")),
+    ("cancel", N_("Cancel whatever the bot is waiting for")),
     ("check", N_("Check one product's price now")),
     ("checkall", N_("Check every product now")),
     ("history", N_("Price history chart")),
@@ -79,6 +87,28 @@ ADMIN_COMMANDS: tuple[tuple[str, str], ...] = (
     ("debug", N_("Inspect what a scraper reads from a URL")),
 )
 
+# What Telegram's flat menu actually shows. Everything else stays typeable and
+# stays in USER_COMMANDS for the in-bot reference.
+QUICK_USER_COMMANDS: tuple[str, ...] = (
+    "menu",
+    "list",
+    "add",
+    "check",
+    "history",
+    "cancel",
+    "help",
+)
+QUICK_ADMIN_COMMANDS: tuple[str, ...] = ("users", "setinterval", "health", "debug")
+
+
+def _quick(
+    commands: tuple[tuple[str, str], ...], keep: tuple[str, ...]
+) -> tuple[tuple[str, str], ...]:
+    """The published subset, in the order `keep` names them."""
+    by_name = dict(commands)
+    return tuple((name, by_name[name]) for name in keep if name in by_name)
+
+
 # Telegram matches `language_code` against the viewer's client language, which
 # is a 2-letter code; the catalogs resolve "it"/"es" to it_IT/es_ES.
 MENU_LANGUAGES: tuple[str, ...] = ("en", "it", "es")
@@ -106,13 +136,14 @@ async def publish_command_menu(
     working regardless — the menu is discovery, not dispatch.
     """
     private_chats = BotCommandScopeAllPrivateChats()
+    user_menu = _quick(USER_COMMANDS, QUICK_USER_COMMANDS)
 
     # Unscoped list first: the fallback for clients whose language has no entry.
-    await _publish(bot, _render(USER_COMMANDS, default_language), scope=private_chats)
+    await _publish(bot, _render(user_menu, default_language), scope=private_chats)
     for lang in MENU_LANGUAGES:
-        await _publish(bot, _render(USER_COMMANDS, lang), scope=private_chats, language_code=lang)
+        await _publish(bot, _render(user_menu, lang), scope=private_chats, language_code=lang)
 
-    admin_menu = (*USER_COMMANDS, *ADMIN_COMMANDS)
+    admin_menu = (*user_menu, *_quick(ADMIN_COMMANDS, QUICK_ADMIN_COMMANDS))
     for admin_id in admin_ids:
         scope = BotCommandScopeChat(chat_id=admin_id)
         await _publish(bot, _render(admin_menu, default_language), scope=scope)

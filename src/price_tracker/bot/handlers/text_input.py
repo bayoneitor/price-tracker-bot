@@ -43,7 +43,7 @@ from price_tracker.bot.handlers._helpers import (
     _parse_threshold_input,
     _safe_dec,
 )
-from price_tracker.bot.handlers.settings import _reschedule_periodic_check
+from price_tracker.bot.handlers.settings import _reschedule_periodic_check, update_prefs
 from price_tracker.bot.keyboards import cancel_button, nav_row
 from price_tracker.bot.messages import _
 from price_tracker.bot.navigation import PendingInput, clear_pending, get_pending
@@ -402,6 +402,104 @@ async def _do_admin_debug(
     return _("🔧 Scraper debug: {url}").format(url=_escape_html(url_input[:80]))
 
 
+async def _do_quiet_hours(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE,
+    pending: PendingInput,
+    text: str,
+    product: dict[str, Any] | None,
+) -> str:
+    """Set or clear the window in which alerts are held back."""
+    from price_tracker.bot.handlers.settings import _valid_hhmm  # noqa: PLC0415
+
+    answer = text.strip().lower()
+    repo = context.bot_data["repository"]
+    user_id = update.effective_user.id
+    if answer in ("off", "no", "none"):
+        await update_prefs(repo, user_id, quiet_hours_start=None, quiet_hours_end=None)
+        return _("🌙 Quiet hours disabled.")
+
+    start, _sep, end = answer.partition("-")
+    if not _sep or not _valid_hhmm(start.strip()) or not _valid_hhmm(end.strip()):
+        raise _Retry(_("❌ Use 24h times, e.g. <code>22:00-08:00</code>."))
+    start, end = start.strip(), end.strip()
+    if start == end:
+        raise _Retry(_("❌ Start and end cannot be the same time."))
+
+    await update_prefs(repo, user_id, quiet_hours_start=start, quiet_hours_end=end)
+    return _("🌙 Quiet hours: {start}–{end}.").format(start=start, end=end)
+
+
+async def _do_timezone(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE,
+    pending: PendingInput,
+    text: str,
+    product: dict[str, Any] | None,
+) -> str:
+    """Set the timezone quiet hours are measured in."""
+    from price_tracker.bot.handlers.settings import _VALID_TIMEZONES  # noqa: PLC0415
+
+    tz = text.strip()
+    if tz not in _VALID_TIMEZONES:
+        raise _Retry(_("❌ Unknown timezone: {tz}").format(tz=_escape_html(tz[:40])))
+
+    await update_prefs(context.bot_data["repository"], update.effective_user.id, timezone=tz)
+    return _("🌍 Timezone set to {tz}.").format(tz=tz)
+
+
+async def _do_throttle(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE,
+    pending: PendingInput,
+    text: str,
+    product: dict[str, Any] | None,
+) -> str:
+    """Cap how many alerts an hour get through, or remove the cap."""
+    from price_tracker.bot.handlers.settings import describe_throttle  # noqa: PLC0415
+
+    answer = text.strip().lower()
+    limit: int | None = None
+    if answer not in ("off", "no", "none", "0"):
+        try:
+            limit = int(answer)
+        except ValueError as exc:
+            raise _Retry(_("❌ Type a number, or <code>off</code> for no cap.")) from exc
+        if limit <= 0:
+            raise _Retry(_("❌ The limit must be greater than zero."))
+
+    await update_prefs(
+        context.bot_data["repository"], update.effective_user.id, throttle_per_hour=limit
+    )
+    return describe_throttle(limit)
+
+
+async def _do_digest_interval(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE,
+    pending: PendingInput,
+    text: str,
+    product: dict[str, Any] | None,
+) -> str:
+    """Set how long alerts are collected before a digest goes out."""
+    from price_tracker.bot.handlers.settings import describe_digest  # noqa: PLC0415
+
+    try:
+        minutes = int(text.strip())
+    except ValueError as exc:
+        raise _Retry(_("❌ Invalid number.")) from exc
+    if minutes <= 0:
+        raise _Retry(_("❌ The interval must be greater than zero."))
+
+    await update_prefs(
+        context.bot_data["repository"],
+        update.effective_user.id,
+        digest_mode=True,
+        digest_interval_minutes=minutes,
+    )
+    return describe_digest(enabled=True, interval=minutes)
+
+
 _ACTIONS = {
     "target": _do_target,
     "threshold": _do_threshold,
@@ -410,6 +508,10 @@ _ACTIONS = {
     "admin_nick": _do_admin_nick,
     "admin_interval": _do_admin_interval,
     "admin_debug": _do_admin_debug,
+    "quiet_hours": _do_quiet_hours,
+    "timezone": _do_timezone,
+    "throttle": _do_throttle,
+    "digest_interval": _do_digest_interval,
 }
 
 

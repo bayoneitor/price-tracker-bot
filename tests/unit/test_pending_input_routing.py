@@ -108,3 +108,58 @@ async def test_a_cancel_word_closes_the_prompt() -> None:
     await handle_text_input(_update("cancelar"), context)
 
     assert "pending_action" not in context.user_data
+
+
+# ── The Delivery menu asks for these by button, then reads the answer here ──
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("action", "answer", "field", "expected"),
+    [
+        ("timezone", "Europe/Madrid", "timezone", "Europe/Madrid"),
+        ("throttle", "5", "throttle_per_hour", 5),
+        ("throttle", "off", "throttle_per_hour", None),
+        ("digest_interval", "90", "digest_interval_minutes", 90),
+        ("quiet_hours", "22:00-08:00", "quiet_hours_start", "22:00"),
+        ("quiet_hours", "off", "quiet_hours_start", None),
+    ],
+)
+async def test_delivery_answers_are_persisted(
+    action: str, answer: str, field: str, expected: object
+) -> None:
+    context = _context(pending_action=PendingInput(action))
+    repo = AsyncMock()
+    repo.get_notification_prefs = AsyncMock(return_value=None)
+    repo.upsert_notification_prefs = AsyncMock()
+    context.bot_data["repository"] = repo
+
+    await handle_text_input(_update(answer), context)
+
+    prefs = repo.upsert_notification_prefs.call_args.args[0]
+    assert getattr(prefs, field) == expected
+    assert "pending_action" not in context.user_data
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("action", "answer"),
+    [
+        ("timezone", "Mars/Olympus"),
+        ("throttle", "-1"),
+        ("digest_interval", "abc"),
+        ("quiet_hours", "22:00"),
+        ("quiet_hours", "10:00-10:00"),
+    ],
+)
+async def test_a_bad_delivery_answer_keeps_the_prompt_open(action: str, answer: str) -> None:
+    context = _context(pending_action=PendingInput(action))
+    repo = AsyncMock()
+    repo.get_notification_prefs = AsyncMock(return_value=None)
+    repo.upsert_notification_prefs = AsyncMock()
+    context.bot_data["repository"] = repo
+
+    await handle_text_input(_update(answer), context)
+
+    repo.upsert_notification_prefs.assert_not_awaited()
+    assert context.user_data["pending_action"] == PendingInput(action)

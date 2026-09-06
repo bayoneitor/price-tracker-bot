@@ -17,6 +17,8 @@ from telegram.error import TelegramError
 from price_tracker.bot.commands import (
     ADMIN_COMMANDS,
     MENU_LANGUAGES,
+    QUICK_ADMIN_COMMANDS,
+    QUICK_USER_COMMANDS,
     USER_COMMANDS,
     publish_command_menu,
 )
@@ -117,7 +119,7 @@ async def test_publish_scopes_admin_menu_to_admin_chats() -> None:
     ]
     assert {call.kwargs["scope"].chat_id for call in chat_calls} == {42, 77}
 
-    admin_names = {name for name, _ in ADMIN_COMMANDS}
+    admin_names = set(QUICK_ADMIN_COMMANDS)
     for call in chat_calls:
         published: list[BotCommand] = call.args[0]
         names = {command.command for command in published}
@@ -163,3 +165,29 @@ async def test_publish_leaves_the_caller_locale_untouched() -> None:
     finally:
         reset_locale(token)
         get_translation.cache_clear()
+
+
+# ── Telegram's menu is flat, so it gets the short list ───────────────────
+
+
+def test_the_published_menu_is_short() -> None:
+    """Twenty-six entries in a flat list is a wall of text nobody reads."""
+    assert len(QUICK_USER_COMMANDS) <= 8
+
+
+def test_every_quick_command_is_a_real_command() -> None:
+    catalogue = {name for name, _ in USER_COMMANDS}
+    admin_catalogue = {name for name, _ in ADMIN_COMMANDS}
+
+    assert set(QUICK_USER_COMMANDS) <= catalogue
+    assert set(QUICK_ADMIN_COMMANDS) <= admin_catalogue
+
+
+@pytest.mark.asyncio
+async def test_commands_kept_out_of_the_menu_still_work() -> None:
+    """Trimming the menu must not unregister anything: they are still typeable."""
+    registered = _registered_command_names()
+    hidden = {name for name, _ in USER_COMMANDS} - set(QUICK_USER_COMMANDS)
+
+    assert hidden, "the point of the subset is that something is left out"
+    assert hidden <= registered

@@ -22,6 +22,7 @@ from price_tracker.bot.decorators import _db, with_locale
 from price_tracker.bot.handlers.callbacks import (
     _actions,
     _admin,
+    _delivery,
     _list,
     _menu,
     _nav,
@@ -61,6 +62,7 @@ async def _dispatch(
         or await _actions.handle_reset_button(query, context, db, user_id, data)
         or await _actions.handle_reactivate_button(query, context, db, user_id, data)
         or await _menu.handle_menu_navigation(query, context, db, user_id, data)
+        or await _delivery.handle_delivery_menu(query, context, db, user_id, data)
         or await _admin.handle_admin_menu(query, context, db, user_id, data)
         or await _actions.handle_picker(query, context, db, user_id, data)
     )

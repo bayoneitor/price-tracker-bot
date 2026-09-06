@@ -203,7 +203,9 @@ async def handle_menu_navigation(
 
     if data == "menu_notifiche":
         products = await db.get_active_products(user_id)
-        rows = []
+        rows = [
+            [InlineKeyboardButton(_("📬 Delivery"), callback_data="menu_delivery")],
+        ]
         for p in products[:10]:
             nm = (p.get("name") or "?")[:22]
             th = _format_threshold(
@@ -222,7 +224,11 @@ async def handle_menu_navigation(
             )
         rows.append(menu_exit_row())
         await query.edit_message_text(
-            _("🔔 <b>Notifications</b>\n\nTap a product to change its threshold or target."),
+            _(
+                "🔔 <b>Notifications</b>\n\n"
+                "Delivery covers muting, quiet hours and digests.\n"
+                "Tap a product to change its threshold or target."
+            ),
             parse_mode=ParseMode.HTML,
             reply_markup=InlineKeyboardMarkup(rows),
         )
@@ -272,6 +278,9 @@ async def handle_menu_navigation(
 
     if data == "menu_info":
         return await _handle_menu_info(query, context, db, user_id)
+
+    if data == "menu_commands":
+        return await _handle_menu_commands(query)
 
     return False
 
@@ -403,8 +412,33 @@ async def _handle_menu_info(
             "📦 Global products: {products}\n"
             "🔍 Global checks: {checks}"
         ).format(users=len(users), products=gs["active_products"], checks=gs["total_checks"])
+    rows = [
+        [InlineKeyboardButton(_("⌨️ All commands"), callback_data="menu_commands")],
+        menu_exit_row(),
+    ]
     await query.edit_message_text(
         text,
+        parse_mode=ParseMode.HTML,
+        reply_markup=InlineKeyboardMarkup(rows),
+    )
+    return True
+
+
+async def _handle_menu_commands(query: Any) -> bool:
+    """The full command list.
+
+    Telegram's own command menu is a flat list with no submenus, so it publishes
+    only the handful of commands worth a tap. Everything else still works when
+    typed — this is where to find out that it exists.
+    """
+    from price_tracker.bot.commands import ADMIN_COMMANDS, USER_COMMANDS  # noqa: PLC0415
+
+    lines = [_("⌨️ <b>All commands</b>"), ""]
+    lines += [f"/{name} — {_(description)}" for name, description in USER_COMMANDS]
+    lines += ["", _("<b>Admin</b>")]
+    lines += [f"/{name} — {_(description)}" for name, description in ADMIN_COMMANDS]
+    await query.edit_message_text(
+        "\n".join(lines),
         parse_mode=ParseMode.HTML,
         reply_markup=InlineKeyboardMarkup([menu_exit_row()]),
     )

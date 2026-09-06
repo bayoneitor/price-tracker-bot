@@ -305,6 +305,9 @@ follow them, which is maintenance rather than a breaking change.
   scraper, public metadata and artwork carrying no real tracked listing
 - next — operational notices grouped per store and explaining themselves, per-product check
   intervals honoured by the scheduler, full UI localisation
+- proposed — [docs/roadmap.md](docs/roadmap.md): candidate features with the problem each
+  solves and what it would cost, including all-time-low alerts and dedicated scrapers for
+  the Spanish retailers that currently fall to the generic chain
 
 ## Contributing
 

@@ -317,7 +317,7 @@ async def _send_alert(bot: Any, alert: Any, db: Any, *, chat_id: int | None = No
     handlers that hold the user's chat id locally. When omitted, falls back to
     ``alert.owner_user_id`` (set by legacy push-mode notifiers).
     """
-    from price_tracker.bot.handlers.history import _generate_chart  # noqa: PLC0415
+    from price_tracker.bot.charts import generate_chart  # noqa: PLC0415
     from price_tracker.core.alert import format_alert  # noqa: PLC0415
 
     text = format_alert(alert)
@@ -337,7 +337,7 @@ async def _send_alert(bot: Any, alert: Any, db: Any, *, chat_id: int | None = No
             if product is not None:
                 # ``_generate_chart`` accepts a dict-compatible record (ProductRecord
                 # implements __getitem__/get via _DictCompatMixin since v0.1.4).
-                png = await _generate_chart(db, alert.product_id, product)
+                png = await generate_chart(db, alert.product_id, product)
         except Exception as e:  # noqa: BLE001 — fall back to plain-text alert on any failure
             logger.warning("chart build failed for product %s: %s", alert.product_id, e)
 

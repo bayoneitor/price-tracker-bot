@@ -135,6 +135,7 @@ async def handle_menu_navigation(
                     )
                 ]
             )
+        rows.append([InlineKeyboardButton(_("🏷 Groups"), callback_data="menu_groups")])
         rows.append(menu_exit_row())
         await query.edit_message_text(
             _("📦 <b>Your products</b> ({count} active)\n\nTap a product to edit it.").format(

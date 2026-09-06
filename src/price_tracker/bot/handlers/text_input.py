@@ -500,6 +500,50 @@ async def _do_digest_interval(
     return describe_digest(enabled=True, interval=minutes)
 
 
+async def _do_group_new(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE,
+    pending: PendingInput,
+    text: str,
+    product: dict[str, Any] | None,
+) -> str:
+    """Create a group under the typed name."""
+    name = text.strip()[:60]
+    if not name:
+        raise _Retry(_("❌ The name cannot be empty."))
+
+    group_id = await _db(context).create_group(user_id=update.effective_user.id, name=name)
+    if group_id is None:
+        raise _Retry(
+            _("❌ You already have a group called <b>{name}</b>.").format(name=_escape_html(name))
+        )
+    return _("🏷 Group <b>{name}</b> created. Open /groups to fill it.").format(
+        name=_escape_html(name)
+    )
+
+
+async def _do_group_rename(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE,
+    pending: PendingInput,
+    text: str,
+    product: dict[str, Any] | None,
+) -> str:
+    """Rename a group. `target_id` is a *group* id here."""
+    name = text.strip()[:60]
+    if not name:
+        raise _Retry(_("❌ The name cannot be empty."))
+
+    renamed = await _db(context).rename_group(
+        pending.target_id, user_id=update.effective_user.id, name=name
+    )
+    if not renamed:
+        raise _Retry(
+            _("❌ You already have a group called <b>{name}</b>.").format(name=_escape_html(name))
+        )
+    return _("🏷 Renamed to <b>{name}</b>.").format(name=_escape_html(name))
+
+
 _ACTIONS = {
     "target": _do_target,
     "threshold": _do_threshold,
@@ -512,6 +556,8 @@ _ACTIONS = {
     "timezone": _do_timezone,
     "throttle": _do_throttle,
     "digest_interval": _do_digest_interval,
+    "group_new": _do_group_new,
+    "group_rename": _do_group_rename,
 }
 
 

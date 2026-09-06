@@ -70,6 +70,7 @@ async def handle_edit_button(
         edit_buttons.append(
             [InlineKeyboardButton(_("🔄 Reset base price"), callback_data=f"reset_{product_id}")]
         )
+    edit_buttons.append([InlineKeyboardButton(_("🏷 Groups"), callback_data=f"grp_of_{product_id}")])
 
     # Edits the caller's message rather than adding one: opened from the listing
     # this panel used to leave the listing sitting above it, and every product the
@@ -91,6 +92,25 @@ async def handle_edit_button(
         parse_mode=ParseMode.HTML,
         reply_markup=result_keyboard(context, _message_id(query), *edit_buttons),
     )
+    return True
+
+
+async def handle_product_groups_button(
+    query: Any, context: ContextTypes.DEFAULT_TYPE, db: Any, user_id: int, data: str
+) -> bool:
+    """Handle the '🏷 Groups' button on a product (`grp_of_<id>`)."""
+    if not data.startswith("grp_of_"):
+        return False
+
+    from price_tracker.bot.handlers.callbacks._groups import (  # noqa: PLC0415 — import cycle
+        show_product_groups,
+    )
+
+    resolved = await resolve_owned_product(query, context, data, "grp_of_", user_id)
+    if resolved is None:
+        return True
+    product_id, _product = resolved
+    await show_product_groups(query, context, db, user_id, product_id)
     return True
 
 

@@ -23,6 +23,7 @@ from price_tracker.bot.handlers.callbacks import (
     _actions,
     _admin,
     _delivery,
+    _groups,
     _list,
     _menu,
     _nav,
@@ -39,7 +40,7 @@ logger = logging.getLogger(__name__)
 
 # Screens that manage their own trail: opening a chart replaces the panel with a
 # photo message, so the trail moves rather than growing.
-_SELF_NAVIGATING = ("chart_",)
+_SELF_NAVIGATING = ("chart_", "grp_chart_")
 
 
 async def _dispatch(
@@ -57,12 +58,14 @@ async def _dispatch(
         or await _product.handle_amazon_pref(query, context, db, user_id, data)
         or await _product.handle_track_choice(query, context, db, user_id, data)
         or await _actions.handle_edit_button(query, context, db, user_id, data)
+        or await _actions.handle_product_groups_button(query, context, db, user_id, data)
         or await _actions.handle_pause_button(query, context, db, user_id, data)
         or await _actions.handle_remove_button(query, context, db, user_id, data)
         or await _actions.handle_reset_button(query, context, db, user_id, data)
         or await _actions.handle_reactivate_button(query, context, db, user_id, data)
         or await _menu.handle_menu_navigation(query, context, db, user_id, data)
         or await _delivery.handle_delivery_menu(query, context, db, user_id, data)
+        or await _groups.handle_group_buttons(query, context, db, user_id, data)
         or await _admin.handle_admin_menu(query, context, db, user_id, data)
         or await _actions.handle_picker(query, context, db, user_id, data)
     )

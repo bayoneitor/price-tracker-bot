@@ -23,6 +23,7 @@ from price_tracker.bot.handlers import (
     auth,
     callbacks,
     debug,
+    groups,
     history,
     monitoring,
     product,
@@ -131,6 +132,7 @@ def register_handlers(app: Application) -> None:
     auth.register(app)
     product.register(app)
     product_list.register(app)
+    groups.register(app)
     product_io.register(app)
     monitoring.register(app)
     history.register(app)

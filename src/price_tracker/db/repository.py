@@ -7,18 +7,21 @@ from datetime import UTC, datetime
 from decimal import Decimal
 from typing import TYPE_CHECKING, Any
 
+import aiosqlite
+
 from price_tracker.db.models import (
     DigestEntry,
     NotificationPrefs,
     PriceHistoryRecord,
     ProductErrorRow,
+    ProductGroup,
     ProductRecord,
     ScraperHealth,
     UserRecord,
 )
 
 if TYPE_CHECKING:
-    import aiosqlite
+    from collections.abc import Sequence
 
 logger = logging.getLogger(__name__)
 
@@ -61,6 +64,9 @@ _PRODUCT_COLS = (
     "pending_read_price, pending_read_count, pending_read_streak, last_error, "
     "last_error_at, gone_streak, suspension_kind, suspension_reason"
 )
+
+# The same list qualified, for the queries that join products to another table.
+_PRODUCT_COLS_P = ", ".join(f"p.{col.strip()}" for col in _PRODUCT_COLS.split(","))
 
 
 def _row_to_product(row: tuple[Any, ...]) -> ProductRecord:
@@ -527,6 +533,149 @@ class Repository:
         )
         await self._conn.commit()
         return int(cursor.rowcount)
+
+    async def get_price_history_for_products(
+        self, product_ids: Sequence[int], *, limit_per_product: int = 200
+    ) -> dict[int, list[PriceHistoryRecord]]:
+        """History for several products at once, keyed by product id.
+
+        One query rather than one per product: comparing a group of ten would
+        otherwise be ten round trips before anything can be drawn. The per-product
+        cap is applied with a window function so a single chatty product cannot
+        crowd the others out of a global LIMIT.
+        """
+        if not product_ids:
+            return {}
+        placeholders = ",".join("?" for _ in product_ids)
+        cursor = await self._conn.execute(
+            "SELECT id, product_id, price, checked_at FROM ("
+            "  SELECT id, product_id, price, checked_at,"
+            "         ROW_NUMBER() OVER ("
+            "             PARTITION BY product_id ORDER BY checked_at DESC, id DESC"
+            "         ) AS rn"
+            f"    FROM price_history WHERE product_id IN ({placeholders})"
+            ") WHERE rn <= ? ORDER BY product_id ASC, checked_at ASC, id ASC",
+            (*product_ids, limit_per_product),
+        )
+        rows = await cursor.fetchall()
+        histories: dict[int, list[PriceHistoryRecord]] = {pid: [] for pid in product_ids}
+        for r in rows:
+            histories[r[1]].append(
+                PriceHistoryRecord(
+                    id=r[0], product_id=r[1], price=_dec(r[2]) or Decimal("0"), checked_at=r[3]
+                )
+            )
+        return histories
+
+    # ── Product groups ─────────────────────────────────────────
+    #
+    # Every method takes the caller's user_id and filters on it. Groups are named
+    # by their owner and addressed by an integer that travels in callback data,
+    # so an unfiltered lookup would let anyone read or edit anyone's group.
+
+    async def create_group(self, *, user_id: int, name: str) -> int | None:
+        """Create a group. Returns None when the user already has one by that name."""
+        try:
+            cursor = await self._conn.execute(
+                "INSERT INTO product_groups(user_id, name) VALUES(?, ?)",
+                (user_id, name),
+            )
+        except aiosqlite.IntegrityError:
+            return None
+        await self._conn.commit()
+        return int(cursor.lastrowid or 0)
+
+    async def get_group(self, group_id: int, *, user_id: int) -> ProductGroup | None:
+        cursor = await self._conn.execute(
+            "SELECT g.id, g.user_id, g.name, g.created_at,"
+            "       (SELECT COUNT(*) FROM product_group_members m WHERE m.group_id = g.id)"
+            "  FROM product_groups g WHERE g.id = ? AND g.user_id = ?",
+            (group_id, user_id),
+        )
+        row = await cursor.fetchone()
+        if not row:
+            return None
+        return ProductGroup(
+            id=row[0], user_id=row[1], name=row[2], created_at=row[3], member_count=int(row[4] or 0)
+        )
+
+    async def list_groups(self, *, user_id: int) -> list[ProductGroup]:
+        cursor = await self._conn.execute(
+            "SELECT g.id, g.user_id, g.name, g.created_at,"
+            "       (SELECT COUNT(*) FROM product_group_members m WHERE m.group_id = g.id)"
+            "  FROM product_groups g WHERE g.user_id = ? ORDER BY g.name COLLATE NOCASE ASC",
+            (user_id,),
+        )
+        rows = await cursor.fetchall()
+        return [
+            ProductGroup(
+                id=r[0], user_id=r[1], name=r[2], created_at=r[3], member_count=int(r[4] or 0)
+            )
+            for r in rows
+        ]
+
+    async def rename_group(self, group_id: int, *, user_id: int, name: str) -> bool:
+        try:
+            cursor = await self._conn.execute(
+                "UPDATE product_groups SET name = ? WHERE id = ? AND user_id = ?",
+                (name, group_id, user_id),
+            )
+        except aiosqlite.IntegrityError:
+            return False
+        await self._conn.commit()
+        return int(cursor.rowcount) > 0
+
+    async def delete_group(self, group_id: int, *, user_id: int) -> bool:
+        """Delete the group. The products themselves are untouched."""
+        cursor = await self._conn.execute(
+            "DELETE FROM product_groups WHERE id = ? AND user_id = ?",
+            (group_id, user_id),
+        )
+        await self._conn.commit()
+        return int(cursor.rowcount) > 0
+
+    async def add_to_group(self, group_id: int, product_id: int, *, user_id: int) -> bool:
+        """Add a product to a group, both of which must belong to the caller."""
+        cursor = await self._conn.execute(
+            "INSERT OR IGNORE INTO product_group_members(group_id, product_id) "
+            "SELECT g.id, p.id FROM product_groups g JOIN products p"
+            " WHERE g.id = ? AND p.id = ? AND g.user_id = ? AND p.user_id = ?",
+            (group_id, product_id, user_id, user_id),
+        )
+        await self._conn.commit()
+        return int(cursor.rowcount) > 0
+
+    async def remove_from_group(self, group_id: int, product_id: int, *, user_id: int) -> bool:
+        cursor = await self._conn.execute(
+            "DELETE FROM product_group_members WHERE group_id = ? AND product_id = ?"
+            " AND group_id IN (SELECT id FROM product_groups WHERE user_id = ?)",
+            (group_id, product_id, user_id),
+        )
+        await self._conn.commit()
+        return int(cursor.rowcount) > 0
+
+    async def list_group_products(self, group_id: int, *, user_id: int) -> list[ProductRecord]:
+        cursor = await self._conn.execute(
+            f"SELECT {_PRODUCT_COLS_P} FROM products p"
+            "  JOIN product_group_members m ON m.product_id = p.id"
+            "  JOIN product_groups g ON g.id = m.group_id"
+            " WHERE g.id = ? AND g.user_id = ? AND p.user_id = ?"
+            " ORDER BY p.id ASC",
+            (group_id, user_id, user_id),
+        )
+        rows = await cursor.fetchall()
+        return [_row_to_product(tuple(r)) for r in rows]
+
+    async def list_groups_for_product(self, product_id: int, *, user_id: int) -> list[ProductGroup]:
+        """Which of the caller's groups a product is in — for the toggle list."""
+        cursor = await self._conn.execute(
+            "SELECT g.id, g.user_id, g.name, g.created_at, 0 FROM product_groups g"
+            "  JOIN product_group_members m ON m.group_id = g.id"
+            " WHERE m.product_id = ? AND g.user_id = ?",
+            (product_id, user_id),
+        )
+        rows = await cursor.fetchall()
+        return [ProductGroup(id=r[0], user_id=r[1], name=r[2], created_at=r[3]) for r in rows]
 
     # ── Scraper Health ─────────────────────────────────────────
 

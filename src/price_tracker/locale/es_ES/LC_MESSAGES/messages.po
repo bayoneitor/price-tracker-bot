@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-09-06 16:08+0200\n"
+"POT-Creation-Date: 2026-09-06 16:21+0200\n"
 "PO-Revision-Date: 2026-09-04 11:53+0200\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: es_ES\n"
@@ -18,6 +18,13 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Generated-By: Babel 2.18.0\n"
 
+#: src/price_tracker/bot/charts.py:189 src/price_tracker/bot/charts.py:214
+#: src/price_tracker/bot/handlers/callbacks/_product.py:222
+#: src/price_tracker/bot/handlers/history.py:70
+#: src/price_tracker/bot/handlers/product.py:351
+msgid "Product"
+msgstr "Producto"
+
 #: src/price_tracker/bot/commands.py:51
 msgid "Open the main menu"
 msgstr "Abre el menú principal"
@@ -27,130 +34,134 @@ msgid "List your tracked products"
 msgstr "Lista tus productos en seguimiento"
 
 #: src/price_tracker/bot/commands.py:53
+msgid "Compare products grouped together"
+msgstr "Comparar productos agrupados"
+
+#: src/price_tracker/bot/commands.py:54
 msgid "Track a new product by URL"
 msgstr "Sigue un producto nuevo por URL"
 
-#: src/price_tracker/bot/commands.py:54
+#: src/price_tracker/bot/commands.py:55
 msgid "Cancel whatever the bot is waiting for"
 msgstr "Cancelar lo que el bot esté esperando"
 
-#: src/price_tracker/bot/commands.py:55
+#: src/price_tracker/bot/commands.py:56
 msgid "Check one product's price now"
 msgstr "Comprueba ya el precio de un producto"
 
-#: src/price_tracker/bot/commands.py:56
+#: src/price_tracker/bot/commands.py:57
 msgid "Check every product now"
 msgstr "Comprueba ya todos los productos"
 
-#: src/price_tracker/bot/commands.py:57
+#: src/price_tracker/bot/commands.py:58
 msgid "Price history chart"
 msgstr "Gráfico del histórico de precios"
 
-#: src/price_tracker/bot/commands.py:58
+#: src/price_tracker/bot/commands.py:59
 msgid "Set a target price"
 msgstr "Fija un precio objetivo"
 
-#: src/price_tracker/bot/commands.py:59
+#: src/price_tracker/bot/commands.py:60
 msgid "Set the price-drop threshold"
 msgstr "Fija el umbral de bajada"
 
-#: src/price_tracker/bot/commands.py:60
+#: src/price_tracker/bot/commands.py:61
 msgid "Set how often a product is checked"
 msgstr "Fija cada cuánto se comprueba un producto"
 
-#: src/price_tracker/bot/commands.py:61
+#: src/price_tracker/bot/commands.py:62
 msgid "Pause tracking for a product"
 msgstr "Pausa el seguimiento de un producto"
 
-#: src/price_tracker/bot/commands.py:62
+#: src/price_tracker/bot/commands.py:63
 msgid "Resume a paused product"
 msgstr "Reanuda un producto en pausa"
 
-#: src/price_tracker/bot/commands.py:63
+#: src/price_tracker/bot/commands.py:64
 msgid "Delete a tracked product"
 msgstr "Elimina un producto en seguimiento"
 
-#: src/price_tracker/bot/commands.py:64
+#: src/price_tracker/bot/commands.py:65
 msgid "Reset the base price to the current one"
 msgstr "Reinicia el precio base al actual"
 
-#: src/price_tracker/bot/commands.py:65
+#: src/price_tracker/bot/commands.py:66
 msgid "Your stats and check interval"
 msgstr "Tus estadísticas y el intervalo de comprobación"
 
-#: src/price_tracker/bot/commands.py:66
+#: src/price_tracker/bot/commands.py:67
 msgid "Products with recent read errors"
 msgstr "Productos con errores de lectura recientes"
 
-#: src/price_tracker/bot/commands.py:67
+#: src/price_tracker/bot/commands.py:68
 msgid "Show your notification settings"
 msgstr "Muestra tus ajustes de notificación"
 
-#: src/price_tracker/bot/commands.py:68
+#: src/price_tracker/bot/commands.py:69
 msgid "Mute notifications"
 msgstr "Silencia las notificaciones"
 
-#: src/price_tracker/bot/commands.py:69
+#: src/price_tracker/bot/commands.py:70
 msgid "Unmute notifications"
 msgstr "Reactiva las notificaciones"
 
-#: src/price_tracker/bot/commands.py:70
+#: src/price_tracker/bot/commands.py:71
 msgid "Set quiet hours"
 msgstr "Fija las horas de silencio"
 
-#: src/price_tracker/bot/commands.py:71
+#: src/price_tracker/bot/commands.py:72
 msgid "Set your timezone"
 msgstr "Fija tu zona horaria"
 
-#: src/price_tracker/bot/commands.py:72
+#: src/price_tracker/bot/commands.py:73
 msgid "Limit how often you are notified"
 msgstr "Limita con qué frecuencia se te avisa"
 
-#: src/price_tracker/bot/commands.py:73
+#: src/price_tracker/bot/commands.py:74
 msgid "Switch between instant and digest delivery"
 msgstr "Alterna entre aviso inmediato y resumen"
 
-#: src/price_tracker/bot/commands.py:74
+#: src/price_tracker/bot/commands.py:75
 msgid "Send the pending digest now"
 msgstr "Envía ya el resumen pendiente"
 
-#: src/price_tracker/bot/commands.py:75
+#: src/price_tracker/bot/commands.py:76
 msgid "Export your products as CSV"
 msgstr "Exporta tus productos en CSV"
 
-#: src/price_tracker/bot/commands.py:76
+#: src/price_tracker/bot/commands.py:77
 msgid "Import products from a CSV file"
 msgstr "Importa productos desde un archivo CSV"
 
-#: src/price_tracker/bot/commands.py:77
+#: src/price_tracker/bot/commands.py:78
 msgid "Show the menu and available commands"
 msgstr "Muestra el menú y los comandos disponibles"
 
-#: src/price_tracker/bot/commands.py:81
+#: src/price_tracker/bot/commands.py:82
 msgid "List authorized users"
 msgstr "Lista los usuarios autorizados"
 
-#: src/price_tracker/bot/commands.py:82
+#: src/price_tracker/bot/commands.py:83
 msgid "Authorize a Telegram user"
 msgstr "Autoriza a un usuario de Telegram"
 
-#: src/price_tracker/bot/commands.py:83
+#: src/price_tracker/bot/commands.py:84
 msgid "Revoke a user's access"
 msgstr "Revoca el acceso a un usuario"
 
-#: src/price_tracker/bot/commands.py:84
+#: src/price_tracker/bot/commands.py:85
 msgid "Set a nickname for a user"
 msgstr "Fija un alias para un usuario"
 
-#: src/price_tracker/bot/commands.py:85
+#: src/price_tracker/bot/commands.py:86
 msgid "Set the global check interval"
 msgstr "Fija el intervalo de comprobación global"
 
-#: src/price_tracker/bot/commands.py:86
+#: src/price_tracker/bot/commands.py:87
 msgid "Scraper health and quarantine report"
 msgstr "Estado de los scrapers y cuarentenas"
 
-#: src/price_tracker/bot/commands.py:87
+#: src/price_tracker/bot/commands.py:88
 msgid "Inspect what a scraper reads from a URL"
 msgstr "Inspecciona qué lee un scraper de una URL"
 
@@ -253,7 +264,15 @@ msgstr "cuántos avisos por hora"
 msgid "a digest interval in minutes"
 msgstr "un intervalo de resumen en minutos"
 
-#: src/price_tracker/bot/handlers/__init__.py:51
+#: src/price_tracker/bot/navigation.py:59
+msgid "a name for the group"
+msgstr "un nombre para el grupo"
+
+#: src/price_tracker/bot/navigation.py:60
+msgid "a new name for the group"
+msgstr "un nombre nuevo para el grupo"
+
+#: src/price_tracker/bot/handlers/__init__.py:52
 #, python-brace-format
 msgid ""
 "👋 <b>Hi {name}!</b>\n"
@@ -276,33 +295,33 @@ msgstr ""
 "\n"
 "Pulsa /menu para el resto."
 
-#: src/price_tracker/bot/handlers/__init__.py:82
+#: src/price_tracker/bot/handlers/__init__.py:83
 #: src/price_tracker/bot/handlers/callbacks/_menu.py:83
 msgid "📦 Products"
 msgstr "📦 Productos"
 
-#: src/price_tracker/bot/handlers/__init__.py:83
+#: src/price_tracker/bot/handlers/__init__.py:84
 msgid "🔍 Prices"
 msgstr "🔍 Precios"
 
-#: src/price_tracker/bot/handlers/__init__.py:86
+#: src/price_tracker/bot/handlers/__init__.py:87
 #: src/price_tracker/bot/handlers/callbacks/_menu.py:85
 msgid "🔔 Notifications"
 msgstr "🔔 Notificaciones"
 
-#: src/price_tracker/bot/handlers/__init__.py:87
+#: src/price_tracker/bot/handlers/__init__.py:88
 msgid "💾 Data"
 msgstr "💾 Datos"
 
-#: src/price_tracker/bot/handlers/__init__.py:89
+#: src/price_tracker/bot/handlers/__init__.py:90
 msgid "📊 Status and info"
 msgstr "📊 Estado e info"
 
-#: src/price_tracker/bot/handlers/__init__.py:92
+#: src/price_tracker/bot/handlers/__init__.py:93
 msgid "👑 Settings (admin)"
 msgstr "👑 Ajustes (admin)"
 
-#: src/price_tracker/bot/handlers/__init__.py:94
+#: src/price_tracker/bot/handlers/__init__.py:95
 msgid ""
 "📋 <b>Menu</b>\n"
 "\n"
@@ -312,7 +331,7 @@ msgstr ""
 "\n"
 "¿Qué quieres hacer?"
 
-#: src/price_tracker/bot/handlers/__init__.py:110
+#: src/price_tracker/bot/handlers/__init__.py:111
 msgid "❌ Something went wrong. Please try again in a moment."
 msgstr "❌ Ha ocurrido un error. Inténtalo de nuevo en un momento."
 
@@ -357,13 +376,14 @@ msgstr "{n} minutos"
 #: src/price_tracker/bot/handlers/_helpers.py:130
 #: src/price_tracker/bot/handlers/_helpers.py:182
 #: src/price_tracker/bot/handlers/callbacks/_actions.py:49
-#: src/price_tracker/bot/handlers/callbacks/_actions.py:109
-#: src/price_tracker/bot/handlers/callbacks/_actions.py:133
-#: src/price_tracker/bot/handlers/callbacks/_actions.py:164
-#: src/price_tracker/bot/handlers/callbacks/_actions.py:194
-#: src/price_tracker/bot/handlers/callbacks/_actions.py:204
-#: src/price_tracker/bot/handlers/callbacks/_actions.py:215
-#: src/price_tracker/bot/handlers/callbacks/_actions.py:222
+#: src/price_tracker/bot/handlers/callbacks/_actions.py:129
+#: src/price_tracker/bot/handlers/callbacks/_actions.py:153
+#: src/price_tracker/bot/handlers/callbacks/_actions.py:184
+#: src/price_tracker/bot/handlers/callbacks/_actions.py:214
+#: src/price_tracker/bot/handlers/callbacks/_actions.py:224
+#: src/price_tracker/bot/handlers/callbacks/_actions.py:235
+#: src/price_tracker/bot/handlers/callbacks/_actions.py:242
+#: src/price_tracker/bot/handlers/callbacks/_groups.py:152
 #: src/price_tracker/bot/handlers/callbacks/_product.py:67
 #: src/price_tracker/bot/handlers/callbacks/_product.py:161
 #: src/price_tracker/bot/handlers/callbacks/_product.py:266
@@ -372,8 +392,11 @@ msgstr "{n} minutos"
 #: src/price_tracker/bot/handlers/callbacks/_product.py:325
 #: src/price_tracker/bot/handlers/callbacks/_product.py:351
 #: src/price_tracker/bot/handlers/debug.py:477
-#: src/price_tracker/bot/handlers/history.py:138
-#: src/price_tracker/bot/handlers/history.py:214
+#: src/price_tracker/bot/handlers/groups_view.py:135
+#: src/price_tracker/bot/handlers/groups_view.py:150
+#: src/price_tracker/bot/handlers/groups_view.py:230
+#: src/price_tracker/bot/handlers/history.py:45
+#: src/price_tracker/bot/handlers/history.py:121
 #: src/price_tracker/bot/handlers/monitoring.py:87
 #: src/price_tracker/bot/handlers/monitoring.py:104
 #: src/price_tracker/bot/handlers/monitoring.py:153
@@ -396,10 +419,13 @@ msgstr "Desconocido"
 #: src/price_tracker/bot/handlers/auth.py:173
 #: src/price_tracker/bot/handlers/callbacks/_admin.py:148
 #: src/price_tracker/bot/handlers/callbacks/_admin.py:184
+#: src/price_tracker/bot/handlers/callbacks/_groups.py:79
+#: src/price_tracker/bot/handlers/callbacks/_groups.py:110
+#: src/price_tracker/bot/handlers/callbacks/_groups.py:317
 #: src/price_tracker/bot/handlers/callbacks/_ops.py:65
 #: src/price_tracker/bot/handlers/callbacks/_product.py:63
-#: src/price_tracker/bot/handlers/history.py:152
-#: src/price_tracker/bot/handlers/history.py:203
+#: src/price_tracker/bot/handlers/history.py:59
+#: src/price_tracker/bot/handlers/history.py:110
 #: src/price_tracker/bot/handlers/monitoring.py:68
 #: src/price_tracker/bot/handlers/monitoring.py:132
 #: src/price_tracker/bot/handlers/monitoring.py:260
@@ -413,8 +439,8 @@ msgstr "❌ ID no válido."
 #: src/price_tracker/bot/handlers/_helpers.py:155
 #: src/price_tracker/bot/handlers/callbacks/_ops.py:69
 #: src/price_tracker/bot/handlers/callbacks/_product.py:159
-#: src/price_tracker/bot/handlers/history.py:157
-#: src/price_tracker/bot/handlers/history.py:208
+#: src/price_tracker/bot/handlers/history.py:64
+#: src/price_tracker/bot/handlers/history.py:115
 #: src/price_tracker/bot/handlers/monitoring.py:79
 #: src/price_tracker/bot/handlers/monitoring.py:137
 #: src/price_tracker/bot/handlers/monitoring.py:265
@@ -427,7 +453,7 @@ msgid "❌ Product not found."
 msgstr "❌ Producto no encontrado."
 
 #: src/price_tracker/bot/handlers/_helpers.py:177
-#: src/price_tracker/bot/handlers/history.py:133
+#: src/price_tracker/bot/handlers/history.py:40
 #: src/price_tracker/bot/handlers/product.py:84
 msgid "📭 You have no tracked products."
 msgstr "📭 No tienes productos en seguimiento."
@@ -509,12 +535,13 @@ msgstr "<b>👥 Usuarios autorizados</b>\n"
 
 #: src/price_tracker/bot/handlers/auth.py:131
 #: src/price_tracker/bot/handlers/callbacks/_actions.py:58
-#: src/price_tracker/bot/handlers/callbacks/_actions.py:166
+#: src/price_tracker/bot/handlers/callbacks/_actions.py:186
 #: src/price_tracker/bot/handlers/callbacks/_admin.py:95
 #: src/price_tracker/bot/handlers/callbacks/_admin.py:188
-#: src/price_tracker/bot/handlers/callbacks/_menu.py:314
+#: src/price_tracker/bot/handlers/callbacks/_menu.py:315
 #: src/price_tracker/bot/handlers/callbacks/_product.py:165
-#: src/price_tracker/bot/handlers/history.py:216
+#: src/price_tracker/bot/handlers/groups_view.py:231
+#: src/price_tracker/bot/handlers/history.py:123
 #: src/price_tracker/bot/handlers/monitoring.py:155
 #: src/price_tracker/bot/handlers/monitoring.py:203
 #: src/price_tracker/bot/handlers/product_list.py:89
@@ -715,20 +742,152 @@ msgstr ""
 "ℹ️ Los sitios en 🔒 cuarentena se reanudan solos; usa /reactivate para "
 "recuperar un producto pausado."
 
-#: src/price_tracker/bot/handlers/callbacks/_product.py:222
-#: src/price_tracker/bot/handlers/history.py:119
-#: src/price_tracker/bot/handlers/history.py:163
-#: src/price_tracker/bot/handlers/product.py:351
-msgid "Product"
-msgstr "Producto"
+#: src/price_tracker/bot/handlers/groups_view.py:103
+msgid "📭 Not enough history yet to say who has been cheapest."
+msgstr "📭 Aún no hay historial suficiente para decir cuál ha sido el más barato."
 
-#: src/price_tracker/bot/handlers/history.py:145
+#: src/price_tracker/bot/handlers/groups_view.py:105
+msgid "🕐 <b>Who has been cheapest</b>"
+msgstr "🕐 <b>Quién ha sido el más barato</b>"
+
+#: src/price_tracker/bot/handlers/groups_view.py:109
+#, python-brace-format
+msgid "   … {count} earlier changes not shown"
+msgstr "   … {count} cambios anteriores no mostrados"
+
+#: src/price_tracker/bot/handlers/groups_view.py:113
+#, python-brace-format
+msgid "{date} — {name} at €{price:.2f}"
+msgstr "{date} — {name} a {price:.2f} €"
+
+#: src/price_tracker/bot/handlers/groups_view.py:117
+#, python-brace-format
+msgid " (tied with {count} more)"
+msgstr " (empatado con {count} más)"
+
+#: src/price_tracker/bot/handlers/groups_view.py:128
+msgid "📭 Add at least two products to compare them."
+msgstr "📭 Añade al menos dos productos para compararlos."
+
+#: src/price_tracker/bot/handlers/groups_view.py:132
+msgid "📊 <b>Comparison</b>"
+msgstr "📊 <b>Comparación</b>"
+
+#: src/price_tracker/bot/handlers/groups_view.py:141
+#, python-brace-format
+msgid " <i>(-{pct:.1f}%)</i>"
+msgstr " <i>(-{pct:.1f} %)</i>"
+
+#: src/price_tracker/bot/handlers/groups_view.py:141
+#, python-brace-format
+msgid " <i>(+{pct:.1f}%)</i>"
+msgstr " <i>(+{pct:.1f} %)</i>"
+
+#: src/price_tracker/bot/handlers/groups_view.py:145
+#, python-brace-format
+msgid "  min €{price:.2f}"
+msgstr "  mín. {price:.2f} €"
+
+#: src/price_tracker/bot/handlers/groups_view.py:151
+#, python-brace-format
+msgid "<b>#{pid}</b> {name} — no price yet"
+msgstr "<b>#{pid}</b> {name} — todavía sin precio"
+
+#: src/price_tracker/bot/handlers/groups_view.py:158
+#, python-brace-format
+msgid "🥇 Cheapest now: <b>{name}</b> at €{price:.2f}"
+msgstr "🥇 El más barato ahora: <b>{name}</b> a {price:.2f} €"
+
+#: src/price_tracker/bot/handlers/groups_view.py:162
+#, python-brace-format
+msgid "↔️ Spread: €{spread:.2f}"
+msgstr "↔️ Diferencia: {spread:.2f} €"
+
+#: src/price_tracker/bot/handlers/groups_view.py:183
+#, python-brace-format
+msgid "🏷 {name} ({count})"
+msgstr "🏷 {name} ({count})"
+
+#: src/price_tracker/bot/handlers/groups_view.py:192
+msgid "➕ New group"
+msgstr "➕ Grupo nuevo"
+
+#: src/price_tracker/bot/handlers/groups_view.py:197
+msgid ""
+"🏷 <b>Groups</b>\n"
+"\n"
+"A group is a set of products you want to compare — three monitors, say, "
+"or everything on one shopping list.\n"
+"\n"
+"You have none yet."
+msgstr ""
+"🏷 <b>Grupos</b>
+"
+"
+"
+"Un grupo es un conjunto de productos que quieres comparar: tres monitores, por ejemplo, o toda una lista de la compra.
+"
+"
+"
+"Todavía no tienes ninguno."
+
+#: src/price_tracker/bot/handlers/groups_view.py:203
+#, python-brace-format
+msgid ""
+"🏷 <b>Groups</b> ({count})\n"
+"\n"
+"Pick one to compare its products."
+msgstr ""
+"🏷 <b>Grupos</b> ({count})
+"
+"
+"
+"Elige uno para comparar sus productos."
+
+#: src/price_tracker/bot/handlers/groups_view.py:220
+#, python-brace-format
+msgid "🏷 <b>{name}</b> — {count} products"
+msgstr "🏷 <b>{name}</b> — {count} productos"
+
+#: src/price_tracker/bot/handlers/groups_view.py:225
+msgid "Nothing in it yet. Add products to start comparing them."
+msgstr "Todavía está vacío. Añade productos para empezar a compararlos."
+
+#: src/price_tracker/bot/handlers/groups_view.py:239
+msgid "📊 Compare"
+msgstr "📊 Comparar"
+
+#: src/price_tracker/bot/handlers/groups_view.py:240
+msgid "📈 Chart"
+msgstr "📈 Gráfica"
+
+#: src/price_tracker/bot/handlers/groups_view.py:246
+msgid "🕐 Who has been cheapest"
+msgstr "🕐 Quién ha sido el más barato"
+
+#: src/price_tracker/bot/handlers/groups_view.py:250
+msgid "➕ Add product"
+msgstr "➕ Añadir producto"
+
+#: src/price_tracker/bot/handlers/groups_view.py:252
+msgid "➖ Remove"
+msgstr "➖ Quitar"
+
+#: src/price_tracker/bot/handlers/groups_view.py:254
+msgid "✏️ Rename"
+msgstr "✏️ Renombrar"
+
+#: src/price_tracker/bot/handlers/groups_view.py:255
+msgid "🗑 Delete group"
+msgstr "🗑 Borrar grupo"
+
+#: src/price_tracker/bot/handlers/history.py:52
 msgid "📊 <b>Pick a product to see its history:</b>"
 msgstr "📊 <b>Elige un producto para ver su histórico:</b>"
 
 #: src/price_tracker/bot/handlers/callbacks/_product.py:172
 #: src/price_tracker/bot/handlers/callbacks/_product.py:226
-#: src/price_tracker/bot/handlers/history.py:169
+#: src/price_tracker/bot/handlers/history.py:76
 #, python-brace-format
 msgid ""
 "\n"
@@ -737,7 +896,7 @@ msgstr ""
 "\n"
 "🌐 Tienda: {store}"
 
-#: src/price_tracker/bot/handlers/history.py:171
+#: src/price_tracker/bot/handlers/history.py:78
 #, python-brace-format
 msgid ""
 "\n"
@@ -746,19 +905,19 @@ msgstr ""
 "\n"
 "📉 Mín: €{price:.2f}"
 
-#: src/price_tracker/bot/handlers/history.py:173
+#: src/price_tracker/bot/handlers/history.py:80
 #, python-brace-format
 msgid "  📈 Max: €{price:.2f}"
 msgstr "  📈 Máx: €{price:.2f}"
 
 #: src/price_tracker/bot/handlers/callbacks/_product.py:217
-#: src/price_tracker/bot/handlers/history.py:182
+#: src/price_tracker/bot/handlers/history.py:89
 msgid "📭 Not enough data to generate the chart (at least 2 points needed)."
 msgstr ""
 "📭 No hay datos suficientes para generar el gráfico (hacen falta al menos "
 "2 puntos)."
 
-#: src/price_tracker/bot/handlers/history.py:193
+#: src/price_tracker/bot/handlers/history.py:100
 msgid ""
 "❌ Usage: /reset &lt;id&gt;\n"
 "\n"
@@ -770,7 +929,7 @@ msgstr ""
 "Reajusta el precio inicial al precio actual.\n"
 "Útil cuando el precio ha bajado y quieres rehacer la comparación."
 
-#: src/price_tracker/bot/handlers/history.py:219
+#: src/price_tracker/bot/handlers/history.py:126
 #, python-brace-format
 msgid ""
 "✅ Initial price updated!\n"
@@ -783,7 +942,7 @@ msgstr ""
 "📦 <b>#{pid}</b> {name}\n"
 "💰 Nuevo precio base: <b>{price}</b>"
 
-#: src/price_tracker/bot/handlers/history.py:226
+#: src/price_tracker/bot/handlers/history.py:133
 msgid "❌ Could not update the initial price."
 msgstr "❌ No se ha podido actualizar el precio inicial."
 
@@ -1274,7 +1433,7 @@ msgstr "<b>📦 Tus productos ({count})</b>"
 msgid "🔍 Check"
 msgstr "🔍 Comprobar"
 
-#: src/price_tracker/bot/handlers/callbacks/_menu.py:176
+#: src/price_tracker/bot/handlers/callbacks/_menu.py:177
 #: src/price_tracker/bot/handlers/callbacks/_product.py:189
 #: src/price_tracker/bot/handlers/product_list.py:229
 msgid "📊 Price history"
@@ -1472,7 +1631,7 @@ msgstr "📨 Enviadas {count} entradas pendientes del resumen."
 
 #: src/price_tracker/bot/handlers/callbacks/_nav.py:104
 #: src/price_tracker/bot/handlers/text_input.py:99
-#: src/price_tracker/bot/handlers/text_input.py:531
+#: src/price_tracker/bot/handlers/text_input.py:577
 msgid "👍 Cancelled — nothing was changed."
 msgstr "👍 Cancelado — no se ha cambiado nada."
 
@@ -1619,7 +1778,28 @@ msgstr "❌ El límite debe ser mayor que cero."
 msgid "❌ The interval must be greater than zero."
 msgstr "❌ El intervalo debe ser mayor que cero."
 
-#: src/price_tracker/bot/handlers/text_input.py:529
+#: src/price_tracker/bot/handlers/text_input.py:513
+#: src/price_tracker/bot/handlers/text_input.py:535
+msgid "❌ The name cannot be empty."
+msgstr "❌ El nombre no puede estar vacío."
+
+#: src/price_tracker/bot/handlers/text_input.py:518
+#: src/price_tracker/bot/handlers/text_input.py:542
+#, python-brace-format
+msgid "❌ You already have a group called <b>{name}</b>."
+msgstr "❌ Ya tienes un grupo llamado <b>{name}</b>."
+
+#: src/price_tracker/bot/handlers/text_input.py:520
+#, python-brace-format
+msgid "🏷 Group <b>{name}</b> created. Open /groups to fill it."
+msgstr "🏷 Grupo <b>{name}</b> creado. Abre /groups para llenarlo."
+
+#: src/price_tracker/bot/handlers/text_input.py:544
+#, python-brace-format
+msgid "🏷 Renamed to <b>{name}</b>."
+msgstr "🏷 Renombrado a <b>{name}</b>."
+
+#: src/price_tracker/bot/handlers/text_input.py:575
 msgid "👍 Nothing to cancel."
 msgstr "👍 No hay nada que cancelar."
 
@@ -1631,7 +1811,12 @@ msgstr "sin fijar"
 msgid "🔄 Reset base price"
 msgstr "🔄 Reiniciar precio base"
 
-#: src/price_tracker/bot/handlers/callbacks/_actions.py:79
+#: src/price_tracker/bot/handlers/callbacks/_actions.py:73
+#: src/price_tracker/bot/handlers/callbacks/_menu.py:138
+msgid "🏷 Groups"
+msgstr "🏷 Grupos"
+
+#: src/price_tracker/bot/handlers/callbacks/_actions.py:80
 #, python-brace-format
 msgid ""
 "✏️ <b>Edit #{pid}</b> {name}\n"
@@ -1650,7 +1835,7 @@ msgstr ""
 "\n"
 "<b>¿Qué quieres cambiar?</b>"
 
-#: src/price_tracker/bot/handlers/callbacks/_actions.py:112
+#: src/price_tracker/bot/handlers/callbacks/_actions.py:132
 #, python-brace-format
 msgid ""
 "⏸ <b>Paused:</b> {name}\n"
@@ -1659,20 +1844,20 @@ msgstr ""
 "⏸ <b>En pausa:</b> {name}\n"
 "Usa /reactivate {pid} para reanudarlo."
 
-#: src/price_tracker/bot/handlers/callbacks/_actions.py:136
+#: src/price_tracker/bot/handlers/callbacks/_actions.py:156
 msgid "🗑 Yes, delete everything"
 msgstr "🗑 Sí, eliminar todo"
 
-#: src/price_tracker/bot/handlers/callbacks/_actions.py:139
+#: src/price_tracker/bot/handlers/callbacks/_actions.py:159
 msgid "⏸ Just pause"
 msgstr "⏸ Solo pausar"
 
-#: src/price_tracker/bot/handlers/callbacks/_actions.py:142
+#: src/price_tracker/bot/handlers/callbacks/_actions.py:162
 #, python-brace-format
 msgid "❓ What do you want to do with <b>{name}</b>?"
 msgstr "❓ ¿Qué quieres hacer con <b>{name}</b>?"
 
-#: src/price_tracker/bot/handlers/callbacks/_actions.py:169
+#: src/price_tracker/bot/handlers/callbacks/_actions.py:189
 #, python-brace-format
 msgid ""
 "✅ Base price updated!\n"
@@ -1685,21 +1870,21 @@ msgstr ""
 "📦 <b>#{pid}</b> {name}\n"
 "💰 Nuevo base: <b>{price}</b>"
 
-#: src/price_tracker/bot/handlers/callbacks/_actions.py:176
+#: src/price_tracker/bot/handlers/callbacks/_actions.py:196
 msgid "❌ Update failed."
 msgstr "❌ No se ha podido actualizar."
 
-#: src/price_tracker/bot/handlers/callbacks/_actions.py:196
+#: src/price_tracker/bot/handlers/callbacks/_actions.py:216
 #, python-brace-format
 msgid "▶️ <b>Reactivated:</b> {name}"
 msgstr "▶️ <b>Reactivado:</b> {name}"
 
-#: src/price_tracker/bot/handlers/callbacks/_actions.py:206
+#: src/price_tracker/bot/handlers/callbacks/_actions.py:226
 #, python-brace-format
 msgid " (current: €{price:.2f})"
 msgstr " (actual: €{price:.2f})"
 
-#: src/price_tracker/bot/handlers/callbacks/_actions.py:208
+#: src/price_tracker/bot/handlers/callbacks/_actions.py:228
 #, python-brace-format
 msgid ""
 "🎯 <b>{name}</b>{price_info}\n"
@@ -1710,7 +1895,7 @@ msgstr ""
 "\n"
 "Escribe el precio objetivo (p. ej. <code>29.99</code>):"
 
-#: src/price_tracker/bot/handlers/callbacks/_actions.py:214
+#: src/price_tracker/bot/handlers/callbacks/_actions.py:234
 #, python-brace-format
 msgid ""
 "🎯 <b>{name}</b>\n"
@@ -1721,7 +1906,7 @@ msgstr ""
 "\n"
 "Escribe el umbral (p. ej. <code>20%</code> o <code>50</code>):"
 
-#: src/price_tracker/bot/handlers/callbacks/_actions.py:220
+#: src/price_tracker/bot/handlers/callbacks/_actions.py:240
 #, python-brace-format
 msgid ""
 "🔄 <b>{name}</b>\n"
@@ -1870,12 +2055,7 @@ msgid ""
 "🔕 <b>Mute</b>\n"
 "\n"
 "For how long?"
-msgstr ""
-"🔕 <b>Silenciar</b>
-"
-"
-"
-"¿Durante cuánto tiempo?"
+msgstr "🔕 <b>Silenciar</b¿Durante cuánto tiempo?"
 
 #: src/price_tracker/bot/handlers/callbacks/_delivery.py:150
 msgid "off"
@@ -1960,11 +2140,8 @@ msgid ""
 "Type a window like <code>22:00-08:00</code>, or <code>off</code> to "
 "disable it."
 msgstr ""
-"🌙 <b>Horas de silencio</b>
-"
-"
-"
-"Escribe un intervalo como <code>22:00-08:00</code>, o <code>off</code> para desactivarlo."
+"🌙 <b>Horas de silencio</bEscribe un intervalo como "
+"<code>22:00-08:00</code>, o <code>off</code> para desactivarlo."
 
 #: src/price_tracker/bot/handlers/callbacks/_delivery.py:204
 msgid ""
@@ -1972,11 +2149,8 @@ msgid ""
 "\n"
 "Type an IANA name, e.g. <code>Europe/Madrid</code>."
 msgstr ""
-"🌍 <b>Zona horaria</b>
-"
-"
-"
-"Escribe un nombre IANA, p. ej. <code>Europe/Madrid</code>."
+"🌍 <b>Zona horaria</bEscribe un nombre IANA, p. ej. "
+"<code>Europe/Madrid</code>."
 
 #: src/price_tracker/bot/handlers/callbacks/_delivery.py:207
 msgid ""
@@ -1984,11 +2158,8 @@ msgid ""
 "\n"
 "Type the most alerts you want in an hour, or <code>off</code> for no cap."
 msgstr ""
-"🚦 <b>Límite por hora</b>
-"
-"
-"
-"Escribe cuántos avisos como mucho quieres en una hora, o <code>off</code> para no poner tope."
+"🚦 <b>Límite por hora</bEscribe cuántos avisos como mucho quieres en una "
+"hora, o <code>off</code> para no poner tope."
 
 #: src/price_tracker/bot/handlers/callbacks/_delivery.py:211
 msgid ""
@@ -1996,11 +2167,126 @@ msgid ""
 "\n"
 "Type how many minutes between digests, e.g. <code>60</code>."
 msgstr ""
-"⏱ <b>Intervalo del resumen</b>
+"⏱ <b>Intervalo del resumen</bEscribe cuántos minutos hay entre resúmenes,"
+" p. ej. <code>60</code>."
+
+#: src/price_tracker/bot/handlers/callbacks/_groups.py:66
+msgid ""
+"🏷 <b>New group</b>\n"
+"\n"
+"Type a name for it, e.g. <code>Monitors</code>:"
+msgstr ""
+"🏷 <b>Grupo nuevo</b>
 "
 "
 "
-"Escribe cuántos minutos hay entre resúmenes, p. ej. <code>60</code>."
+"Escribe un nombre, p. ej. <code>Monitores</code>:"
+
+#: src/price_tracker/bot/handlers/callbacks/_groups.py:83
+#: src/price_tracker/bot/handlers/callbacks/_groups.py:114
+#: src/price_tracker/bot/handlers/callbacks/_groups.py:327
+msgid "❌ Group not found."
+msgstr "❌ Grupo no encontrado."
+
+#: src/price_tracker/bot/handlers/callbacks/_groups.py:175
+msgid "📭 Not enough history yet — at least two products need two readings each."
+msgstr "📭 Aún no hay historial suficiente: hacen falta al menos dos productos con dos lecturas cada uno."
+
+#: src/price_tracker/bot/handlers/callbacks/_groups.py:180
+#, python-brace-format
+msgid "📈 <b>{name}</b> — {count} products"
+msgstr "📈 <b>{name}</b> — {count} productos"
+
+#: src/price_tracker/bot/handlers/callbacks/_groups.py:185
+#, python-brace-format
+msgid ""
+"\n"
+"(showing the first {count})"
+msgstr ""
+"
+"
+"(se muestran los primeros {count})"
+
+#: src/price_tracker/bot/handlers/callbacks/_groups.py:207
+#, python-brace-format
+msgid ""
+"✏️ <b>{name}</b>\n"
+"\n"
+"Type the new name:"
+msgstr ""
+"✏️ <b>{name}</b>
+"
+"
+"
+"Escribe el nombre nuevo:"
+
+#: src/price_tracker/bot/handlers/callbacks/_groups.py:221
+#, python-brace-format
+msgid ""
+"🗑 Delete the group <b>{name}</b>?\n"
+"\n"
+"The {count} products in it stay tracked — only the grouping goes."
+msgstr ""
+"🗑 ¿Borrar el grupo <b>{name}</b>?
+"
+"
+"
+"Los {count} productos siguen vigilados: solo se borra la agrupación."
+
+#: src/price_tracker/bot/handlers/callbacks/_groups.py:230
+msgid "🗑 Yes, delete the group"
+msgstr "🗑 Sí, borrar el grupo"
+
+#: src/price_tracker/bot/handlers/callbacks/_groups.py:254
+msgid "📭 Every tracked product is already in this group."
+msgstr "📭 Todos los productos vigilados ya están en este grupo."
+
+#: src/price_tracker/bot/handlers/callbacks/_groups.py:268
+#, python-brace-format
+msgid ""
+"➕ <b>{name}</b>\n"
+"\n"
+"Pick a product to add:"
+msgstr ""
+"➕ <b>{name}</b>
+"
+"
+"
+"Elige un producto para añadir:"
+
+#: src/price_tracker/bot/handlers/callbacks/_groups.py:283
+msgid "📭 Nothing in this group yet."
+msgstr "📭 Este grupo está vacío."
+
+#: src/price_tracker/bot/handlers/callbacks/_groups.py:297
+#, python-brace-format
+msgid ""
+"➖ <b>{name}</b>\n"
+"\n"
+"Pick a product to remove:"
+msgstr ""
+"➖ <b>{name}</b>
+"
+"
+"
+"Elige un producto para quitar:"
+
+#: src/price_tracker/bot/handlers/callbacks/_groups.py:341
+msgid "🏷 You have no groups yet. Create one from /groups."
+msgstr "🏷 Todavía no tienes grupos. Crea uno desde /groups."
+
+#: src/price_tracker/bot/handlers/callbacks/_groups.py:359
+#, python-brace-format
+msgid ""
+"🏷 <b>Groups for #{pid}</b>\n"
+"\n"
+"Tap to add or remove."
+msgstr ""
+"🏷 <b>Grupos de #{pid}</b>
+"
+"
+"
+"Toca para añadir o quitar."
 
 #: src/price_tracker/bot/handlers/callbacks/_menu.py:72
 #, python-brace-format
@@ -2047,7 +2333,7 @@ msgstr "📭 Sin productos — ¡pega un enlace!"
 msgid "⏸ {count} paused → reactivate"
 msgstr "⏸ {count} en pausa → reactivar"
 
-#: src/price_tracker/bot/handlers/callbacks/_menu.py:140
+#: src/price_tracker/bot/handlers/callbacks/_menu.py:141
 #, python-brace-format
 msgid ""
 "📦 <b>Your products</b> ({count} active)\n"
@@ -2058,7 +2344,7 @@ msgstr ""
 "\n"
 "Toca un producto para editarlo."
 
-#: src/price_tracker/bot/handlers/callbacks/_menu.py:159
+#: src/price_tracker/bot/handlers/callbacks/_menu.py:160
 #, python-brace-format
 msgid ""
 "⏸ <b>Paused products</b> ({count})\n"
@@ -2069,11 +2355,11 @@ msgstr ""
 "\n"
 "Toca uno para reactivarlo."
 
-#: src/price_tracker/bot/handlers/callbacks/_menu.py:169
+#: src/price_tracker/bot/handlers/callbacks/_menu.py:170
 msgid "🔄 Check all prices"
 msgstr "🔄 Comprobar todos los precios"
 
-#: src/price_tracker/bot/handlers/callbacks/_menu.py:179
+#: src/price_tracker/bot/handlers/callbacks/_menu.py:180
 msgid ""
 "🔍 <b>Price check</b>\n"
 "\n"
@@ -2083,7 +2369,7 @@ msgstr ""
 "\n"
 "Toca un producto para comprobarlo."
 
-#: src/price_tracker/bot/handlers/callbacks/_menu.py:198
+#: src/price_tracker/bot/handlers/callbacks/_menu.py:199
 msgid ""
 "📊 <b>Price history</b>\n"
 "\n"
@@ -2093,34 +2379,29 @@ msgstr ""
 "\n"
 "Toca un producto para ver su gráfico."
 
-#: src/price_tracker/bot/handlers/callbacks/_menu.py:207
+#: src/price_tracker/bot/handlers/callbacks/_menu.py:208
 msgid "📬 Delivery"
 msgstr "📬 Entrega"
 
-#: src/price_tracker/bot/handlers/callbacks/_menu.py:228
+#: src/price_tracker/bot/handlers/callbacks/_menu.py:229
 msgid ""
 "🔔 <b>Notifications</b>\n"
 "\n"
 "Delivery covers muting, quiet hours and digests.\n"
 "Tap a product to change its threshold or target."
 msgstr ""
-"🔔 <b>Notificaciones</b>
-"
-"
-"
-"En Entrega están el silencio, las horas de silencio y los resúmenes.
-"
-"Toca un producto para cambiar su umbral u objetivo."
+"🔔 <b>Notificaciones</bEn Entrega están el silencio, las horas de silencio"
+" y los resúmenesToca un producto para cambiar su umbral u objetivo."
 
-#: src/price_tracker/bot/handlers/callbacks/_menu.py:240
+#: src/price_tracker/bot/handlers/callbacks/_menu.py:241
 msgid "💾 Export CSV"
 msgstr "💾 Exportar CSV"
 
-#: src/price_tracker/bot/handlers/callbacks/_menu.py:243
+#: src/price_tracker/bot/handlers/callbacks/_menu.py:244
 msgid "📂 Import CSV — send the file in chat"
 msgstr "📂 Importar CSV — envía el archivo por chat"
 
-#: src/price_tracker/bot/handlers/callbacks/_menu.py:251
+#: src/price_tracker/bot/handlers/callbacks/_menu.py:252
 #, python-brace-format
 msgid ""
 "💾 <b>Import / Export</b>\n"
@@ -2133,7 +2414,7 @@ msgstr ""
 "📦 {active} activos, {total} totales\n"
 "🔍 {checks} comprobaciones hechas"
 
-#: src/price_tracker/bot/handlers/callbacks/_menu.py:270
+#: src/price_tracker/bot/handlers/callbacks/_menu.py:271
 msgid ""
 "📂 <b>Import products</b>\n"
 "\n"
@@ -2145,32 +2426,32 @@ msgstr ""
 "Envía un archivo CSV por chat (el que genera Exportar).\n"
 "Los duplicados se omitirán."
 
-#: src/price_tracker/bot/handlers/callbacks/_menu.py:295
-#: src/price_tracker/bot/handlers/callbacks/_menu.py:345
+#: src/price_tracker/bot/handlers/callbacks/_menu.py:296
+#: src/price_tracker/bot/handlers/callbacks/_menu.py:346
 msgid "📭 No products."
 msgstr "📭 Sin productos."
 
-#: src/price_tracker/bot/handlers/callbacks/_menu.py:299
+#: src/price_tracker/bot/handlers/callbacks/_menu.py:300
 #, python-brace-format
 msgid "🔍 Checking {count} products..."
 msgstr "🔍 Comprobando {count} productos..."
 
-#: src/price_tracker/bot/handlers/callbacks/_menu.py:309
+#: src/price_tracker/bot/handlers/callbacks/_menu.py:310
 #, python-brace-format
 msgid "✅ <b>Done</b> — {count} products"
 msgstr "✅ <b>Listo</b> — {count} productos"
 
-#: src/price_tracker/bot/handlers/callbacks/_menu.py:321
+#: src/price_tracker/bot/handlers/callbacks/_menu.py:322
 #, python-brace-format
 msgid "🔔 <b>{count} changes!</b>"
 msgstr "🔔 <b>¡{count} cambios!</b>"
 
-#: src/price_tracker/bot/handlers/callbacks/_menu.py:372
+#: src/price_tracker/bot/handlers/callbacks/_menu.py:373
 #, python-brace-format
 msgid "💾 {count} products exported."
 msgstr "💾 {count} productos exportados."
 
-#: src/price_tracker/bot/handlers/callbacks/_menu.py:375
+#: src/price_tracker/bot/handlers/callbacks/_menu.py:376
 #, python-brace-format
 msgid ""
 "💾 <b>Export</b>\n"
@@ -2178,7 +2459,7 @@ msgid ""
 "{count} products sent as a CSV file below."
 msgstr "💾 <b>Exportar</b{count} productos enviados como CSV aquí abajo."
 
-#: src/price_tracker/bot/handlers/callbacks/_menu.py:395
+#: src/price_tracker/bot/handlers/callbacks/_menu.py:396
 #, python-brace-format
 msgid ""
 "📊 <b>Stats</b>\n"
@@ -2195,7 +2476,7 @@ msgstr ""
 "🔍 Comprobaciones: {checks}\n"
 "⏱ Intervalo: cada {interval}"
 
-#: src/price_tracker/bot/handlers/callbacks/_menu.py:410
+#: src/price_tracker/bot/handlers/callbacks/_menu.py:411
 #, python-brace-format
 msgid ""
 "\n"
@@ -2212,15 +2493,15 @@ msgstr ""
 "📦 Productos globales: {products}\n"
 "🔍 Comprobaciones globales: {checks}"
 
-#: src/price_tracker/bot/handlers/callbacks/_menu.py:416
+#: src/price_tracker/bot/handlers/callbacks/_menu.py:417
 msgid "⌨️ All commands"
 msgstr "⌨️ Todos los comandos"
 
-#: src/price_tracker/bot/handlers/callbacks/_menu.py:436
+#: src/price_tracker/bot/handlers/callbacks/_menu.py:437
 msgid "⌨️ <b>All commands</b>"
 msgstr "⌨️ <b>Todos los comandos</b>"
 
-#: src/price_tracker/bot/handlers/callbacks/_menu.py:438
+#: src/price_tracker/bot/handlers/callbacks/_menu.py:439
 msgid "<b>Admin</b>"
 msgstr "<b>Administración</b>"
 

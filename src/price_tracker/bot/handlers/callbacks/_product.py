@@ -20,6 +20,7 @@ from telegram import (
 from telegram.constants import ParseMode
 from telegram.error import TelegramError
 
+from price_tracker.bot.charts import generate_chart
 from price_tracker.bot.decorators import (
     _convert_display,
 )
@@ -30,7 +31,6 @@ from price_tracker.bot.handlers._helpers import (
     _safe_dec,
     resolve_owned_product,
 )
-from price_tracker.bot.handlers.history import _generate_chart
 from price_tracker.bot.keyboards import (
     build_threshold_keyboard,
     prompt_keyboard,
@@ -211,7 +211,7 @@ async def handle_chart_button(
     product_id, product = resolved
 
     origin_id = _message_id(query)
-    chart = await _generate_chart(db, product_id, product)
+    chart = await generate_chart(db, product_id, product)
     if not chart:
         await query.edit_message_text(
             _("📭 Not enough data to generate the chart (at least 2 points needed)."),

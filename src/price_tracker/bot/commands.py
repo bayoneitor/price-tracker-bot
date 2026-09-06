@@ -50,6 +50,7 @@ logger = logging.getLogger(__name__)
 USER_COMMANDS: tuple[tuple[str, str], ...] = (
     ("menu", N_("Open the main menu")),
     ("list", N_("List your tracked products")),
+    ("groups", N_("Compare products grouped together")),
     ("add", N_("Track a new product by URL")),
     ("cancel", N_("Cancel whatever the bot is waiting for")),
     ("check", N_("Check one product's price now")),
@@ -92,6 +93,7 @@ ADMIN_COMMANDS: tuple[tuple[str, str], ...] = (
 QUICK_USER_COMMANDS: tuple[str, ...] = (
     "menu",
     "list",
+    "groups",
     "add",
     "check",
     "history",

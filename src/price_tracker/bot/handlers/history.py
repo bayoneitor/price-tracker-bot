@@ -1,22 +1,18 @@
 """Price-history & reset handlers: /history, /reset.
 
-Ported from monolithic bot.py [Task 17]. The chart renderer (`_generate_chart`)
-is kept here as a private helper until the chart module gets its own home in
-Plan 3 (F4).
+Ported from monolithic bot.py [Task 17]. The chart renderer moved to
+`bot.charts` once there was a second kind of chart to draw.
 """
 
 from __future__ import annotations
 
-import asyncio
-import io
 import logging
-from datetime import datetime
-from typing import Any
 
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, InputFile, Update
 from telegram.constants import ParseMode
 from telegram.ext import Application, CommandHandler, ContextTypes
 
+from price_tracker.bot.charts import generate_chart
 from price_tracker.bot.decorators import _db, restricted, with_locale
 from price_tracker.bot.handlers._helpers import (
     _escape_html,
@@ -29,95 +25,6 @@ from price_tracker.bot.messages import _
 from price_tracker.core.url_utils import store_label
 
 logger = logging.getLogger(__name__)
-
-
-def _render_chart(
-    dates: list[datetime], prices: list[float], target: object, name: str
-) -> io.BytesIO:
-    """Render the price-history chart to a PNG buffer (pure CPU — run via to_thread).
-
-    Uses the matplotlib OO API (Figure, not pyplot) so concurrent renders in the
-    threadpool don't race on pyplot's global figure registry, and no plt.close()
-    bookkeeping is needed. matplotlib imports stay deferred for fast startup.
-    """
-    import matplotlib  # noqa: PLC0415 — heavy import deferred
-
-    matplotlib.use("Agg")
-    import matplotlib.dates as mdates  # noqa: PLC0415
-    from matplotlib.figure import Figure  # noqa: PLC0415
-
-    fig = Figure(figsize=(8, 3.5), dpi=100)
-    ax = fig.subplots()
-    fig.patch.set_facecolor("#000000")
-    ax.set_facecolor("#000000")
-
-    ax.plot(dates, prices, color="#ff9f1c", linewidth=2.2, antialiased=True)
-
-    if target:
-        try:
-            target_f = float(target)
-            ax.axhline(
-                y=target_f,
-                color="#ff6b6b",
-                linestyle="--",
-                linewidth=1,
-                alpha=0.8,
-                label=f"Target €{target_f:.2f}",
-            )
-            ax.legend(facecolor="#000000", edgecolor="#333", labelcolor="white", fontsize=8)
-        except (ValueError, TypeError):
-            pass
-
-    ax.set_ylabel("€", color="white", fontsize=10)
-    ax.tick_params(colors="#999999", labelsize=8)
-    ax.spines["top"].set_visible(False)
-    ax.spines["right"].set_visible(False)
-    ax.spines["left"].set_color("#333333")
-    ax.spines["bottom"].set_color("#333333")
-    ax.grid(axis="y", alpha=0.15, color="#555555")
-
-    ax.xaxis.set_major_formatter(mdates.DateFormatter("%d/%m"))
-    fig.autofmt_xdate(rotation=30)
-
-    ax.set_title(name, color="white", fontsize=10, pad=10)
-
-    min_p, max_p = min(prices), max(prices)
-    margin = (max_p - min_p) * 0.15 if max_p != min_p else max_p * 0.05
-    ax.set_ylim(min_p - margin, max_p + margin)
-
-    fig.tight_layout()
-    buf = io.BytesIO()
-    fig.savefig(buf, format="png", bbox_inches="tight", facecolor=fig.get_facecolor())
-    buf.seek(0)
-    return buf
-
-
-async def _generate_chart(db: Any, product_id: int, product: dict[str, Any]) -> io.BytesIO | None:
-    """Generate a price-history chart as PNG. Returns None if data is too sparse.
-
-    The matplotlib render is offloaded to a worker thread so it never blocks the
-    event loop (and therefore every other user/handler) while drawing.
-    """
-    history = await db.get_price_history(product_id, limit=100)
-    if not history or len(history) < 2:
-        return None
-
-    dates: list[datetime] = []
-    prices: list[float] = []
-    for record in history:
-        try:
-            dt = datetime.fromisoformat(record["checked_at"].replace("Z", "+00:00"))
-            price = float(record["price"])
-            dates.append(dt)
-            prices.append(price)
-        except (ValueError, TypeError):
-            continue
-
-    if len(dates) < 2:
-        return None
-
-    name = (product.get("name") or _("Product"))[:50]
-    return await asyncio.to_thread(_render_chart, dates, prices, product.get("target_price"), name)
 
 
 @with_locale
@@ -158,7 +65,7 @@ async def cmd_history(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         return
 
     db = _db(context)
-    chart_buf = await _generate_chart(db, product_id, product)
+    chart_buf = await generate_chart(db, product_id, product)
     if chart_buf:
         name = (product.get("name") or _("Product"))[:50]
         lowest = _safe_dec(product.get("lowest_price"))

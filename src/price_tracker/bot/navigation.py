@@ -56,6 +56,8 @@ PENDING_SPECS: dict[str, PendingSpec] = {
     "timezone": PendingSpec(label=N_("a timezone name")),
     "throttle": PendingSpec(label=N_("how many alerts per hour")),
     "digest_interval": PendingSpec(label=N_("a digest interval in minutes")),
+    "group_new": PendingSpec(label=N_("a name for the group")),
+    "group_rename": PendingSpec(label=N_("a new name for the group")),
 }
 
 

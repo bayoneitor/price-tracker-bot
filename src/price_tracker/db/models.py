@@ -146,3 +146,14 @@ class DigestEntry:
     alert_payload_json: str
     enqueued_at: datetime | None = None
     flushed_at: datetime | None = None
+
+
+@dataclass(frozen=True)
+class ProductGroup(_DictCompatMixin):
+    """A named set of products the user wants to compare against each other."""
+
+    id: int
+    user_id: int
+    name: str
+    created_at: str | None = None
+    member_count: int = 0

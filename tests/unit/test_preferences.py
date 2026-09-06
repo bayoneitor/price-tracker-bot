@@ -31,7 +31,7 @@ async def test_resolve_returns_defaults_when_no_rows(repo_mock: AsyncMock) -> No
     assert eff.mute is False
     assert eff.digest_mode is False
     assert eff.digest_interval_minutes == 60
-    assert eff.timezone == "Europe/Rome"
+    assert eff.timezone == "Europe/Madrid"
     assert eff.quiet_hours_start is None
     assert eff.throttle_per_hour is None
 
@@ -93,7 +93,7 @@ async def test_resolve_global_returns_defaults_without_row(repo_mock: AsyncMock)
         quiet_hours_start=None,
         quiet_hours_end=None,
         throttle_per_hour=None,
-        timezone="Europe/Rome",
+        timezone="Europe/Madrid",
     )
 
 

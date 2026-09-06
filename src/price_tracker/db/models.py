@@ -131,7 +131,9 @@ class NotificationPrefs:
     quiet_hours_start: str | None = None
     quiet_hours_end: str | None = None
     throttle_per_hour: int | None = None
-    timezone: str = "Europe/Rome"
+    # The row the bot writes always names this column, so this default — not the
+    # one in migration 009 — is what a new user actually gets.
+    timezone: str = "Europe/Madrid"
     throttle_state_json: str | None = None
     updated_at: datetime | None = None
 

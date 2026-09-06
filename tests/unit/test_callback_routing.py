@@ -112,15 +112,18 @@ async def test_a_handled_screen_is_recorded_on_the_trail(
 
 
 @pytest.mark.asyncio
-async def test_a_chart_keeps_its_own_trail(monkeypatch: pytest.MonkeyPatch) -> None:
-    """It moves the trail onto the photo itself; the dispatcher must not re-add it."""
+async def test_an_unhandled_callback_leaves_no_trace_on_the_trail(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The token is recorded before the screen renders, so a miss must undo it."""
 
     async def spy(query: Any, context: Any, db: Any, user_id: int, token: str) -> bool:
-        return True
+        return False
 
     monkeypatch.setattr(callbacks, "_dispatch", spy)
     context = _context()
+    push_nav(context, 5, "menu_main")
 
-    await callbacks.handle_callback(_update("chart_3"), context)
+    await callbacks.handle_callback(_update("nonsense_9"), context)
 
-    assert context.user_data.get("nav", {}).get(5, []) == []
+    assert context.user_data["nav"][5] == ["menu_main"]

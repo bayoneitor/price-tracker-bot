@@ -53,10 +53,9 @@ def test_back_goes_to_the_screen_before_this_one() -> None:
     push_nav(context, MESSAGE_ID, "menu_prodotti")
     push_nav(context, MESSAGE_ID, "edit_3")
 
-    # Both entries come off; the caller re-dispatches what comes back, which
-    # pushes it on again.
+    # Only the screen being left comes off; the target stays on top because the
+    # caller renders it directly rather than through the dispatcher.
     assert pop_nav(context, MESSAGE_ID) == "menu_prodotti"
-    push_nav(context, MESSAGE_ID, "menu_prodotti")
     assert pop_nav(context, MESSAGE_ID) == "menu_main"
 
 
@@ -64,7 +63,8 @@ def test_the_first_screen_has_nowhere_to_go_back_to() -> None:
     context = _context()
     push_nav(context, MESSAGE_ID, "menu_main")
 
-    assert previous_nav(context, MESSAGE_ID) == "menu_main"
+    # The top of the trail is the screen currently on display, not a destination.
+    assert previous_nav(context, MESSAGE_ID) is None
     assert pop_nav(context, MESSAGE_ID) is None
 
 
@@ -90,11 +90,14 @@ def test_a_trail_can_move_to_another_message() -> None:
     """Opening a chart replaces the panel, so the trail has to follow the photo."""
     context = _context()
     push_nav(context, MESSAGE_ID, "list_go_2")
+    push_nav(context, MESSAGE_ID, "chart_3")
 
     transfer_nav(context, MESSAGE_ID, 999)
 
-    assert previous_nav(context, 999) == "list_go_2"
-    assert previous_nav(context, MESSAGE_ID) is None
+    assert context.user_data["nav"][999] == ["list_go_2", "chart_3"]
+    assert context.user_data["nav"].get(MESSAGE_ID) is None
+    # …so back from the photo lands on the listing it replaced.
+    assert pop_nav(context, 999) == "list_go_2"
 
 
 # ── the buttons ──────────────────────────────────────────────────────────
@@ -106,11 +109,35 @@ def test_no_back_button_when_there_is_no_trail() -> None:
     assert BACK_CALLBACK not in [b.callback_data for b in nav_row(context, MESSAGE_ID)]
 
 
-def test_back_button_appears_once_there_is_somewhere_to_go() -> None:
+def test_no_back_button_on_the_first_screen_of_a_trail() -> None:
     context = _context()
     push_nav(context, MESSAGE_ID, "menu_main")
 
+    assert BACK_CALLBACK not in [b.callback_data for b in nav_row(context, MESSAGE_ID)]
+
+
+def test_back_button_appears_once_there_is_somewhere_to_go() -> None:
+    context = _context()
+    push_nav(context, MESSAGE_ID, "menu_main")
+    push_nav(context, MESSAGE_ID, "menu_prodotti")
+
     assert BACK_CALLBACK in [b.callback_data for b in nav_row(context, MESSAGE_ID)]
+
+
+def test_re_rendering_the_same_screen_does_not_grow_a_back_button() -> None:
+    """Paging a listing must not change the shape of its button row.
+
+    The trail used to be recorded after the screen drew itself, so paging left the
+    listing on top of its own trail: from the second page on it showed a ◀️ Back
+    that led to the main menu, and every button in that row shifted one place.
+    """
+    context = _context()
+    push_nav(context, MESSAGE_ID, "list_go_0")
+    first = [b.callback_data for b in nav_row(context, MESSAGE_ID)]
+
+    for page in range(1, 4):
+        push_nav(context, MESSAGE_ID, f"list_go_{page}")
+        assert [b.callback_data for b in nav_row(context, MESSAGE_ID)] == first
 
 
 def test_a_prompt_always_offers_at_least_a_cancel() -> None:
@@ -156,8 +183,9 @@ async def test_back_re_dispatches_the_previous_screen() -> None:
 
     assert handled is True
     assert dispatch.call_args.args[4] == "menu_main"
-    # …and the screen we landed on is what a further back would leave from.
-    assert previous_nav(context, MESSAGE_ID) == "menu_main"
+    # …and the screen we landed on is on top, with nothing further back.
+    assert context.user_data["nav"][MESSAGE_ID] == ["menu_main"]
+    assert previous_nav(context, MESSAGE_ID) is None
 
 
 @pytest.mark.asyncio
@@ -199,5 +227,5 @@ async def test_back_from_a_chart_reopens_the_panel_below_the_photo() -> None:
     query.message.reply_text.assert_awaited_once()
     query.edit_message_reply_markup.assert_awaited_once_with(reply_markup=None)
     # The trail moved to the panel that is now on screen.
-    assert previous_nav(context, 555) == "list_go_2"
-    assert previous_nav(context, MESSAGE_ID) is None
+    assert context.user_data["nav"][555] == ["list_go_2"]
+    assert context.user_data["nav"].get(MESSAGE_ID) is None

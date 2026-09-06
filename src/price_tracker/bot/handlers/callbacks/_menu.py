@@ -205,7 +205,7 @@ async def handle_menu_navigation(
     if data == "menu_notifiche":
         products = await db.get_active_products(user_id)
         rows = [
-            [InlineKeyboardButton(_("📬 Delivery"), callback_data="menu_delivery")],
+            [InlineKeyboardButton(_("⚙️ Notification settings"), callback_data="menu_delivery")],
         ]
         for p in products[:10]:
             nm = (p.get("name") or "?")[:22]
@@ -227,7 +227,7 @@ async def handle_menu_navigation(
         await query.edit_message_text(
             _(
                 "🔔 <b>Notifications</b>\n\n"
-                "Delivery covers muting, quiet hours and digests.\n"
+                "Settings covers muting, quiet hours and digests.\n"
                 "Tap a product to change its threshold or target."
             ),
             parse_mode=ParseMode.HTML,

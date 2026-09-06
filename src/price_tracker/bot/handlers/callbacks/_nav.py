@@ -20,13 +20,7 @@ from telegram.error import BadRequest, TelegramError
 
 from price_tracker.bot.keyboards import BACK_CALLBACK, CANCEL_CALLBACK, CLOSE_CALLBACK
 from price_tracker.bot.messages import _
-from price_tracker.bot.navigation import (
-    clear_pending,
-    forget_nav,
-    pop_nav,
-    push_nav,
-    transfer_nav,
-)
+from price_tracker.bot.navigation import clear_pending, forget_nav, pop_nav, transfer_nav
 
 if TYPE_CHECKING:
     from telegram.ext import ContextTypes
@@ -134,10 +128,10 @@ async def handle_back(
     target = (pop_nav(context, message_id) if message_id is not None else None) or FALLBACK_SCREEN
 
     if message_id is None or _holds_text(query.message):
-        handled = await dispatch(query, context, db, user_id, target)
-        if handled and message_id is not None:
-            push_nav(context, message_id, target)
-        return handled
+        # `pop_nav` left the target on top of the trail, and the screen is
+        # rendered directly rather than through the dispatcher, so there is
+        # nothing left to record.
+        return await dispatch(query, context, db, user_id, target)
 
     # Coming back from a chart: the photo stays as a record, stripped of buttons
     # so it cannot be pressed twice, and the panel reopens below it.
@@ -145,7 +139,6 @@ async def handle_back(
     handled = await dispatch(renderer, context, db, user_id, target)
     if renderer.sent is not None:
         transfer_nav(context, message_id, renderer.sent.message_id)
-        push_nav(context, renderer.sent.message_id, target)
         with contextlib.suppress(TelegramError):
             await query.edit_message_reply_markup(reply_markup=None)
     return handled

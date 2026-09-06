@@ -30,7 +30,7 @@ from price_tracker.bot.handlers.callbacks import (
     _ops,
     _product,
 )
-from price_tracker.bot.navigation import push_nav
+from price_tracker.bot.navigation import push_nav, restore_nav, snapshot_nav
 
 if TYPE_CHECKING:
     from telegram import Update
@@ -92,11 +92,19 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     if await _nav.handle_back(query, context, db, user_id, data, _dispatch):
         return
 
+    # Pushed before the screen renders, so a screen drawing itself always finds
+    # itself on top of the trail and the screen behind it one below — which is
+    # what `nav_row` needs to decide whether ◀️ Back leads anywhere. A chart
+    # carries this entry over to the photo it replaces the panel with.
+    trail = snapshot_nav(context, message_id) if message_id is not None else []
+    if message_id is not None:
+        push_nav(context, message_id, data)
+
     if await _dispatch(query, context, db, user_id, data):
-        if message_id is not None and not data.startswith(_SELF_NAVIGATING):
-            push_nav(context, message_id, data)
         return
 
+    if message_id is not None:
+        restore_nav(context, message_id, trail)
     logger.info("Unhandled callback data: %s", data)
 
 

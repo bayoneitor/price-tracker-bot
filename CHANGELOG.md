@@ -19,8 +19,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   word list (`no`, `skip`, `salta`, `annulla`, `cancel`) that the bot never mentioned.
 - ◀️ Back on every screen, returning to whichever screen opened it. The panel it returns
   to is rebuilt from current data, not restored from a snapshot.
-- **Menu → Notifications → Delivery**: muting, quiet hours, timezone, rate limit and
-  digest mode as buttons. They existed only as typed commands with a usage string.
+- **Menu → Notifications → Notification settings**: muting, quiet hours, timezone, rate
+  limit and digest mode as buttons. They existed only as typed commands with a usage string.
 - **Menu → Info → All commands**: the full command reference inside the bot, so trimming
   Telegram's own menu costs nothing in discoverability.
 
@@ -60,7 +60,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   panel below the chart. (Telegram cannot edit a text message into a photo, so the panel is
   re-sent rather than restored.)
 - Every product picker and every result screen now ends with a navigation row.
+- The default timezone for a user who has not set one is `Europe/Madrid`, was `Europe/Rome`.
+  Only the default moves: a stored preference is left alone.
 - The chart renderer moved to `bot/charts.py`, where `history.py` had noted it belonged.
+- The notification submenu is labelled "Notification settings" rather than "Delivery",
+  which nobody reads as "this is where muting lives".
 
 - Operational notices honour quiet hours and digest mode but ignore mute, resolved from
   the user's global preferences rather than any single affected product's settings.

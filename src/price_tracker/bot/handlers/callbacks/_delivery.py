@@ -1,4 +1,4 @@
-"""The Delivery submenu: how and when alerts reach the user.
+"""The notification-settings submenu: how and when alerts reach the user.
 
 Muting, quiet hours, timezone, rate limit and digest mode existed only as typed
 commands with a usage string — `/quiet_hours 22:00-08:00`, `/throttle 5` — which
@@ -31,6 +31,9 @@ from price_tracker.notifier.preferences import PreferencesManager
 if TYPE_CHECKING:
     from telegram.ext import ContextTypes
 
+# The callback tokens still say "delivery" — that is what this screen configures,
+# and renaming them would only churn stored trails. The label says "settings"
+# because that is what a reader recognises.
 MENU = "menu_delivery"
 
 # Offered mute durations, in hours; None is "until I turn it back on".
@@ -49,7 +52,7 @@ def _message_id(query: Any) -> int | None:
 async def handle_delivery_menu(
     query: Any, context: ContextTypes.DEFAULT_TYPE, db: Any, user_id: int, data: str
 ) -> bool:
-    """Handle the Delivery submenu (`menu_delivery`, `dlv_*`)."""
+    """Handle the notification-settings submenu (`menu_delivery`, `dlv_*`)."""
     if data == MENU:
         await _render(query, context, user_id)
         return True
@@ -150,7 +153,7 @@ async def _render(
         else _("off")
     )
     lines = [
-        _("📬 <b>Delivery</b>"),
+        _("⚙️ <b>Notification settings</b>"),
         "",
         _("🔕 Muted: {state}").format(state=_("yes") if prefs.mute else _("no")),
         _("🌙 Quiet hours: {window}").format(window=quiet),

@@ -53,7 +53,7 @@ async def test_the_panel_shows_effective_settings_not_an_empty_row() -> None:
     assert await handle_delivery_menu(query, context, AsyncMock(), USER_ID, "menu_delivery")
 
     text = query.edit_message_text.await_args.args[0]
-    assert "Europe/Rome" in text
+    assert "Europe/Madrid" in text
     assert "dlv_mute" in _data(query.edit_message_text.await_args.kwargs["reply_markup"])
 
 

@@ -115,15 +115,15 @@ and your typed message is removed, so an exchange stays one message instead of f
 
 ### Notification preferences (per user)
 
-All of these are also under **Menu → Notifications → Delivery**, with buttons instead of
-syntax — which matters, since the usual reason to reach for them is a notification that
+All of these are also under **Menu → Notifications → Notification settings**, with buttons
+instead of syntax — which matters, since the usual reason to reach for them is a notification that
 has just woken you up.
 
 - `/mute <id|all> [duration]` / `/unmute <id|all>` — silence alerts
 - `/digest_mode <on|off>` — batch alerts into a periodic digest
 - `/digest_now` — flush the pending digest immediately
 - `/quiet_hours <HH:MM-HH:MM>` — silent window (timezone-aware)
-- `/timezone <IANA>` — your timezone (e.g. `Europe/Rome`)
+- `/timezone <IANA>` — your timezone (default `Europe/Madrid`)
 - `/throttle <max_per_hour>` — sliding-window rate limit
 - `/prefs` — current preferences
 

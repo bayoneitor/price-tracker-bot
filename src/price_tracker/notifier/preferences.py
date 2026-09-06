@@ -44,7 +44,7 @@ _DEFAULTS = EffectivePrefs(
     quiet_hours_start=None,
     quiet_hours_end=None,
     throttle_per_hour=None,
-    timezone="Europe/Rome",
+    timezone="Europe/Madrid",
 )
 
 

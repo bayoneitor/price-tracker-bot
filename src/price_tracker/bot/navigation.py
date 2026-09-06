@@ -132,8 +132,12 @@ def clear_pending(context: ContextTypes.DEFAULT_TYPE) -> PendingInput | None:
 # "back" re-dispatches the previous one. Tokens, not rendered screens: replaying
 # `list_go_2` re-reads the products, so going back never shows a stale price.
 #
-# The dispatcher does the pushing, once, for every screen; a screen only has to
-# ask `nav_row()` for the button.
+# The dispatcher pushes the token *before* the screen renders, so while a screen is
+# drawing itself the top of its trail is always that screen and the one below is
+# always where "back" leads. Pushing afterwards looked equivalent and was not:
+# re-rendering the same screen (paging a listing) left the screen itself on top, so
+# a listing grew a "back" button the moment it was paged — one that led nowhere —
+# and every button in that row shifted position.
 
 NAV_KEY = "nav"
 
@@ -175,25 +179,36 @@ def push_nav(context: ContextTypes.DEFAULT_TYPE, message_id: int, token: str) ->
 def previous_nav(context: ContextTypes.DEFAULT_TYPE, message_id: int) -> str | None:
     """The screen a "back" button would return to, or None if there is none.
 
-    Called while building a keyboard — before the dispatcher pushes the screen
-    being built — so the top of the stack is the screen the user came from.
+    The top of the trail is the screen currently drawing itself, so the answer is
+    the one below it.
     """
     stack = _stack(context, message_id)
-    return stack[-1] if stack else None
+    return stack[-2] if len(stack) >= 2 else None
 
 
 def pop_nav(context: ContextTypes.DEFAULT_TYPE, message_id: int) -> str | None:
     """Leave the current screen and return the token to render instead.
 
-    Both entries come off: the caller re-dispatches the returned token through
-    the normal path, which pushes it back on.
+    Only the screen being left comes off; the one returned stays on top, because
+    the caller renders it directly rather than going back through the dispatcher.
     """
     stack = _stack(context, message_id)
     if len(stack) < 2:
         stack.clear()
         return None
     stack.pop()
-    return stack.pop()
+    return stack[-1]
+
+
+def snapshot_nav(context: ContextTypes.DEFAULT_TYPE, message_id: int) -> list[str]:
+    """A copy of a message's trail, for the dispatcher to restore on a miss."""
+    return list(_stack(context, message_id))
+
+
+def restore_nav(context: ContextTypes.DEFAULT_TYPE, message_id: int, snapshot: list[str]) -> None:
+    """Put a trail back, after pushing a token that turned out to render nothing."""
+    stack = _stack(context, message_id)
+    stack[:] = snapshot
 
 
 def transfer_nav(context: ContextTypes.DEFAULT_TYPE, from_id: int, to_id: int) -> None:

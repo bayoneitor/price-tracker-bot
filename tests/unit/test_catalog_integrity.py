@@ -40,9 +40,7 @@ def _translated(locale: str) -> list[tuple[str, str]]:
 @pytest.mark.parametrize("locale", LOCALES)
 def test_line_breaks_survive_translation(locale: str) -> None:
     broken = [
-        msgid
-        for msgid, msgstr in _translated(locale)
-        if msgid.count("\n") != msgstr.count("\n")
+        msgid for msgid, msgstr in _translated(locale) if msgid.count("\n") != msgstr.count("\n")
     ]
     assert not broken, f"{locale}: line breaks lost in {len(broken)} messages: {broken[:3]}"
 

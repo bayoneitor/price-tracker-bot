@@ -29,20 +29,20 @@ Every step records a Prometheus metric. Drops increment `price_tracker_notificat
 
 ## Commands
 
-Each of these is also a button under **Menu → Notifications → Delivery**, which shows the
+Each of these is also a button under **Menu → Notifications → Notification settings**, which shows the
 *effective* preferences (defaults included, not just the stored row) and writes through the
 same `settings.update_prefs` read-before-write path. That shared path matters:
 `upsert_notification_prefs` writes the whole row, so a partial write would silently reset
 the fields it does not name — muting would clear the user's timezone.
 
 ```
-📬 Delivery
+⚙️ Notification settings
 
 🔕 Muted: no
 🌙 Quiet hours: 22:00–08:00
 🌍 Timezone: Europe/Madrid
 🚦 Rate limit: 5
-📥 Delivery: digest every 120 min.
+📥 Alerts: digest every 120 min.
 
 [🔕 Mute]
 [🌙 Quiet hours]     [🌍 Timezone]
@@ -101,8 +101,8 @@ Set a daily silent window (timezone-aware).
 ### `/timezone <IANA>`
 Set the user's timezone for quiet hours and digest scheduling.
 
-- **Examples**: `/timezone Europe/Rome`, `/timezone America/New_York`
-- **Default**: `Europe/Rome` (hardcoded; not derived from the server timezone).
+- **Examples**: `/timezone Europe/Madrid`, `/timezone America/New_York`
+- **Default**: `Europe/Madrid` (hardcoded; not derived from the server timezone).
 - **Validation**: invalid IANA names are rejected with a usage hint.
 
 ### `/throttle <max_per_hour>`
@@ -127,7 +127,7 @@ A first-time `/start` user is created with these defaults (until they explicitly
 | Digest mode       | off (immediate send) |
 | Digest interval   | 60 min (when enabled)|
 | Quiet hours       | none                 |
-| Timezone          | `Europe/Rome`        |
+| Timezone          | `Europe/Madrid`      |
 | Throttle          | unlimited (stored as `NULL`) |
 | Notification mode | immediate            |
 

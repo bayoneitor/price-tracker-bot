@@ -28,7 +28,7 @@ from price_tracker.bot.handlers.groups_view import (
 )
 from price_tracker.bot.keyboards import prompt_keyboard, result_keyboard
 from price_tracker.bot.messages import _
-from price_tracker.bot.navigation import push_nav, set_pending, transfer_nav
+from price_tracker.bot.navigation import set_pending, transfer_nav
 from price_tracker.core.textlimits import truncate_visible
 
 if TYPE_CHECKING:
@@ -195,7 +195,6 @@ async def _chart(
     )
     if origin_id is not None:
         transfer_nav(context, origin_id, photo.message_id)
-        push_nav(context, photo.message_id, f"grp_chart_{group.id}")
     return True
 
 

@@ -87,7 +87,7 @@ async def update_prefs(
     return prefs
 
 
-# ── Rendering, shared by the commands and the Delivery menu ──────────
+# ── Rendering, shared by the commands and the notification-settings menu ──
 
 
 def describe_mute(product_id: int | None, mute_until: datetime | None) -> str:
@@ -104,8 +104,8 @@ def describe_mute(product_id: int | None, mute_until: datetime | None) -> str:
 def describe_digest(enabled: bool, interval: int) -> str:
     """One line saying how alerts are delivered."""
     if not enabled:
-        return _("📬 Delivery: instant.")
-    return _("📥 Delivery: digest every {minutes} min.").format(minutes=interval)
+        return _("📬 Alerts: as they happen.")
+    return _("📥 Alerts: digest every {minutes} min.").format(minutes=interval)
 
 
 def describe_throttle(limit: int | None) -> str:

@@ -37,7 +37,7 @@ from price_tracker.bot.keyboards import (
     result_keyboard,
 )
 from price_tracker.bot.messages import _
-from price_tracker.bot.navigation import push_nav, set_pending, transfer_nav
+from price_tracker.bot.navigation import set_pending, transfer_nav
 from price_tracker.core.url_utils import store_label
 
 if TYPE_CHECKING:
@@ -237,7 +237,6 @@ async def handle_chart_button(
     )
     if origin_id is not None:
         transfer_nav(context, origin_id, photo.message_id)
-        push_nav(context, photo.message_id, data)
     return True
 
 

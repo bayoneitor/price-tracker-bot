@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import asyncio
+import sqlite3
 import time
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -15,6 +17,7 @@ from telegram.ext import Application, ContextTypes
 from price_tracker.bot.commands import publish_command_menu
 from price_tracker.bot.handlers import register_handlers
 from price_tracker.config import Config, parse_bind
+from price_tracker.core.backup import take_snapshot
 from price_tracker.core.health import HealthManager
 from price_tracker.core.http_client import build_client
 from price_tracker.core.registry import (
@@ -123,6 +126,26 @@ async def _combined_post_init(application: Application[Any, Any, Any, Any, Any, 
     await _setup_scheduler(application)
 
 
+BACKUP_INTERVAL_SECONDS = 24 * 60 * 60
+
+
+async def backup_job(context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Take a daily snapshot of the database beside it.
+
+    Best-effort: a failed snapshot is logged and the bot carries on. Losing a
+    backup is bad; stopping price checks because a disk was full would be worse.
+    """
+    config: Config = context.bot_data["config"]
+    stamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
+    try:
+        written = await asyncio.to_thread(take_snapshot, config.database_path, stamp=stamp)
+    except (OSError, sqlite3.Error) as exc:
+        log.error("backup.failed", error=str(exc))
+        return
+    if written is not None:
+        log.info("backup.written", path=str(written))
+
+
 async def scheduled_check_job(context: ContextTypes.DEFAULT_TYPE) -> None:
     scheduler: Scheduler = context.application.bot_data["scheduler"]
     await scheduler.run_check_all()
@@ -217,6 +240,14 @@ async def amain() -> None:
             interval=interval_minutes * 60,
             first=60,
             name="periodic_check",
+        )
+        application.job_queue.run_repeating(
+            backup_job,
+            interval=BACKUP_INTERVAL_SECONDS,
+            # Not at startup: a crash loop would otherwise spend its restarts
+            # writing snapshots of a database nothing has changed.
+            first=BACKUP_INTERVAL_SECONDS,
+            name="backup",
         )
         application.job_queue.run_repeating(
             digest_flush_job,

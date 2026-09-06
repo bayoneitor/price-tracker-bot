@@ -53,6 +53,21 @@ For the full set including outlier detection thresholds and currency tuning, see
 
 ## Backup & restore
 
+### What the bot does on its own
+
+A daily job snapshots the database to `/data/backups/pricetracker-<timestamp>.db` and
+keeps the last seven. It goes through SQLite's online backup API, not a file copy: with
+WAL journalling the `.db` on disk is not the whole database, and copying it alone silently
+loses whatever is still in the WAL — including, in one observed case, a schema migration.
+
+Those snapshots sit **on the same volume as the database**. They cover a bad migration, a
+corrupted page or a deletion nobody meant; they do not cover losing the volume. Copying
+them off the host is still yours to arrange:
+
+```bash
+docker cp price-tracker-bot:/data/backups ./backups-$(date +%Y%m%d)
+```
+
 ### What to back up
 
 All runtime state lives in **one file**: the SQLite database at `DATABASE_PATH` (default `/data/pricetracker.db`). It contains users, products, price history, scraper health, notification preferences, the digest queue, and the cached currency rates. There are no separate JSON state files.

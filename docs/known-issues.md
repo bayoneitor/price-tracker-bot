@@ -71,21 +71,27 @@ New features are not here — those live in [roadmap.md](roadmap.md).
   URLs and as many outbound requests.
   </details>
 
-- [ ] **6. No automated backup.** `docs/operations.md` documents the SQLite
-  `.backup` call to run by hand. The database is one named volume; nothing takes
-  a copy on a schedule.
+- [x] **6. No automated backup.** **Fixed.** A daily job snapshots the database
+  to `/data/backups/` through SQLite's online backup API and keeps the last seven.
+  Not a file copy: with WAL journalling the `.db` on disk is not the whole
+  database — verifying this fix, a plain `cp` of the live file produced a snapshot
+  still on schema 15 while the database was on 16.
+
+  The snapshots share the volume with the database, so they cover a bad migration
+  or a corrupted page and not the loss of the volume itself; `docs/operations.md`
+  says so and shows how to copy them off the host.
 
 ## Debt that already bites
 
-- [ ] **7. Two names for one object.** `main.py` publishes the same repository as
-  `bot_data["repository"]` (`:49`) and `bot_data["db"]` (`:56`). Both are in use.
-  An alias from the monolith that was never retired.
+- [x] **7. Three names for one object.** **Fixed.** The repository is published
+  once, as `bot_data["db"]`, and read through `bot.decorators._db`. It had been
+  published as `repo`, `repository` *and* `db`, with two of those in use, so which
+  key a handler reached for said nothing except when it was written.
 
-- [ ] **8. `with_locale` never restores the ContextVar.** It calls
-  `set_locale(lang)` and drops the token it returns (`bot/decorators.py`);
-  `bot/commands.py` resets its own properly. Each python-telegram-bot update runs
-  in its own context, so nothing has leaked yet — it is a trap for the first
-  handler that shares one.
+- [x] **8. `with_locale` never restored the ContextVar.** **Fixed.** It resets in
+  a `finally`, so the language a handler sets does not outlive it. Every update
+  runs in its own context copy, so nothing had leaked — the first handler to share
+  one would have inherited whichever language ran last.
 
 - [ ] **9. `query: Any, db: Any` through every callback.** mypy checks nothing
   inside roughly fifty handlers. Two small Protocols would restore it without

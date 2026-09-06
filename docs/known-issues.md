@@ -8,6 +8,9 @@ ticks it, so the hash would have to be written before it exists. The link runs
 the other way — each of those commits names this file, so
 `git log --grep known-issues` finds them.
 
+**Status: 8 of 9 closed.** The one left open is the typing pass, deferred on
+purpose — see its entry for why.
+
 New features are not here — those live in [roadmap.md](roadmap.md).
 
 ## Behaviour that lies
@@ -93,6 +96,12 @@ New features are not here — those live in [roadmap.md](roadmap.md).
   runs in its own context copy, so nothing had leaked — the first handler to share
   one would have inherited whichever language ran last.
 
-- [ ] **9. `query: Any, db: Any` through every callback.** mypy checks nothing
-  inside roughly fifty handlers. Two small Protocols would restore it without
-  changing the structure.
+- [ ] **9. `query: Any, db: Any` through every callback.** Not done, deliberately
+  — recorded here rather than left as a silent omission. mypy checks nothing
+  inside roughly fifty handlers, and two small Protocols would restore it. But it
+  is the only entry on this list that touches every file in `bot/` at once, and a
+  half-done pass is worse than none: a module typed against a Protocol next to one
+  taking `Any` reads as though the difference means something.
+
+  Worth doing as its own change, on a quiet tree, with the coverage now measured
+  (entry 4) to catch what the types do not.

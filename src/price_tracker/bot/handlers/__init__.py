@@ -92,11 +92,6 @@ async def _send_main_menu(message: object, is_admin: bool = False) -> None:
     )
 
 
-def _menu_back_button() -> list[InlineKeyboardButton]:
-    """Single-row 'back to main menu' button (legacy alias)."""
-    return [InlineKeyboardButton(_("◀️ Menu"), callback_data="menu_main")]
-
-
 # ── Error handler ─────────────────────────────────────────────────
 
 
@@ -105,11 +100,16 @@ async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> N
     import contextlib  # noqa: PLC0415 — keep top-level imports terse
 
     logger.error("Exception while handling update: %s", context.error, exc_info=context.error)
-    if isinstance(update, Update) and update.message:
-        with contextlib.suppress(Exception):
-            await update.message.reply_text(
-                _("❌ Something went wrong. Please try again in a moment.")
-            )
+    if not isinstance(update, Update):
+        return
+    notice = _("❌ Something went wrong. Please try again in a moment.")
+    with contextlib.suppress(Exception):
+        if update.callback_query is not None:
+            # A failed button press used to say nothing at all: the spinner just
+            # stopped and the panel sat there looking like it had worked.
+            await update.callback_query.answer(notice, show_alert=True)
+        elif update.message is not None:
+            await update.message.reply_text(notice)
 
 
 # ── Aggregator ────────────────────────────────────────────────────

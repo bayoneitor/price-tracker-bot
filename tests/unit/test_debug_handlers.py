@@ -310,3 +310,29 @@ async def test_errori_command_no_errors() -> None:
     update.message.reply_text.assert_awaited_once()
     assert "Nessun errore" in update.message.reply_text.call_args.args[0]
     update.message.reply_html.assert_not_awaited()
+
+
+# ── A failed button press used to say nothing at all ─────────────────────
+
+
+@pytest.mark.asyncio
+async def test_error_handler_alerts_the_user_who_pressed_a_button() -> None:
+    """`error_handler` only replied via `update.message`, which a callback lacks.
+
+    The spinner stopped and the panel sat there looking like the action worked.
+    """
+    from telegram import Update
+
+    from price_tracker.bot.handlers import error_handler
+
+    update = MagicMock(spec=Update)
+    update.callback_query = MagicMock()
+    update.callback_query.answer = AsyncMock()
+    update.message = None
+    context = MagicMock()
+    context.error = RuntimeError("boom")
+
+    await error_handler(update, context)
+
+    update.callback_query.answer.assert_awaited_once()
+    assert update.callback_query.answer.await_args.kwargs["show_alert"] is True

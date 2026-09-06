@@ -30,10 +30,9 @@ from price_tracker.bot.handlers._helpers import (
     _safe_dec,
 )
 from price_tracker.bot.keyboards import close_button, nav_row
+from price_tracker.bot.labels import product_label
 from price_tracker.bot.messages import _
 from price_tracker.bot.navigation import push_nav
-from price_tracker.core.textlimits import truncate_visible
-from price_tracker.core.url_utils import store_label
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -65,8 +64,7 @@ def _index_block(products: Sequence[dict[str, Any]], current: int) -> list[str]:
     lines: list[str] = []
     shown = products[:MAX_INDEX_ROWS]
     for position, product in enumerate(shown):
-        name = truncate_visible(product.get("name") or _("Unknown"), INDEX_NAME_BUDGET)
-        row = f"{position + 1}. {_escape_html(name)}"
+        row = f"{position + 1}. {_escape_html(product_label(product, INDEX_NAME_BUDGET))}"
         lines.append(f"<b>▸ {row}</b>" if position == current else f"   {row}")
     hidden = len(products) - len(shown)
     if hidden > 0:
@@ -79,7 +77,6 @@ def _product_card(product: dict[str, Any]) -> list[str]:
     from price_tracker.core.scraper_base import detect_currency  # noqa: PLC0415
 
     pid = product["id"]
-    name = product.get("name") or _("Unknown")
     url = product.get("url", "")
     current = _safe_dec(product.get("current_price"))
     initial = _safe_dec(product.get("initial_price"))
@@ -88,14 +85,11 @@ def _product_card(product: dict[str, Any]) -> list[str]:
     currency = product.get("currency", "") or detect_currency(url) or "EUR"
     price_str = _convert_display(current, currency) if current else _("N/A")
 
+    # The shop is part of the name now, so it is not repeated as a field.
     lines = [
-        f"<b>#{pid}</b> {_escape_html(truncate_visible(name, 60))}",
+        f"<b>#{pid}</b> {_escape_html(product_label(product, 60))}",
         f"💰 {price_str}",
     ]
-
-    store = store_label(url=url, domain=product.get("domain", ""))
-    if store:
-        lines.append(_("🌐 Store: {store}").format(store=_escape_html(store)))
 
     if initial and current and initial != current and initial > 0:
         diff = (initial - current) / initial * 100

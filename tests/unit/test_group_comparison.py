@@ -87,10 +87,27 @@ def test_the_leader_is_carried_forward_between_readings() -> None:
 
 
 def test_a_price_move_that_does_not_change_the_leader_is_not_an_event() -> None:
+    """The question is who has been cheapest, not what the cheapest price was.
+
+    Recording every tick of the leading product buried the handful of entries that
+    answer it: a month of one product quietly drifting produced thirty lines.
+    """
     spans = build_leader_timeline({1: [_reading(0, "100"), _reading(1, "99"), _reading(2, "98")]})
 
-    assert [str(s.price) for s in spans] == ["100", "99", "98"]
-    assert {s.product_id for s in spans} == {1}
+    assert [(s.product_id, str(s.price)) for s in spans] == [(1, "100")]
+
+
+def test_the_price_recorded_is_the_one_the_lead_was_taken_at() -> None:
+    spans = build_leader_timeline(
+        {
+            1: [_reading(0, "100"), _reading(3, "60")],
+            2: [_reading(1, "80"), _reading(2, "70")],
+        }
+    )
+
+    # #1 leads at 100, #2 takes it at 80 and drifts to 70 without an entry,
+    # then #1 takes it back at 60.
+    assert [(s.product_id, str(s.price)) for s in spans] == [(1, "100"), (2, "80"), (1, "60")]
 
 
 def test_the_lead_changing_back_is_recorded() -> None:
@@ -157,3 +174,14 @@ def test_a_long_history_is_trimmed_to_the_recent_changes() -> None:
     )
 
     assert "earlier changes not shown" in rendered
+
+
+def test_the_shop_is_never_cut_off_the_name() -> None:
+    """The caller sizes the label; re-truncating here would eat the shop."""
+    spans = build_leader_timeline({1: [_reading(0, "100")]})
+
+    rendered = render_leader_timeline(
+        spans, {1: "A very long product name indeed · pccomponentes.com"}
+    )
+
+    assert "pccomponentes.com" in rendered

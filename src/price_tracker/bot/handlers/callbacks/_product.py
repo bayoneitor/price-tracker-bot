@@ -36,9 +36,9 @@ from price_tracker.bot.keyboards import (
     prompt_keyboard,
     result_keyboard,
 )
+from price_tracker.bot.labels import product_label
 from price_tracker.bot.messages import _
 from price_tracker.bot.navigation import set_pending, transfer_nav
-from price_tracker.core.url_utils import store_label
 
 if TYPE_CHECKING:
     from telegram.ext import ContextTypes
@@ -158,18 +158,14 @@ async def handle_check_button(
     if product is None:
         await query.edit_message_text(_("❌ Product not found."))
         return True
-    name = (product.get("name") or _("Unknown"))[:60]
     current = _safe_dec(product.get("current_price"))
     initial = _safe_dec(product.get("initial_price"))
     p_currency = product.get("currency", "") or detect_currency(product.get("url", "")) or "EUR"
     price_str = _convert_display(current, p_currency) if current else _("N/A")
 
     text = _("✅ <b>#{pid}</b> {name}\n💰 Price: {price}").format(
-        pid=product_id, name=_escape_html(name), price=price_str
+        pid=product_id, name=_escape_html(product_label(product, 60)), price=price_str
     )
-    store = store_label(url=product.get("url", ""), domain=product.get("domain", ""))
-    if store:
-        text += _("\n🌐 Store: {store}").format(store=_escape_html(store))
     if initial and current and initial > 0 and initial != current:
         diff = (initial - current) / initial * 100
         if diff > 0:
@@ -219,11 +215,7 @@ async def handle_chart_button(
         )
         return True
 
-    name = (product.get("name") or _("Product"))[:50]
-    caption = f"📊 <b>#{product_id}</b> {_escape_html(name)}"
-    store = store_label(url=product.get("url", ""), domain=product.get("domain", ""))
-    if store:
-        caption += _("\n🌐 Store: {store}").format(store=_escape_html(store))
+    caption = f"📊 <b>#{product_id}</b> {_escape_html(product_label(product, 50))}"
 
     # Built against the panel's trail, which the photo is about to inherit.
     keyboard = result_keyboard(context, origin_id)

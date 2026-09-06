@@ -20,6 +20,7 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 
 from price_tracker.bot.handlers._helpers import _escape_html, _safe_dec
 from price_tracker.bot.keyboards import close_button, nav_row
+from price_tracker.bot.labels import product_label
 from price_tracker.bot.messages import _
 from price_tracker.core.textlimits import truncate_visible
 
@@ -84,11 +85,11 @@ def build_leader_timeline(
         best = min(latest.values())
         winners = tuple(sorted(pid for pid, value in latest.items() if value == best))
         leader = winners[0]
-        if spans and spans[-1].product_id == leader and spans[-1].price == best:
+        if spans and spans[-1].product_id == leader:
+            # The lead did not change hands. Its price moving is not an event —
+            # recording every tick of the cheapest product buried the handful of
+            # entries that actually answer "who has been cheapest".
             if spans[-1].tied_with != winners[1:]:
-                # The lead did not change hands, it became shared (or stopped
-                # being): the span continues, so amend it rather than start a new
-                # one at the same price.
                 spans[-1] = replace(spans[-1], tied_with=winners[1:])
             continue
         spans.append(LeaderSpan(since=when, product_id=leader, price=best, tied_with=winners[1:]))
@@ -109,7 +110,9 @@ def render_leader_timeline(
             _("   … {count} earlier changes not shown").format(count=len(spans) - len(shown))
         )
     for span in shown:
-        name = _escape_html(truncate_visible(names.get(span.product_id, "?"), GROUP_NAME_BUDGET))
+        # `names` is already budgeted by the caller — re-truncating here would cut
+        # the shop off the end, which is the half that tells two rows apart.
+        name = _escape_html(names.get(span.product_id, "?"))
         line = _("{date} — {name} at €{price:.2f}").format(
             date=span.since.strftime("%d/%m"), name=name, price=span.price
         )
@@ -132,7 +135,7 @@ def build_comparison_table(products: Sequence[dict[str, Any]]) -> str:
     lines = [_("📊 <b>Comparison</b>"), ""]
 
     for product, price in sorted(known, key=lambda row: row[1]):
-        name = _escape_html(truncate_visible(product.get("name") or _("Unknown"), 34))
+        name = _escape_html(product_label(product, 34))
         line = f"<b>#{product['id']}</b> {name} — €{price:.2f}"
         initial = _safe_dec(product.get("initial_price"))
         if initial and initial > 0 and initial != price:
@@ -147,7 +150,7 @@ def build_comparison_table(products: Sequence[dict[str, Any]]) -> str:
 
     unpriced = [p for p, price in priced if price is None]
     for product in unpriced:
-        name = _escape_html(truncate_visible(product.get("name") or _("Unknown"), 34))
+        name = _escape_html(product_label(product, 34))
         lines.append(_("<b>#{pid}</b> {name} — no price yet").format(pid=product["id"], name=name))
 
     if len(known) >= 2:
@@ -156,7 +159,7 @@ def build_comparison_table(products: Sequence[dict[str, Any]]) -> str:
         lines += [
             "",
             _("🥇 Cheapest now: <b>{name}</b> at €{price:.2f}").format(
-                name=_escape_html(truncate_visible(cheapest[0].get("name") or "?", 34)),
+                name=_escape_html(product_label(cheapest[0], 34)),
                 price=cheapest[1],
             ),
             _("↔️ Spread: €{spread:.2f}").format(spread=dearest[1] - cheapest[1]),
@@ -227,7 +230,7 @@ def build_group_view(
         lines = [header, ""]
         for product in products:
             price = _safe_dec(product.get("current_price"))
-            name = _escape_html(truncate_visible(product.get("name") or _("Unknown"), 34))
+            name = _escape_html(product_label(product, 34))
             price_str = f"€{price:.2f}" if price else _("N/A")
             lines.append(f"  <b>#{product['id']}</b> {name} — {price_str}")
         text = "\n".join(lines)

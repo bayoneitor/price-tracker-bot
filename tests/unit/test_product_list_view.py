@@ -48,13 +48,15 @@ def test_view_is_one_message_with_index_and_current_card() -> None:
     products = [_product(i) for i in range(1, 4)]
     text, markup = build_list_view(products, 1)
 
-    # Index lists every product...
+    # Index lists every product, each naming the shop it is tracked at: the same
+    # product at three shops is otherwise three identical rows.
     for position in (1, 2, 3):
-        assert f"{position}. Widget {position}" in text
+        assert f"{position}. Widget {position} · mediamarkt.es" in text
     # ...with the current one marked, and its card rendered below.
-    assert "<b>▸ 2. Widget 2</b>" in text
-    assert "<b>#2</b>" in text
-    assert "🌐 Store: mediamarkt.es" in text
+    assert "<b>▸ 2. Widget 2 · mediamarkt.es</b>" in text
+    assert "<b>#2</b> Widget 2 · mediamarkt.es" in text
+    # The shop is in the name, so it is not repeated as a field of its own.
+    assert "🌐 Store:" not in text
     assert CLOSE_CALLBACK in _button_data(markup)
 
 

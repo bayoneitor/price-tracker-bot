@@ -20,6 +20,7 @@ from price_tracker.bot.handlers._helpers import (
     resolve_owned_product,
 )
 from price_tracker.bot.keyboards import prompt_keyboard, result_keyboard
+from price_tracker.bot.labels import product_label
 from price_tracker.bot.messages import _
 from price_tracker.bot.navigation import set_pending
 
@@ -46,7 +47,7 @@ async def handle_edit_button(
         return True
     product_id, product = resolved
 
-    name = (product.get("name") or _("Unknown"))[:60]
+    name = product_label(product, 60)
     threshold_type = product.get("threshold_type", "percentage")
     threshold_value = product.get("threshold_value", "10")
     threshold_str = _format_threshold(threshold_type, threshold_value)

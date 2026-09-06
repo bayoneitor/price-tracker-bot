@@ -64,6 +64,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   panel below the chart. (Telegram cannot edit a text message into a photo, so the panel is
   re-sent rather than restored.)
 - Every product picker and every result screen now ends with a navigation row.
+- A product is named `product · shop` everywhere it appears — listing, pickers, menus,
+  comparison table, chart legends. The same product tracked at three shops was three
+  identical rows. Where a line is too short for both, the product name is what gets cut:
+  the shop is the half that tells the rows apart. Views that carried a separate
+  "🌐 Store" field no longer repeat it.
+- Naming a new group opens the "add a product" picker straight away instead of returning
+  to /groups.
+- "Who has been cheapest" records a change of hands rather than every price move by the
+  leader, which used to bury the few lines that answer the question.
 - The default timezone for a user who has not set one is `Europe/Madrid`, was `Europe/Rome`.
   Only the default moves: a stored preference is left alone.
 - The chart renderer moved to `bot/charts.py`, where `history.py` had noted it belonged.

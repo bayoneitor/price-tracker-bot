@@ -26,6 +26,7 @@ from price_tracker.bot.handlers._helpers import (
     _safe_dec,
 )
 from price_tracker.bot.keyboards import menu_exit_row
+from price_tracker.bot.labels import product_label
 from price_tracker.bot.messages import _
 
 if TYPE_CHECKING:
@@ -102,11 +103,15 @@ async def handle_menu_navigation(
         rows = []
         if products:
             for p in products[:10]:
-                nm = (p.get("name") or "?")[:28]
                 cur = _safe_dec(p.get("current_price"))
                 tag = f" €{cur:.2f}" if cur else ""
                 rows.append(
-                    [InlineKeyboardButton(f"#{p['id']} {nm}{tag}", callback_data=f"edit_{p['id']}")]
+                    [
+                        InlineKeyboardButton(
+                            f"#{p['id']} {product_label(p, 28)}{tag}",
+                            callback_data=f"edit_{p['id']}",
+                        )
+                    ]
                 )
             if len(products) > 10:
                 rows.append(
@@ -151,9 +156,13 @@ async def handle_menu_navigation(
         paused = [p for p in all_prods if not p.get("is_active")]
         rows = []
         for p in paused[:10]:
-            nm = (p.get("name") or "?")[:35]
             rows.append(
-                [InlineKeyboardButton(f"▶️ #{p['id']} {nm}", callback_data=f"reactivate_{p['id']}")]
+                [
+                    InlineKeyboardButton(
+                        f"▶️ #{p['id']} {product_label(p, 35)}",
+                        callback_data=f"reactivate_{p['id']}",
+                    )
+                ]
             )
         rows.append(menu_exit_row())
         await query.edit_message_text(
@@ -169,9 +178,13 @@ async def handle_menu_navigation(
         products = await db.get_active_products(user_id)
         rows = [[InlineKeyboardButton(_("🔄 Check all prices"), callback_data="menu_checkall")]]
         for p in products[:8]:
-            nm = (p.get("name") or "?")[:30]
             rows.append(
-                [InlineKeyboardButton(f"🔍 #{p['id']} {nm}", callback_data=f"check_{p['id']}")]
+                [
+                    InlineKeyboardButton(
+                        f"🔍 #{p['id']} {product_label(p, 30)}",
+                        callback_data=f"check_{p['id']}",
+                    )
+                ]
             )
         if products:
             rows.append([InlineKeyboardButton(_("📊 Price history"), callback_data="menu_storia")])
@@ -190,9 +203,13 @@ async def handle_menu_navigation(
         products = await db.get_active_products(user_id)
         rows = []
         for p in products[:10]:
-            nm = (p.get("name") or "?")[:35]
             rows.append(
-                [InlineKeyboardButton(f"📊 #{p['id']} {nm}", callback_data=f"chart_{p['id']}")]
+                [
+                    InlineKeyboardButton(
+                        f"📊 #{p['id']} {product_label(p, 35)}",
+                        callback_data=f"chart_{p['id']}",
+                    )
+                ]
             )
         rows.append(menu_exit_row())
         await query.edit_message_text(
@@ -208,7 +225,7 @@ async def handle_menu_navigation(
             [InlineKeyboardButton(_("⚙️ Notification settings"), callback_data="menu_delivery")],
         ]
         for p in products[:10]:
-            nm = (p.get("name") or "?")[:22]
+            nm = product_label(p, 22)
             th = _format_threshold(
                 p.get("threshold_type", "percentage"),
                 p.get("threshold_value", "10"),
@@ -309,7 +326,7 @@ async def _handle_menu_checkall(
     updated = await db.get_active_products(user_id)
     txt_lines = [_("✅ <b>Done</b> — {count} products").format(count=len(updated)) + chr(10)]
     for p in updated:
-        nm = (p.get("name") or "?")[:35]
+        nm = product_label(p, 35)
         cur = _safe_dec(p.get("current_price"))
         ini = _safe_dec(p.get("initial_price"))
         tag = f"€{cur:.2f}" if cur else _("N/A")

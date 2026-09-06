@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import contextlib
 import logging
+from types import SimpleNamespace
 from typing import TYPE_CHECKING, Any
 
 from telegram.error import BadRequest, TelegramError
@@ -67,6 +68,33 @@ class ReplyAsEdit:
             text, disable_web_page_preview=True, **kwargs
         )
         return self.sent
+
+    async def edit_message_reply_markup(self, **kwargs: Any) -> Any:
+        return None
+
+
+class EditById:
+    """Renders a panel into a message identified only by its id.
+
+    A typed answer arrives on its own message, not on the panel that asked, so a
+    handler that wants to replace that panel with a *screen* rather than a line of
+    text has no query to build it from. This gives the screen builders the two
+    things they use — `message.message_id` for the navigation row, and
+    `edit_message_text` — without a second rendering path.
+    """
+
+    def __init__(self, bot: Any, chat_id: int, message_id: int) -> None:
+        self._bot = bot
+        self._chat_id = chat_id
+        self.message = SimpleNamespace(message_id=message_id)
+
+    async def answer(self, *args: Any, **kwargs: Any) -> None:
+        return None
+
+    async def edit_message_text(self, text: str, **kwargs: Any) -> Any:
+        return await self._bot.edit_message_text(
+            chat_id=self._chat_id, message_id=self.message.message_id, text=text, **kwargs
+        )
 
     async def edit_message_reply_markup(self, **kwargs: Any) -> Any:
         return None

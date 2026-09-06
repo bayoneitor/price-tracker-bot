@@ -27,6 +27,7 @@ from price_tracker.bot.handlers.groups_view import (
     render_leader_timeline,
 )
 from price_tracker.bot.keyboards import prompt_keyboard, result_keyboard
+from price_tracker.bot.labels import product_label
 from price_tracker.bot.messages import _
 from price_tracker.bot.navigation import set_pending, transfer_nav
 from price_tracker.core.textlimits import truncate_visible
@@ -149,7 +150,7 @@ async def _leaders(
     products = await db.list_group_products(group.id, user_id=user_id)
     ids = [int(p["id"]) for p in products]
     histories = await db.get_price_history_for_products(ids) if ids else {}
-    names = {int(p["id"]): (p.get("name") or _("Unknown")) for p in products}
+    names = {int(p["id"]): product_label(p, 34) for p in products}
     await query.edit_message_text(
         render_leader_timeline(build_leader_timeline(histories), names),
         parse_mode=ParseMode.HTML,
@@ -242,10 +243,14 @@ async def _delete(
     return True
 
 
-async def _add_picker(
+async def open_add_picker(
     query: Any, context: ContextTypes.DEFAULT_TYPE, db: Any, user_id: int, group: Any
 ) -> bool:
-    """Offer the products that are not in this group yet."""
+    """Offer the products that are not in this group yet.
+
+    Public because creating a group lands here directly: an empty group is the
+    middle of the task, not the end of it.
+    """
     members = {int(p["id"]) for p in await db.list_group_products(group.id, user_id=user_id)}
     candidates = [p for p in await db.get_active_products(user_id) if int(p["id"]) not in members]
     if not candidates:
@@ -257,7 +262,7 @@ async def _add_picker(
     rows = [
         [
             InlineKeyboardButton(
-                f"#{p['id']} {truncate_visible(p.get('name') or '?', 32)}",
+                f"#{p['id']} {product_label(p, 32)}",
                 callback_data=f"grp_put_{group.id}_{p['id']}",
             )
         ]
@@ -286,7 +291,7 @@ async def _remove_picker(
     rows = [
         [
             InlineKeyboardButton(
-                f"➖ #{p['id']} {truncate_visible(p.get('name') or '?', 30)}",
+                f"➖ #{p['id']} {product_label(p, 30)}",
                 callback_data=f"grp_pull_{group.id}_{p['id']}",
             )
         ]
@@ -368,8 +373,8 @@ _GROUP_ACTIONS = {
     "grp_ren_": _rename,
     "grp_delok_": _delete,
     "grp_del_": _confirm_delete,
-    "grp_add_": _add_picker,
+    "grp_add_": open_add_picker,
     "grp_rem_": _remove_picker,
 }
 
-__all__ = ["handle_group_buttons", "show_product_groups"]
+__all__ = ["handle_group_buttons", "open_add_picker", "show_product_groups"]

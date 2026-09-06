@@ -20,7 +20,7 @@ from datetime import datetime
 from decimal import Decimal
 from typing import TYPE_CHECKING, Any
 
-from price_tracker.bot.messages import _
+from price_tracker.bot.labels import product_label
 
 if TYPE_CHECKING:
     from collections.abc import Mapping, Sequence
@@ -186,8 +186,13 @@ async def generate_chart(db: Any, product_id: int, product: dict[str, Any]) -> i
     if len(dates) < 2:
         return None
 
-    name = (product.get("name") or _("Product"))[:50]
-    return await asyncio.to_thread(_render_chart, dates, prices, product.get("target_price"), name)
+    return await asyncio.to_thread(
+        _render_chart,
+        dates,
+        prices,
+        product.get("target_price"),
+        product_label(product, 50),
+    )
 
 
 async def generate_comparison_chart(
@@ -211,7 +216,10 @@ async def generate_comparison_chart(
         dates, prices = _points(histories.get(product_id, ()), product.get("currency", "EUR"))
         if len(dates) < 2:
             continue
-        series.append(((product.get("name") or _("Product"))[:28], dates, prices))
+        # The shop is in the label: comparing the same product across shops is
+        # the reason this chart exists, and three identical legend entries would
+        # defeat it.
+        series.append((product_label(product, 28), dates, prices))
 
     if len(series) < 2:
         return None

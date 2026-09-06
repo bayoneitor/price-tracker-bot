@@ -171,6 +171,7 @@ async def product_picker(
     """
     from price_tracker.bot.decorators import _db  # noqa: PLC0415 — module-load cycle
     from price_tracker.bot.keyboards import close_button  # noqa: PLC0415 — module-load cycle
+    from price_tracker.bot.labels import product_label  # noqa: PLC0415 — module-load cycle
 
     products = await _db(context).get_active_products(update.effective_user.id)
     if not products:
@@ -179,13 +180,12 @@ async def product_picker(
 
     buttons = []
     for product in products:
-        name = (product.get("name") or _("Unknown"))[:35]
         current = _safe_dec(product.get("current_price"))
         price_tag = f" €{current:.2f}" if current else ""
         buttons.append(
             [
                 InlineKeyboardButton(
-                    f"#{product['id']} {name}{price_tag}",
+                    f"#{product['id']} {product_label(product, 35)}{price_tag}",
                     callback_data=f"{callback_prefix}_{product['id']}",
                 )
             ]

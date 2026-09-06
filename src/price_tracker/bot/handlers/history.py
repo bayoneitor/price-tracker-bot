@@ -21,8 +21,8 @@ from price_tracker.bot.handlers._helpers import (
     _safe_dec,
 )
 from price_tracker.bot.keyboards import close_button
+from price_tracker.bot.labels import product_label
 from price_tracker.bot.messages import _
-from price_tracker.core.url_utils import store_label
 
 logger = logging.getLogger(__name__)
 
@@ -42,9 +42,13 @@ async def cmd_history(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
 
         buttons = []
         for p in products:
-            name = (p.get("name") or _("Unknown"))[:35]
             buttons.append(
-                [InlineKeyboardButton(f"#{p['id']} {name}", callback_data=f"chart_{p['id']}")]
+                [
+                    InlineKeyboardButton(
+                        f"#{p['id']} {product_label(p, 35)}",
+                        callback_data=f"chart_{p['id']}",
+                    )
+                ]
             )
         buttons.append([close_button()])
 
@@ -67,13 +71,9 @@ async def cmd_history(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
     db = _db(context)
     chart_buf = await generate_chart(db, product_id, product)
     if chart_buf:
-        name = (product.get("name") or _("Product"))[:50]
         lowest = _safe_dec(product.get("lowest_price"))
         highest = _safe_dec(product.get("highest_price"))
-        caption = f"📊 <b>#{product_id}</b> {_escape_html(name)}"
-        store = store_label(url=product.get("url", ""), domain=product.get("domain", ""))
-        if store:
-            caption += _("\n🌐 Store: {store}").format(store=_escape_html(store))
+        caption = f"📊 <b>#{product_id}</b> {_escape_html(product_label(product, 50))}"
         if lowest:
             caption += _("\n📉 Min: €{price:.2f}").format(price=lowest)
         if highest:

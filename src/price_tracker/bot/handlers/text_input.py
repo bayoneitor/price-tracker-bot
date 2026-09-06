@@ -135,6 +135,11 @@ async def _answer_prompt(
         await _show(update, context, pending, str(retry), keep_open=True)
         return
     clear_pending(context)
+    if outcome is None:
+        # The action drew a whole screen into the prompt rather than a line of
+        # text; there is nothing left to render, only the typing to clear away.
+        await _drop_typed_answer(update)
+        return
     await _show(update, context, pending, outcome)
 
 
@@ -176,8 +181,15 @@ async def _show(
         await update.message.reply_text(text, parse_mode=ParseMode.HTML, reply_markup=markup)
         return
 
-    # Bots may delete incoming messages in private chats; if this one cannot, the
-    # answer simply stays visible.
+    await _drop_typed_answer(update)
+
+
+async def _drop_typed_answer(update: Update) -> None:
+    """Remove the user's message once its outcome is on screen somewhere else.
+
+    Bots may delete incoming messages in private chats; if this one cannot, the
+    answer simply stays visible.
+    """
     with contextlib.suppress(TelegramError):
         await update.message.delete()
 
@@ -506,20 +518,43 @@ async def _do_group_new(
     pending: PendingInput,
     text: str,
     product: dict[str, Any] | None,
-) -> str:
-    """Create a group under the typed name."""
+) -> str | None:
+    """Create a group under the typed name, then ask what goes in it."""
     name = text.strip()[:60]
     if not name:
         raise _Retry(_("❌ The name cannot be empty."))
 
-    group_id = await _db(context).create_group(user_id=update.effective_user.id, name=name)
+    db = _db(context)
+    user_id = update.effective_user.id
+    group_id = await db.create_group(user_id=user_id, name=name)
     if group_id is None:
         raise _Retry(
             _("❌ You already have a group called <b>{name}</b>.").format(name=_escape_html(name))
         )
-    return _("🏷 Group <b>{name}</b> created. Open /groups to fill it.").format(
-        name=_escape_html(name)
+
+    # An empty group is not the end of the task, it is the middle of it: go
+    # straight to picking what goes in, rather than sending the user back to
+    # /groups to find the group they just made.
+    group = await db.get_group(group_id, user_id=user_id)
+    if group is None or pending.prompt_message_id is None or pending.chat_id is None:
+        return _("🏷 Group <b>{name}</b> created. Open /groups to fill it.").format(
+            name=_escape_html(name)
+        )
+
+    from price_tracker.bot.handlers.callbacks._groups import (  # noqa: PLC0415 — import cycle
+        open_add_picker,
     )
+    from price_tracker.bot.handlers.callbacks._nav import EditById  # noqa: PLC0415 — cycle
+
+    renderer = EditById(context.bot, pending.chat_id, pending.prompt_message_id)
+    try:
+        await open_add_picker(renderer, context, db, user_id, group)
+    except TelegramError as exc:
+        logger.debug("Could not open the picker on the prompt: %s", exc)
+        return _("🏷 Group <b>{name}</b> created. Open /groups to fill it.").format(
+            name=_escape_html(name)
+        )
+    return None
 
 
 async def _do_group_rename(

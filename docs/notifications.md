@@ -29,6 +29,12 @@ Every step records a Prometheus metric. Drops increment `price_tracker_notificat
 
 ## Commands
 
+Each of these is also a button under **Menu → Notifications → Delivery**, which shows the
+*effective* preferences (defaults included, not just the stored row) and writes through the
+same `settings.update_prefs` read-before-write path. That shared path matters:
+`upsert_notification_prefs` writes the whole row, so a partial write would silently reset
+the fields it does not name — muting would clear the user's timezone.
+
 ### `/mute [product_id|all] [hours|forever]`
 Silence alerts for a single product or all products.
 

@@ -35,7 +35,8 @@ Self-hosted Telegram bot for multi-site price tracking with auto-quarantine, str
 - Per-domain auto-quarantine with tier-based exponential backoff (closes infinite-429 loops)
 - Multi-currency price tracking (Decimal precision, ECB rates with persistent TTL cache)
 - Outlier detection via median ratio (rejects bogus parses without polluting price history)
-- Notification preferences: mute, digest, quiet hours, throttle, timezone-aware, per-product
+- Notification preferences: mute, digest, quiet hours, throttle, timezone-aware, per-product — as commands or as buttons
+- Product groups: compare a set of products side by side, chart them together, and see which has been cheapest over time
 - Prometheus exporter on `127.0.0.1:9090` + structured JSON logging via structlog
 - Grafana dashboard with 14 panels (latency, block rate, quarantine map, alerts, currency)
 - Plugin extension point at `plugins/` for custom scrapers
@@ -79,9 +80,17 @@ See [docs/operations.md](docs/operations.md) for full operational reference.
 Every command has an English name and, where it existed first, an Italian alias — both
 are registered, so `/list` and `/lista` are the same command.
 
-Telegram's **Menu button** (bottom-left of the chat) lists the commands with a
-description, so they can be tapped instead of typed. The list is published on startup
-and follows the client's language; admin commands appear only in admins' own chats.
+Telegram's **Menu button** (bottom-left of the chat) lists the most-used commands with
+a description, so they can be tapped instead of typed. That list is deliberately short:
+Telegram's menu is flat — it has no submenus — so it publishes eight entries rather than
+the whole surface. Everything else still works when typed, is reachable as a button under
+`/menu`, and is listed under **Menu → Info → All commands**. The list is published on
+startup and follows the client's language; admin commands appear only in admins' own chats.
+
+Every screen with an action carries its own way out: **◀️ Back** returns to whatever screen
+opened it, **✖ Cancel** drops a question the bot is waiting for, **✖ Close** dismisses the
+panel. When the bot asks you to type something, the answer is shown by editing the question
+and your typed message is removed, so an exchange stays one message instead of four.
 
 ### Tracking
 - `/start` — register and view the main menu
@@ -89,6 +98,8 @@ and follows the client's language; admin commands appear only in admins' own cha
 - `/help` — command reference
 - `/add <url>` (`/aggiungi`) — start tracking a product
 - `/list` (`/lista`) — one paginated message: an index of every product, the selected product's card (price, store, drop since tracking start), and buttons to page, jump, act on it or close the listing. Typing an index number jumps straight to that product
+- `/groups` (`/grupos`, `/gruppi`) — named sets of products compared against each other: a side-by-side table, one chart with a line per member, and which one has been cheapest over time
+- `/cancel` (`/cancelar`, `/annulla`) — abandon whatever the bot is waiting for you to type
 - `/delete <id>` (`/elimina`) — stop tracking
 - `/check <id>` (`/controlla`) — check one product now
 - `/checkall` — check every product now
@@ -99,10 +110,15 @@ and follows the client's language; admin commands appear only in admins' own cha
 ### Thresholds and targets
 - `/threshold <id> <pct|off>` (`/soglia`) — percentage alert threshold
 - `/target <id> <price>` — alert when the price reaches this value
-- `/setinterval <id> <minutes>` (`/intervallo`) — per-product check interval
-- `/refresh` — global check interval
+- `/refresh <id> <minutes>` — per-product check interval (`0` returns it to the global one)
+- `/setinterval <minutes>` (`/intervallo`) — global check interval (admin)
 
 ### Notification preferences (per user)
+
+All of these are also under **Menu → Notifications → Delivery**, with buttons instead of
+syntax — which matters, since the usual reason to reach for them is a notification that
+has just woken you up.
+
 - `/mute <id|all> [duration]` / `/unmute <id|all>` — silence alerts
 - `/digest_mode <on|off>` — batch alerts into a periodic digest
 - `/digest_now` — flush the pending digest immediately
@@ -151,10 +167,10 @@ src/price_tracker/
 ├── db/             # SQLite repository, models, versioned migrations
 ├── notifier/       # delivery, preferences, digest, throttle
 ├── observability/  # metrics, structured logging
-└── locale/         # gettext catalogs (en, it_IT)
+└── locale/         # gettext catalogs (en, it_IT, es_ES)
 plugins/            # extension point for custom scrapers
 docs/               # user + contributor documentation
-tests/              # pytest suite (717 tests, ≥90% coverage)
+tests/              # pytest suite (1069 tests, ≥90% coverage)
 ```
 
 ## Stability

@@ -11,17 +11,42 @@
 ```
 src/price_tracker/
 ├── bot/             # Telegram interface — handlers, decorators, message templates
-│   └── handlers/    # auth, monitoring, settings, product, history, debug, ...
+│   ├── navigation.py  # what the bot is waiting for, and where "back" goes
+│   ├── keyboards.py   # shared buttons; every action screen ends with nav_row()
+│   ├── charts.py      # single-product and group-comparison renderers
+│   ├── commands.py    # the short list published to Telegram's Menu button
+│   └── handlers/      # auth, monitoring, settings, product, groups, history, debug, ...
+│       └── callbacks/ # per-domain button handlers + _nav (back/close/cancel)
 ├── core/            # scheduler, alert, outlier, health, currency, retry, http_client
 ├── scrapers/        # 17 site-specific scrapers + generic chain + playwright fallback
-├── db/              # repository, models, versioned migrations (001-010)
+├── db/              # repository, models, versioned migrations (001-016)
 ├── notifier/        # telegram delivery, preferences, digest queue
 ├── observability/   # Prometheus metrics + structured JSON logging
-└── locale/          # gettext catalogs (en, it_IT) — populated in F5
+└── locale/          # gettext catalogs (en, it_IT, es_ES)
 plugins/             # extension point for custom scrapers (gitignored except README.md)
 ```
 
 Each top-level package has one responsibility and exposes a clear interface to the next layer. Cross-layer calls always flow downward (`bot/` → `core/` → `db/` / `scrapers/` / `notifier/`); `core/` is the orchestrator.
+
+### Two things `bot/` keeps centrally
+
+**What the bot is waiting for.** A screen that asks the user to type something arms a
+`PendingInput` (`bot/navigation.py`) recording the action, what kind of answer it expects,
+and the message that asked. One text handler reads it: an open prompt wins, then a pasted
+link, then a bare number steering an open `/list`. Ordering handler registrations cannot
+express "unless something else is pending", which is why a pasted URL used to be tracked
+even when the bot had just asked for one.
+
+**Where "back" goes.** The same panel is reachable from several places, so no screen can
+name its own parent. The callback dispatcher records, per message, the tokens that rendered
+it, and ◀️ Back re-dispatches the previous one — tokens rather than snapshots, so a screen
+returned to is rebuilt from current data. `nav_row()` is what puts the button on a screen;
+the dispatcher does the bookkeeping so no screen has to.
+
+Rendering is a pure function of its inputs wherever a view is non-trivial
+(`product_list.build_list_view`, `groups_view.build_group_view`, `build_comparison_table`),
+so the command and the callback build the same panel and tests assert on it without a
+Telegram round trip.
 
 ## Data flow — scheduler tick to notification
 

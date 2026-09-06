@@ -9,6 +9,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Product groups (`/groups`): named sets of products compared against each other — a
+  side-by-side table with the spread, one chart with a line per member, and a timeline of
+  which product has been cheapest. The timeline is derived from the price history already
+  on disk, so a group created today covers every month its members have been tracked.
+  A product can belong to several groups at once.
+- `/cancel` (`/cancelar`, `/annulla`), plus a ✖ Cancel button on every screen that waits
+  for typed input. Previously the only way out was guessing one of a fixed, untranslated
+  word list (`no`, `skip`, `salta`, `annulla`, `cancel`) that the bot never mentioned.
+- ◀️ Back on every screen, returning to whichever screen opened it. The panel it returns
+  to is rebuilt from current data, not restored from a snapshot.
+- **Menu → Notifications → Delivery**: muting, quiet hours, timezone, rate limit and
+  digest mode as buttons. They existed only as typed commands with a usage string.
+- **Menu → Info → All commands**: the full command reference inside the bot, so trimming
+  Telegram's own menu costs nothing in discoverability.
+
 - Removed-listing detection: a product whose page answers HTTP 404/410 for three
   consecutive checks (`LISTING_GONE_CONFIRMATIONS`, default 3) is now suspended and
   flagged as removed, instead of being retried for days as an ordinary read failure.
@@ -32,6 +47,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   shop is the part worth reading.
 
 ### Changed
+
+- Telegram's command menu is now eight entries instead of twenty-six. Its list is flat —
+  it has no submenus — so twenty-six was a wall of text. **No command was removed**: the
+  rest still work when typed, are reachable as buttons under `/menu`, and are listed under
+  Menu → Info → All commands.
+- The chat keeps one live message per flow. Answering a prompt edits the question rather
+  than adding a confirmation, and the typed answer is deleted; the edit panel replaces the
+  message it was opened from instead of stacking a new one; a second `/list` closes the
+  first; exporting a CSV rewrites the panel that asked for it.
+- Opening a price chart replaces the panel it was opened from, and ◀️ Back reopens that
+  panel below the chart. (Telegram cannot edit a text message into a photo, so the panel is
+  re-sent rather than restored.)
+- Every product picker and every result screen now ends with a navigation row.
+- The chart renderer moved to `bot/charts.py`, where `history.py` had noted it belonged.
 
 - Operational notices honour quiet hours and digest mode but ignore mute, resolved from
   the user's global preferences rather than any single affected product's settings.
@@ -57,6 +86,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   previous Italian headers, so files exported before this release keep working.
 
 ### Fixed
+
+- A pasted link is no longer always read as "track this product". `handle_url` was
+  registered before the general text handler, both in python-telegram-bot's default group
+  where only the first match runs, so a URL was tracked even while the bot was waiting for
+  one for another purpose. **Menu → Admin → Scraper debug** was unusable as a result: it
+  asked for a product URL and tracked it instead of analysing it.
+- The four inline admin prompts (Add user, Nickname, Global interval, Scraper debug) all
+  answered "Product not found" and did nothing. Every prompt looked up a *product* before
+  branching on which prompt it was, and three of these carry no product id while the
+  nickname prompt carries a user id.
+- `track_any_`, `track_threshold_`, `track_target_` and the Amazon `pref_*` buttons wrote
+  to the product id in the callback data without checking ownership, so any authorized user
+  could retarget another user's product. (Same defect previously fixed in `track_default_`.)
+- A failed button press said nothing at all: the top-level error handler only replied
+  through `update.message`, which a callback update does not have.
+- Muting no longer risks clearing the user's timezone, digest or throttle settings: the
+  seven copies of the read-before-write update are now one shared path.
+- The notification-preference replies (`Unmuted.`, `Usage: /throttle <N> | off`, …) were
+  the last strings in the bot that skipped gettext; an Italian or Spanish client dropped
+  into English at exactly those settings.
+- README documented `/setinterval` as the per-product interval and `/refresh` as the
+  global one. It is the other way round.
 
 - **Price-drop alerts were never translated.** `format_alert`,
   `format_back_in_stock` and `format_error_notification` were plain English

@@ -11,17 +11,17 @@ from typing import Any
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
+from telegram import InlineKeyboardButton
 from telegram.error import BadRequest
 
 from price_tracker.bot.handlers.callbacks._list import handle_list_navigation
 from price_tracker.bot.handlers.callbacks._nav import handle_close
 from price_tracker.bot.handlers.product_list import (
-    LIST_GOTO_PREFIX,
     MAX_JUMP_BUTTONS,
     build_list_view,
     cmd_list,
 )
-from price_tracker.bot.keyboards import CLOSE_CALLBACK
+from price_tracker.bot.keyboards import CLOSE_CALLBACK, LIST_GOTO_PREFIX
 from price_tracker.bot.navigation import PendingInput
 from price_tracker.core.textlimits import SAFE_LIMIT
 
@@ -379,3 +379,69 @@ def test_the_shop_survives_the_abbreviation() -> None:
     text, _markup = build_list_view(titles, 0)
 
     assert text.count("· amazon.es") >= 20
+
+
+# ── The listing is what the menu's 📦 Products opens ──────────────────────
+
+
+@pytest.mark.asyncio
+async def test_opening_the_listing_records_it_as_the_one_a_number_steers() -> None:
+    """The index invites you to type a number; only /list used to listen.
+
+    A listing opened from the menu ignored them, because nothing recorded which
+    message was showing it.
+    """
+    products = [_product(i) for i in range(1, 4)]
+    db = AsyncMock(get_active_products=AsyncMock(return_value=products))
+    db.get_all_products = AsyncMock(return_value=products)
+    query = MagicMock(message=MagicMock(message_id=77), edit_message_text=AsyncMock())
+    context = MagicMock(user_data={})
+
+    await handle_list_navigation(query, context, db, 7, f"{LIST_GOTO_PREFIX}0")
+
+    assert context.user_data["list_message_id"] == 77
+
+
+@pytest.mark.asyncio
+async def test_the_listing_offers_a_way_to_add_a_product() -> None:
+    """Its only hint before was the empty state, which you never see once you
+    have products — and adding one is the whole point of the bot."""
+    products = [_product(1)]
+    db = AsyncMock(get_active_products=AsyncMock(return_value=products))
+    db.get_all_products = AsyncMock(return_value=products)
+    query = MagicMock(message=MagicMock(message_id=1), edit_message_text=AsyncMock())
+
+    await handle_list_navigation(query, MagicMock(user_data={}), db, 7, f"{LIST_GOTO_PREFIX}0")
+
+    markup = query.edit_message_text.await_args.kwargs["reply_markup"]
+    assert "menu_add" in _button_data(markup)
+    assert "menu_paused" not in _button_data(markup)
+
+
+@pytest.mark.asyncio
+async def test_paused_products_are_reachable_from_the_listing() -> None:
+    """The listing shows the active ones, so the paused would be invisible."""
+    active = [_product(1)]
+    query = MagicMock(message=MagicMock(message_id=1), edit_message_text=AsyncMock())
+    db = AsyncMock(get_active_products=AsyncMock(return_value=active))
+    db.get_all_products = AsyncMock(
+        return_value=[*active, {**_product(2), "is_active": 0}, {**_product(3), "is_active": 0}]
+    )
+
+    await handle_list_navigation(query, MagicMock(user_data={}), db, 7, f"{LIST_GOTO_PREFIX}0")
+
+    markup = query.edit_message_text.await_args.kwargs["reply_markup"]
+    assert "menu_paused" in _button_data(markup)
+    paused_button = [
+        b.text for row in markup.inline_keyboard for b in row if b.callback_data == "menu_paused"
+    ]
+    assert "2" in paused_button[0]
+
+
+def test_extra_rows_sit_above_the_way_out() -> None:
+    rows = [[InlineKeyboardButton("extra", callback_data="extra")]]
+
+    _text, markup = build_list_view([_product(1)], 0, extra_rows=rows)
+
+    data = _button_data(markup)
+    assert data.index("extra") < data.index(CLOSE_CALLBACK)

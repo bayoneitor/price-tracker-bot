@@ -4,6 +4,11 @@ The view carries no server-side state — the selected index travels in the
 callback data — so a listing keeps working after a restart, and two devices
 looking at the same listing never fight over a cursor.
 
+This is also what the menu's 📦 Products entry opens. The menu used to hold four
+separate "pick a product" screens, each capped at eight or ten products and none
+of them able to page, jump or close, while the listing that could do all of it was
+only reachable once you had more than ten.
+
 Closing is not handled here but in `_nav`, with the other ways out.
 """
 
@@ -12,19 +17,40 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING, Any
 
+from telegram import InlineKeyboardButton
 from telegram.constants import ParseMode
 from telegram.error import BadRequest
 
 from price_tracker.bot.handlers._helpers import _parse_id
 from price_tracker.bot.handlers.product_list import (
-    LIST_GOTO_PREFIX,
+    LIST_MESSAGE_KEY,
     build_list_view,
 )
+from price_tracker.bot.keyboards import LIST_GOTO_PREFIX
+from price_tracker.bot.messages import _
 
 if TYPE_CHECKING:
     from telegram.ext import ContextTypes
 
 logger = logging.getLogger(__name__)
+
+
+async def _extra_rows(db: Any, user_id: int) -> list[list[InlineKeyboardButton]]:
+    """What sits between the product's own buttons and the way out.
+
+    Adding a product has no other affordance — the listing only ever hinted at it
+    when it was empty — and paused products are invisible here, the listing being
+    the active ones.
+    """
+    row = [InlineKeyboardButton(_("➕ Add product"), callback_data="menu_add")]
+    paused = [p for p in await db.get_all_products(user_id) if not p.get("is_active")]
+    if paused:
+        row.append(
+            InlineKeyboardButton(
+                _("⏸ {count} paused").format(count=len(paused)), callback_data="menu_paused"
+            )
+        )
+    return [row]
 
 
 async def handle_list_navigation(
@@ -43,7 +69,13 @@ async def handle_list_navigation(
     # build_list_view clamps the index, so a stale button lands somewhere valid.
     products = await db.get_active_products(user_id)
     message_id = getattr(getattr(query, "message", None), "message_id", None)
-    text, keyboard = build_list_view(products, index, context=context, message_id=message_id)
+    text, keyboard = build_list_view(
+        products,
+        index,
+        context=context,
+        message_id=message_id,
+        extra_rows=await _extra_rows(db, user_id),
+    )
     try:
         await query.edit_message_text(
             text,
@@ -56,4 +88,10 @@ async def handle_list_navigation(
         # Telegram rejects. Nothing is wrong and the user sees what they asked.
         if "message is not modified" not in str(exc).lower():
             raise
+
+    # Whichever message is showing the listing is the one a typed number steers.
+    # Only /list used to record this, so a listing opened from the menu ignored
+    # the very numbers its index invites you to type.
+    if context.user_data is not None and message_id is not None:
+        context.user_data[LIST_MESSAGE_KEY] = message_id
     return True

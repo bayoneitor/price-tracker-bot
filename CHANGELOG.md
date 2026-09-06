@@ -23,6 +23,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   limit and digest mode as buttons. They existed only as typed commands with a usage string.
 - **Menu → Info → All commands**: the full command reference inside the bot, so trimming
   Telegram's own menu costs nothing in discoverability.
+- Buttons for the three commands that had none anywhere in the menu: `⏱ How often to
+  check` in a product's edit panel (the only per-product setting with no home),
+  `⚠️ Errors` under Status, and `🏥 Scraper health` under Admin.
 - Every command carries an icon, in Telegram's menu and in that reference, matching the
   one its own screens use. Telegram takes only `[a-z0-9_]` in a command name, so the icon
   heads the description; it is a field of its own rather than part of the translatable
@@ -68,8 +71,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The main menu is built once. `/menu` sent one menu and the ◀️ Menu button rendered
   another — two columns against one, a different label on all but one entry, a different
   heading — so going back to the menu rearranged it under the reader.
-- "… N more → /list" in the Products menu renders the listing instead of answering with a
-  count and telling the reader to go and type /list.
+- The menu is organised around the product rather than the verb. It held four separate
+  "pick a product" screens — Products, Prices, Price history, Notifications — each capped
+  at eight or ten products and none able to page, jump or close, while the listing that
+  does all of that was only reachable once you had more than ten. 📦 Products now opens
+  the listing itself and those four screens are gone; their buttons still work from panels
+  already sitting in a chat. Checking every price is one tap from the menu instead of
+  three, and Notifications opens its settings directly.
+- The listing offers ➕ Add product — its only hint before was the empty state, which you
+  stop seeing the moment you have products — and ⏸ N paused, previously reachable only
+  through one of the removed screens. Typing an index number steers a listing opened from
+  the menu, not just one opened by /list.
+- Import / Export no longer repeats the three counters Status already shows.
 - A product is named `product · shop` everywhere it appears — listing, pickers, menus,
   comparison table, group view. The same product tracked at three shops was three
   identical rows. Names are shown whole; the only place they are not is inside a chart,

@@ -22,11 +22,13 @@ from telegram.constants import ParseMode
 from price_tracker.bot.decorators import _config
 from price_tracker.bot.handlers._helpers import (
     _escape_html,
-    _format_threshold,
     _safe_dec,
 )
-from price_tracker.bot.handlers.product_list import build_list_view
-from price_tracker.bot.keyboards import build_main_menu, menu_exit_row
+from price_tracker.bot.keyboards import (
+    LIST_GOTO_PREFIX,
+    build_main_menu,
+    menu_exit_row,
+)
 from price_tracker.bot.labels import product_label
 from price_tracker.bot.messages import _
 
@@ -34,6 +36,17 @@ if TYPE_CHECKING:
     from telegram.ext import ContextTypes
 
 logger = logging.getLogger(__name__)
+
+# Screens the menu no longer has, and where their buttons now land. Panels sent
+# before the menu was reordered are still in people's chats, and their buttons
+# still send the old token; the dispatcher rewrites it before anything sees it.
+RETIRED_SCREENS = {
+    "cmd_lista": f"{LIST_GOTO_PREFIX}0",
+    "menu_prodotti": f"{LIST_GOTO_PREFIX}0",
+    "menu_prezzi": f"{LIST_GOTO_PREFIX}0",
+    "menu_storia": f"{LIST_GOTO_PREFIX}0",
+    "menu_notifiche": "menu_delivery",
+}
 
 # Export column headers are a data contract, not UI: they stay untranslated so
 # a CSV exported under one locale still imports under another. `cmd_import`
@@ -60,78 +73,20 @@ async def handle_menu_navigation(
     Returns `True` if the callback was a known menu action; `False` lets
     the caller try the next handler.
     """
-    if data == "cmd_lista":
-        # Reached from "… N more → /list". It used to answer with the count and
-        # tell the reader to go and type /list, which is not what the button says
-        # it does — it renders the listing itself now, in place.
-        products = await db.get_active_products(user_id)
-        message_id = getattr(getattr(query, "message", None), "message_id", None)
-        text, keyboard = build_list_view(products, 0, context=context, message_id=message_id)
-        await query.edit_message_text(
-            text,
-            parse_mode=ParseMode.HTML,
-            disable_web_page_preview=True,
-            reply_markup=keyboard,
-        )
-        return True
-
     if data == "menu_main":
         text, keyboard = build_main_menu(await db.is_user_admin(query.from_user.id))
         await query.edit_message_text(text, parse_mode=ParseMode.HTML, reply_markup=keyboard)
         return True
 
-    if data == "menu_prodotti":
-        products = await db.get_active_products(user_id)
-        all_prods = await db.get_all_products(user_id)
-        paused = [p for p in all_prods if not p.get("is_active")]
-        rows = []
-        if products:
-            for p in products[:10]:
-                cur = _safe_dec(p.get("current_price"))
-                tag = f" €{cur:.2f}" if cur else ""
-                rows.append(
-                    [
-                        InlineKeyboardButton(
-                            f"#{p['id']} {product_label(p)}{tag}",
-                            callback_data=f"edit_{p['id']}",
-                        )
-                    ]
-                )
-            if len(products) > 10:
-                rows.append(
-                    [
-                        InlineKeyboardButton(
-                            _("... {count} more → /list").format(count=len(products) - 10),
-                            callback_data="cmd_lista",
-                        )
-                    ]
-                )
-        else:
-            rows.append(
-                [
-                    InlineKeyboardButton(
-                        _("📭 No products — paste a link!"),
-                        callback_data="menu_main",
-                    )
-                ]
-            )
-        if paused:
-            rows.append(
-                [
-                    InlineKeyboardButton(
-                        _("⏸ {count} paused → reactivate").format(count=len(paused)),
-                        callback_data="menu_paused",
-                    )
-                ]
-            )
-        rows.append([InlineKeyboardButton(_("🏷 Groups"), callback_data="menu_groups")])
-        rows.append(menu_exit_row())
+    if data == "menu_add":
         await query.edit_message_text(
-            _("📦 <b>Your products</b> ({count} active)\n\nTap a product to edit it.").format(
-                count=len(products)
+            _(
+                "➕ <b>Track a new product</b>\n\n"
+                "Paste the product's link into the chat — that is all it takes.\n"
+                "You can also send <code>/add &lt;link&gt;</code>."
             ),
             parse_mode=ParseMode.HTML,
-            reply_markup=InlineKeyboardMarkup(rows),
+            reply_markup=InlineKeyboardMarkup([menu_exit_row()]),
         )
         return True
 
@@ -158,86 +113,10 @@ async def handle_menu_navigation(
         )
         return True
 
-    if data == "menu_prezzi":
-        products = await db.get_active_products(user_id)
-        rows = [[InlineKeyboardButton(_("🔄 Check all prices"), callback_data="menu_checkall")]]
-        for p in products[:8]:
-            rows.append(
-                [
-                    InlineKeyboardButton(
-                        f"🔍 #{p['id']} {product_label(p)}",
-                        callback_data=f"check_{p['id']}",
-                    )
-                ]
-            )
-        if products:
-            rows.append([InlineKeyboardButton(_("📊 Price history"), callback_data="menu_storia")])
-        rows.append(menu_exit_row())
-        await query.edit_message_text(
-            _("🔍 <b>Price check</b>\n\nTap a product to check it."),
-            parse_mode=ParseMode.HTML,
-            reply_markup=InlineKeyboardMarkup(rows),
-        )
-        return True
-
     if data == "menu_checkall":
         return await _handle_menu_checkall(query, context, db, user_id)
 
-    if data == "menu_storia":
-        products = await db.get_active_products(user_id)
-        rows = []
-        for p in products[:10]:
-            rows.append(
-                [
-                    InlineKeyboardButton(
-                        f"📊 #{p['id']} {product_label(p)}",
-                        callback_data=f"chart_{p['id']}",
-                    )
-                ]
-            )
-        rows.append(menu_exit_row())
-        await query.edit_message_text(
-            _("📊 <b>Price history</b>\n\nTap a product for its chart."),
-            parse_mode=ParseMode.HTML,
-            reply_markup=InlineKeyboardMarkup(rows),
-        )
-        return True
-
-    if data == "menu_notifiche":
-        products = await db.get_active_products(user_id)
-        rows = [
-            [InlineKeyboardButton(_("⚙️ Notification settings"), callback_data="menu_delivery")],
-        ]
-        for p in products[:10]:
-            nm = product_label(p)
-            th = _format_threshold(
-                p.get("threshold_type", "percentage"),
-                p.get("threshold_value", "10"),
-            )
-            tgt = _safe_dec(p.get("target_price"))
-            t_str = f" 🎯€{tgt:.0f}" if tgt else ""
-            rows.append(
-                [
-                    InlineKeyboardButton(
-                        f"#{p['id']} {nm} [{th}]{t_str}",
-                        callback_data=f"edit_{p['id']}",
-                    )
-                ]
-            )
-        rows.append(menu_exit_row())
-        await query.edit_message_text(
-            _(
-                "🔔 <b>Notifications</b>\n\n"
-                "Settings covers muting, quiet hours and digests.\n"
-                "Tap a product to change its threshold or target."
-            ),
-            parse_mode=ParseMode.HTML,
-            reply_markup=InlineKeyboardMarkup(rows),
-        )
-        return True
-
     if data == "menu_dati":
-        stats = await db.get_stats(user_id)
         rows = [
             [InlineKeyboardButton(_("💾 Export CSV"), callback_data="menu_esporta")],
             [
@@ -249,14 +128,11 @@ async def handle_menu_navigation(
             menu_exit_row(),
         ]
         await query.edit_message_text(
+            # The counters live in Status; repeating them here was the same three
+            # numbers on two screens.
             _(
                 "💾 <b>Import / Export</b>\n\n"
-                "📦 {active} active, {total} total\n"
-                "🔍 {checks} checks run"
-            ).format(
-                active=stats["active_products"],
-                total=stats["total_products"],
-                checks=stats["total_checks"],
+                "Export gives you a CSV of everything you track; import reads one back."
             ),
             parse_mode=ParseMode.HTML,
             reply_markup=InlineKeyboardMarkup(rows),
@@ -283,6 +159,9 @@ async def handle_menu_navigation(
 
     if data == "menu_commands":
         return await _handle_menu_commands(query)
+
+    if data == "menu_errors":
+        return await _handle_menu_errors(query, context, db, user_id)
 
     return False
 
@@ -415,13 +294,30 @@ async def _handle_menu_info(
             "🔍 Global checks: {checks}"
         ).format(users=len(users), products=gs["active_products"], checks=gs["total_checks"])
     rows = [
-        [InlineKeyboardButton(_("⌨️ All commands"), callback_data="menu_commands")],
+        [
+            InlineKeyboardButton(_("⚠️ Errors"), callback_data="menu_errors"),
+            InlineKeyboardButton(_("⌨️ All commands"), callback_data="menu_commands"),
+        ],
         menu_exit_row(),
     ]
     await query.edit_message_text(
         text,
         parse_mode=ParseMode.HTML,
         reply_markup=InlineKeyboardMarkup(rows),
+    )
+    return True
+
+
+async def _handle_menu_errors(
+    query: Any, context: ContextTypes.DEFAULT_TYPE, db: Any, user_id: int
+) -> bool:
+    """The read-failure report, the same one /errors sends."""
+    from price_tracker.bot.handlers.debug import render_errors  # noqa: PLC0415 — cycle
+
+    await query.edit_message_text(
+        await render_errors(db, context.bot_data.get("health_manager"), user_id),
+        parse_mode=ParseMode.HTML,
+        reply_markup=InlineKeyboardMarkup([menu_exit_row()]),
     )
     return True
 

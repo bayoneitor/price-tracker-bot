@@ -30,6 +30,11 @@ BACK_CALLBACK = "nav_back"
 # Abandon whatever the bot is waiting for the user to type.
 CANCEL_CALLBACK = "cancel_action"
 
+# The paginated listing's page token. It lives here rather than with the view
+# because the main menu opens the listing directly, and a keyboard module cannot
+# import a handler that already imports it.
+LIST_GOTO_PREFIX = "list_go_"
+
 
 def close_button() -> InlineKeyboardButton:
     """The '✖ Close' button, built under the caller's locale."""
@@ -138,16 +143,24 @@ def build_main_menu(is_admin: bool = False) -> tuple[str, InlineKeyboardMarkup]:
     a different label on all but one entry. Going back to the menu rearranged it
     under the reader.
     """
+    # Products opens the real listing rather than a screen that imitates it. The
+    # menu used to hold four separate "pick a product" pickers — products, prices,
+    # history, notifications — each capped at eight or ten and none of them able to
+    # page, jump or close, while the listing that could do all of it was only
+    # reachable once you had more than ten products.
     rows = [
         [
-            InlineKeyboardButton(_("📦 Products"), callback_data="menu_prodotti"),
-            InlineKeyboardButton(_("🔍 Prices"), callback_data="menu_prezzi"),
+            InlineKeyboardButton(_("📦 Products"), callback_data=f"{LIST_GOTO_PREFIX}0"),
+            InlineKeyboardButton(_("🏷 Groups"), callback_data="menu_groups"),
         ],
         [
-            InlineKeyboardButton(_("🔔 Notifications"), callback_data="menu_notifiche"),
-            InlineKeyboardButton(_("💾 Data"), callback_data="menu_dati"),
+            InlineKeyboardButton(_("🔍 Check all prices"), callback_data="menu_checkall"),
+            InlineKeyboardButton(_("🔔 Notifications"), callback_data="menu_delivery"),
         ],
-        [InlineKeyboardButton(_("📊 Status and info"), callback_data="menu_info")],
+        [
+            InlineKeyboardButton(_("💾 Data"), callback_data="menu_dati"),
+            InlineKeyboardButton(_("📊 Status and info"), callback_data="menu_info"),
+        ],
     ]
     if is_admin:
         rows.append([InlineKeyboardButton(_("👑 Admin"), callback_data="menu_admin")])

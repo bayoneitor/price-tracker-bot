@@ -29,7 +29,7 @@ from price_tracker.bot.handlers._helpers import (
     _format_threshold,
     _safe_dec,
 )
-from price_tracker.bot.keyboards import close_button, nav_row
+from price_tracker.bot.keyboards import LIST_GOTO_PREFIX, close_button, nav_row
 from price_tracker.bot.labels import product_label
 from price_tracker.bot.messages import _
 from price_tracker.bot.navigation import push_nav
@@ -41,9 +41,6 @@ if TYPE_CHECKING:
     from telegram.ext import ContextTypes
 
 logger = logging.getLogger(__name__)
-
-# Callback prefix owned by this view. Closing is the shared CLOSE_CALLBACK.
-LIST_GOTO_PREFIX = "list_go_"
 
 # user_data key holding the open listing's message id, so a plain number typed
 # in the chat can jump the listing instead of being ignored.
@@ -162,6 +159,7 @@ def build_list_view(
     *,
     context: ContextTypes.DEFAULT_TYPE | None = None,
     message_id: int | None = None,
+    extra_rows: Sequence[list[InlineKeyboardButton]] = (),
 ) -> tuple[str, InlineKeyboardMarkup]:
     """Render the whole listing for `products` with `index` selected.
 
@@ -170,6 +168,10 @@ def build_list_view(
 
     `context`/`message_id` are only needed for the exit row: a listing reached
     from the menu offers ◀️ Back, one opened by /list has nowhere to go back to.
+
+    `extra_rows` go above the exits — "add a product", "N paused". They are passed
+    in rather than worked out here so this stays a pure function of the products
+    it is given.
     """
     exits = (nav_row(context, message_id) if context is not None else [close_button()]) or [
         close_button()
@@ -178,7 +180,7 @@ def build_list_view(
     if not products:
         return (
             _("📭 You have no tracked products.\nPaste me a link to get started!"),
-            InlineKeyboardMarkup([exits]),
+            InlineKeyboardMarkup([*extra_rows, exits]),
         )
 
     current = max(0, min(index, len(products) - 1))
@@ -244,6 +246,7 @@ def build_list_view(
     if url:
         action_row.insert(0, InlineKeyboardButton(_("🔗 Open"), url=url))
     rows.append(action_row)
+    rows.extend(extra_rows)
     rows.append(exits)
 
     return text, InlineKeyboardMarkup(rows)

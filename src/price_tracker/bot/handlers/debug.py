@@ -12,7 +12,7 @@ import logging
 import re as _re
 import time
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import httpx
 from telegram.constants import ParseMode
@@ -29,6 +29,7 @@ from price_tracker.bot.decorators import (
 )
 from price_tracker.bot.handlers._helpers import _escape_html, _format_relative_time
 from price_tracker.bot.messages import _
+from price_tracker.core.textlimits import SAFE_LIMIT, truncate_visible
 
 if TYPE_CHECKING:
     from telegram import Update
@@ -393,13 +394,15 @@ async def status_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     await update.message.reply_html("\n".join(lines))
 
 
-@with_locale
-@admin_only
-async def health_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Admin: show scraper health report (English output)."""
+def render_health(health_mgr: Any) -> str:
+    """The scraper health report, for whoever wants to show it.
+
+    Built here rather than inside the command so the Admin menu's button and
+    /health cannot drift apart, and bounded because a panel is drawn with
+    `edit_message_text`, which Telegram refuses over 4096 characters.
+    """
     from price_tracker.core.health import QuarantineState  # noqa: PLC0415
 
-    health_mgr = context.bot_data["health_manager"]
     records = health_mgr.all_records()
 
     # Classify by EFFECTIVE state: an expired lockout is HALF_OPEN on read
@@ -450,28 +453,29 @@ async def health_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         for r in recent_blocks:
             ts = r.last_block_at.strftime("%Y-%m-%d %H:%M:%SZ") if r.last_block_at else "—"
             lines.append(f"  • {r.domain} — {r.last_block_reason or '?'} — {ts}")
-
-    await update.message.reply_html("\n".join(lines))
+    return truncate_visible("\n".join(lines), SAFE_LIMIT)
 
 
 @with_locale
-@restricted
-async def cmd_errori(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """User-facing: products with recent scrape errors + domain quarantine state.
+@admin_only
+async def health_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Admin: show scraper health report (English output)."""
+    await update.message.reply_html(render_health(context.bot_data["health_manager"]))
+
+
+async def render_errors(db: Any, health_mgr: Any, user_id: int) -> str:
+    """The per-product read-failure report, for whoever wants to show it.
 
     Complements the admin-only /health (domain-level) with a per-product,
     localized view that surfaces the persisted ``last_error`` for debugging.
+    Shared with the Status menu's button, and bounded for the same reason as
+    :func:`render_health`.
     """
     from price_tracker.core.health import QuarantineState  # noqa: PLC0415
 
-    db = _db(context)
-    user_id = update.effective_user.id
-    health_mgr = context.bot_data.get("health_manager")
-
     errored = await db.list_products_with_errors(user_id=user_id)
     if not errored:
-        await update.message.reply_text(_("✅ No recent errors on your products."))
-        return
+        return _("✅ No recent errors on your products.")
 
     lines: list[str] = [
         _("⚠️ <b>Recent errors ({count})</b>").format(count=len(errored)),
@@ -503,7 +507,18 @@ async def cmd_errori(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
             "use /reactivate to bring a paused product back."
         )
     )
-    await update.message.reply_html("\n".join(lines))
+    return truncate_visible("\n".join(lines), SAFE_LIMIT)
+
+
+@with_locale
+@restricted
+async def cmd_errori(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """User-facing: products with recent scrape errors + domain quarantine state."""
+    await update.message.reply_html(
+        await render_errors(
+            _db(context), context.bot_data.get("health_manager"), update.effective_user.id
+        )
+    )
 
 
 def register(app: Application) -> None:

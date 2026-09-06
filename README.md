@@ -116,9 +116,9 @@ and your typed message is removed, so an exchange stays one message instead of f
 
 ### Notification preferences (per user)
 
-All of these are also under **Menu → Notifications → Notification settings**, with buttons
-instead of syntax — which matters, since the usual reason to reach for them is a notification that
-has just woken you up.
+All of these are also under **Menu → 🔔 Notifications**, with buttons instead of syntax —
+which matters, since the usual reason to reach for them is a notification that has just
+woken you up.
 
 - `/mute <id|all> [duration]` / `/unmute <id|all>` — silence alerts
 - `/digest_mode <on|off>` — batch alerts into a periodic digest

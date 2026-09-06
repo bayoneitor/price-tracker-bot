@@ -92,6 +92,12 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     if await _nav.handle_back(query, context, db, user_id, data, _dispatch):
         return
 
+    # A panel sent before the menu was reordered still carries the old token.
+    # Rewritten here rather than in the menu handler so it reaches whichever
+    # screen now owns it — the listing, in most cases, which the menu does not
+    # render itself.
+    data = _menu.RETIRED_SCREENS.get(data, data)
+
     # Pushed before the screen renders, so a screen drawing itself always finds
     # itself on top of the trail and the screen behind it one below — which is
     # what `nav_row` needs to decide whether ◀️ Back leads anywhere. A chart

@@ -307,9 +307,11 @@ async def test_errori_command_no_errors() -> None:
 
     await cmd_errori(update, context)
 
-    update.message.reply_text.assert_awaited_once()
-    assert "Nessun errore" in update.message.reply_text.call_args.args[0]
-    update.message.reply_html.assert_not_awaited()
+    # One send for every outcome now: the report is built by `render_errors` and
+    # the command only delivers it, which is what lets the Status button reuse it.
+    update.message.reply_html.assert_awaited_once()
+    assert "Nessun errore" in update.message.reply_html.call_args.args[0]
+    update.message.reply_text.assert_not_awaited()
 
 
 # ── A failed button press used to say nothing at all ─────────────────────
@@ -336,3 +338,66 @@ async def test_error_handler_alerts_the_user_who_pressed_a_button() -> None:
 
     update.callback_query.answer.assert_awaited_once()
     assert update.callback_query.answer.await_args.kwargs["show_alert"] is True
+
+
+# ── The same two reports, whether typed or tapped ────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_the_errors_button_and_the_command_render_the_same_report() -> None:
+    from price_tracker.bot.handlers.callbacks._menu import handle_menu_navigation
+    from price_tracker.bot.handlers.debug import cmd_errori
+
+    row = ProductErrorRow(
+        id=3,
+        name="Widget",
+        url="https://example.com/p/3",
+        domain="example.com",
+        consecutive_errors=4,
+        last_error="HTTP 503",
+        last_error_at=None,
+    )
+    update = MagicMock()
+    update.effective_user.id = 42
+    update.effective_user.language_code = "en"
+    update.message.reply_html = AsyncMock()
+    context = _make_errori_context(errored=[row], health_records=[])
+    await cmd_errori(update, context)
+    typed = update.message.reply_html.call_args.args[0]
+
+    query = MagicMock(message=MagicMock(message_id=1), edit_message_text=AsyncMock())
+    query.from_user.id = 42
+    menu_context = _make_errori_context(errored=[row], health_records=[])
+    menu_context.user_data = {}
+    await handle_menu_navigation(
+        query, menu_context, menu_context.bot_data["db"], 42, "menu_errors"
+    )
+    tapped = query.edit_message_text.call_args.args[0]
+
+    assert typed == tapped
+    assert "Widget" in tapped
+
+
+@pytest.mark.asyncio
+async def test_a_long_report_is_bounded_to_what_telegram_accepts() -> None:
+    """A panel is drawn with edit_message_text, which fails over 4096 characters."""
+    from price_tracker.bot.handlers.debug import render_errors
+    from price_tracker.core.textlimits import SAFE_LIMIT
+
+    rows = [
+        ProductErrorRow(
+            id=i,
+            name="Widget " + "very long name " * 8,
+            url=f"https://example.com/p/{i}",
+            domain="example.com",
+            consecutive_errors=3,
+            last_error="HTTP 503 " * 10,
+            last_error_at=None,
+        )
+        for i in range(60)
+    ]
+    context = _make_errori_context(errored=rows, health_records=[])
+
+    report = await render_errors(context.bot_data["db"], None, 42)
+
+    assert len(report) <= SAFE_LIMIT

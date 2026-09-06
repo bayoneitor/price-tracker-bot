@@ -73,7 +73,10 @@ async def handle_admin_menu(
                     callback_data="menu_admin_interval",
                 )
             ],
-            [InlineKeyboardButton(_("🔧 Scraper debug"), callback_data="menu_admin_debug")],
+            [
+                InlineKeyboardButton(_("🏥 Scraper health"), callback_data="menu_admin_health"),
+                InlineKeyboardButton(_("🔧 Scraper debug"), callback_data="menu_admin_debug"),
+            ],
             menu_exit_row(),
         ]
         await query.edit_message_text(
@@ -206,6 +209,18 @@ async def handle_admin_menu(
             ),
             parse_mode=ParseMode.HTML,
             reply_markup=prompt_keyboard(context, _message_id(query)),
+        )
+        return True
+
+    if data == "menu_admin_health":
+        if not await db.is_user_admin(user_id):
+            return True
+        from price_tracker.bot.handlers.debug import render_health  # noqa: PLC0415 — cycle
+
+        await query.edit_message_text(
+            render_health(context.bot_data["health_manager"]),
+            parse_mode=ParseMode.HTML,
+            reply_markup=_back_to_admin(),
         )
         return True
 

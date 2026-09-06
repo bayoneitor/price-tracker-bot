@@ -106,9 +106,9 @@ async def test_a_handled_screen_is_recorded_on_the_trail(
     monkeypatch.setattr(callbacks, "_dispatch", spy)
     context = _context()
 
-    await callbacks.handle_callback(_update("menu_prodotti"), context)
+    await callbacks.handle_callback(_update("menu_dati"), context)
 
-    assert context.user_data["nav"][5] == ["menu_prodotti"]
+    assert context.user_data["nav"][5] == ["menu_dati"]
 
 
 @pytest.mark.asyncio
@@ -127,3 +127,27 @@ async def test_an_unhandled_callback_leaves_no_trace_on_the_trail(
     await callbacks.handle_callback(_update("nonsense_9"), context)
 
     assert context.user_data["nav"][5] == ["menu_main"]
+
+
+@pytest.mark.asyncio
+async def test_a_retired_screen_is_rewritten_before_anything_sees_it(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Panels sent before the menu was reordered are still in people's chats.
+
+    Their buttons carry tokens no screen owns any more; rewriting them in the
+    dispatcher means they land where that screen went instead of doing nothing.
+    """
+    dispatched: list[str] = []
+
+    async def spy(query: Any, context: Any, db: Any, user_id: int, token: str) -> bool:
+        dispatched.append(token)
+        return True
+
+    monkeypatch.setattr(callbacks, "_dispatch", spy)
+
+    for retired in ("menu_prodotti", "menu_prezzi", "menu_storia", "cmd_lista"):
+        await callbacks.handle_callback(_update(retired), _context())
+    await callbacks.handle_callback(_update("menu_notifiche"), _context())
+
+    assert dispatched == ["list_go_0"] * 4 + ["menu_delivery"]

@@ -66,6 +66,9 @@ async def handle_edit_button(
             )
         ],
         [InlineKeyboardButton(_("💰 Target price"), callback_data=f"track_target_{product_id}")],
+        # The only per-product setting that had no button anywhere: the picker it
+        # opens already existed, nothing ever led to it.
+        [InlineKeyboardButton(_("⏱ How often to check"), callback_data=f"setrefresh_{product_id}")],
     ]
     if initial and current and initial != current:
         edit_buttons.append(

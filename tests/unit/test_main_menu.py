@@ -66,13 +66,17 @@ def test_the_admin_entry_is_the_only_thing_that_varies() -> None:
 
 
 def test_every_entry_leads_somewhere_the_dispatcher_knows() -> None:
-    """A menu button whose callback nothing claims is a button that does nothing."""
+    """A menu button whose callback nothing claims is a button that does nothing.
+
+    📦 Products opens the listing itself rather than a screen that imitates it.
+    """
     _text, markup = build_main_menu(is_admin=True)
 
     assert _targets(markup) == [
-        "menu_prodotti",
-        "menu_prezzi",
-        "menu_notifiche",
+        "list_go_0",
+        "menu_groups",
+        "menu_checkall",
+        "menu_delivery",
         "menu_dati",
         "menu_info",
         "menu_admin",

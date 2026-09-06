@@ -74,3 +74,22 @@ def test_nothing_is_left_fuzzy(locale: str) -> None:
         catalog = read_po(handle, locale=locale)
     fuzzy = [m.id for m in catalog if m.id and "fuzzy" in m.flags]
     assert not fuzzy, f"{locale}: {len(fuzzy)} fuzzy entries: {fuzzy[:3]}"
+
+
+@pytest.mark.parametrize("locale", LOCALES)
+def test_every_string_is_valid_telegram_html(locale: str) -> None:
+    """A raw `<` in a message sent as HTML costs the whole message, not the tag.
+
+    `/debug` with no arguments answered nothing at all: its usage line said
+    "/debug <url>", Telegram rejected the send with `unsupported start tag "url"`,
+    and the user saw the generic error handler instead of the usage.
+    """
+    from price_tracker.core.textlimits import _is_valid_telegram_markup
+
+    broken = [
+        text
+        for msgid, msgstr in _translated(locale)
+        for text in (msgid, msgstr)
+        if "<" in text and not _is_valid_telegram_markup(text)
+    ]
+    assert not broken, f"{locale}: invalid Telegram HTML in {broken[:3]}"

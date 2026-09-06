@@ -114,7 +114,11 @@ def _tier_label(state: str) -> str:
 async def cmd_debug(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Debug scraping for a URL — shows what each strategy finds."""
     if not context.args:
-        await update.message.reply_text(_("❌ Usage: /debug <url>"), parse_mode=ParseMode.HTML)
+        # Escaped: this is sent as HTML, and Telegram rejects the whole message
+        # over an unknown tag — "<url>" made /debug answer nothing at all.
+        await update.message.reply_text(
+            _("❌ Usage: /debug &lt;url&gt;"), parse_mode=ParseMode.HTML
+        )
         return
 
     url = context.args[0]

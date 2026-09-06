@@ -278,7 +278,9 @@ async def timezone_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     repo = context.bot_data["repository"]
     args = context.args or []
     if not args:
-        await update.message.reply_text(_("Usage: /timezone <TZ name>"))
+        await update.message.reply_text(
+            _("Usage: /timezone &lt;TZ name&gt;"), parse_mode=ParseMode.HTML
+        )
         return
     tz = args[0]
     if tz not in _VALID_TIMEZONES:
@@ -295,7 +297,9 @@ async def throttle_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     repo = context.bot_data["repository"]
     args = context.args or []
     if not args:
-        await update.message.reply_text(_("Usage: /throttle <N> | off"))
+        await update.message.reply_text(
+            _("Usage: /throttle &lt;N&gt; | off"), parse_mode=ParseMode.HTML
+        )
         return
     limit: int | None = None
     if args[0] != "off":

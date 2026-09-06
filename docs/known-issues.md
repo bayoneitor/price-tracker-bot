@@ -1,14 +1,18 @@
 # Known issues
 
 Defects and risks found in a read of the code on 2026-09-07, with the evidence
-that established each one. Ticked as they are fixed, with the commit that did it.
+that established each one, and what a fix changed once it landed.
+
+Entries are not tagged with a commit hash: the commit that fixes an entry also
+ticks it, so the hash would have to be written before it exists. The link runs
+the other way — each of those commits names this file, so
+`git log --grep known-issues` finds them.
 
 New features are not here — those live in [roadmap.md](roadmap.md).
 
 ## Behaviour that lies
 
-- [x] **1. The per-product check interval was never honoured.** Fixed in `60e7750`:
-  `_is_due` (`core/scheduler.py`) skips a product until its own interval has
+- [x] **1. The per-product check interval was never honoured.** **Fixed.** `_is_due` (`core/scheduler.py`) skips a product until its own interval has
   passed. The interval is a *minimum gap* — it cannot make a product checked more
   often than the sweep itself runs — so `/refresh` now says so when the number
   asked for is smaller than the sweep, rather than letting it imply otherwise.
@@ -24,12 +28,11 @@ New features are not here — those live in [roadmap.md](roadmap.md).
   honoured by the scheduler".
   </details>
 
-- [x] **2. `/debug` fetched any URL with no SSRF check.** Fixed in `dc52a17`:
-  `cmd_debug` applies `validate_public_url` before anything is fetched. It needs
+- [x] **2. `/debug` fetched any URL with no SSRF check.** **Fixed.** `cmd_debug` applies `validate_public_url` before anything is fetched. It needs
   its own check rather than relying on the shared client, because it also reaches
   for curl_cffi and Scrapling, which never touch it.
 
-- [x] **3. A redirect walked past the SSRF guard.** Fixed in `dc52a17`: the
+- [x] **3. A redirect walked past the SSRF guard.** **Fixed.** The
   shared client is built with a request hook that re-applies the boundary to
   every hop, so a public host answering `302 → http://169.254.169.254/` is
   refused at the second request. Resolution runs in a thread — an event hook sits
@@ -44,10 +47,18 @@ New features are not here — those live in [roadmap.md](roadmap.md).
   module and the one under most change. The reported figure describes everything
   *except* the user-facing surface, so a regression there fails no gate.
 
-- [ ] **5. CSV import has no bound.** `download_to_memory` takes the whole file
-  (`bot/handlers/product_io.py`) and the loop scrapes every row in turn. Telegram
-  caps a bot download at 20 MB, which is still tens of thousands of URLs and as
-  many outbound requests.
+- [x] **5. CSV import had no bound.** **Fixed.** A file over 1 MB is refused
+  before it is downloaded — Telegram reports the size up front, so pulling one in
+  order to reject it is waste — and the row loop stops at 500, reporting where it
+  stopped. It stops rather than refusing: the rows already imported are good ones,
+  and discarding them to punish a long file helps nobody.
+
+  <details><summary>What it was</summary>
+
+  `download_to_memory` took the whole file and the loop scraped every row in
+  turn. Telegram caps a bot download at 20 MB, which is still tens of thousands of
+  URLs and as many outbound requests.
+  </details>
 
 - [ ] **6. No automated backup.** `docs/operations.md` documents the SQLite
   `.backup` call to run by hand. The database is one named volume; nothing takes

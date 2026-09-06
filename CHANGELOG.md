@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Security
 
+- The SSRF boundary holds across redirects. `validate_public_url` guarded the URL a user
+  handed over; the shared client then followed redirects without re-checking, so a public
+  host answering `302 → http://169.254.169.254/` was fetched anyway. Every hop is checked
+  now. `/debug` gained the guard too — it had none, and reaches curl_cffi and Scrapling
+  directly, which never touch the shared client.
+- CSV import is bounded: 1 MB and 500 rows, refused before download and stopped with a
+  count respectively. An import is a shopping list of outbound requests, and 20 MB of
+  URLs is tens of thousands of them.
+
 - CSV import applies the same URL boundary as an interactive addition. `/add`
   rejected loopback, link-local and private addresses before resolving or fetching a
   URL, but `/import` went straight from a CSV row to the scraper — and any host with a

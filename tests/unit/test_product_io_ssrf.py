@@ -53,6 +53,7 @@ def _context(csv_body: str) -> tuple[MagicMock, MagicMock, AsyncMock]:
     document = MagicMock()
     document.file_name = "products.csv"
     document.file_id = "file-id"
+    document.file_size = 512
     update.message.document = document
     update.message.reply_text = AsyncMock(return_value=MagicMock(edit_text=AsyncMock()))
 
@@ -74,3 +75,34 @@ async def test_csv_import_still_accepts_a_public_url() -> None:
     await cmd_import(update, context)
 
     scraper.resolve.assert_called_once()
+
+
+# ── An import is a shopping list of outbound requests ────────────────────
+
+
+async def test_an_oversized_file_is_refused_before_it_is_downloaded() -> None:
+    """Telegram reports the size up front; pulling a file to reject it is waste."""
+    from price_tracker.bot.handlers.product_io import MAX_IMPORT_BYTES
+
+    update, context, _scraper = _context("URL\nhttps://example.com/products/x\n")
+    update.message.document.file_size = MAX_IMPORT_BYTES + 1
+
+    await cmd_import(update, context)
+
+    context.bot.get_file.assert_not_called()
+    # Asserted on the limit rather than the wording: this fixture speaks Italian.
+    assert str(MAX_IMPORT_BYTES // 1024) in update.message.reply_text.await_args.args[0]
+
+
+async def test_a_long_file_stops_at_the_limit_and_says_where() -> None:
+    """Stopping beats refusing: the rows already imported are good ones."""
+    from price_tracker.bot.handlers.product_io import MAX_IMPORT_ROWS
+
+    rows = "\n".join(f"https://example.com/products/{i}" for i in range(MAX_IMPORT_ROWS + 50))
+    update, context, scraper = _context(f"URL\n{rows}\n")
+
+    await cmd_import(update, context)
+
+    assert scraper.resolve.call_count == MAX_IMPORT_ROWS
+    summary = update.message.reply_text.return_value.edit_text.await_args.args[0]
+    assert "Stopped at" in summary or "Fermato" in summary

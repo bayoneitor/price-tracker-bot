@@ -32,6 +32,13 @@ logger = logging.getLogger(__name__)
 
 # Import accepts both the current English headers and the Italian ones written
 # by releases up to 1.0.0, so a CSV exported before the i18n sweep still loads.
+# An import scrapes one row at a time, so its size is a shopping list of outbound
+# requests. Telegram caps a bot download at 20 MB, which is still tens of
+# thousands of URLs; these are the bounds that make a rejected file say so up
+# front instead of running for hours.
+MAX_IMPORT_BYTES = 1 * 1024 * 1024
+MAX_IMPORT_ROWS = 500
+
 CSV_ALIASES: dict[str, tuple[str, ...]] = {
     "Name": ("Name", "Nome"),
     "URL": ("URL",),
@@ -109,6 +116,16 @@ async def cmd_import(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
         await update.message.reply_text(_("❌ The file must be a CSV."))
         return
 
+    # Checked before downloading: Telegram reports the size up front, and there is
+    # no reason to pull a file that is going to be refused.
+    if (doc.file_size or 0) > MAX_IMPORT_BYTES:
+        await update.message.reply_text(
+            _("❌ That file is too big — the limit is {limit} KB.").format(
+                limit=MAX_IMPORT_BYTES // 1024
+            )
+        )
+        return
+
     file = await context.bot.get_file(doc.file_id)
     buf = io.BytesIO()
     await file.download_to_memory(buf)
@@ -136,7 +153,13 @@ async def cmd_import(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
         validate_public_url,
     )
 
-    for row in reader:
+    truncated = False
+    for row_number, row in enumerate(reader, start=1):
+        if row_number > MAX_IMPORT_ROWS:
+            # Stops rather than refuses: the rows already imported are good, and
+            # telling the user where it stopped beats discarding their work.
+            truncated = True
+            break
         url = _cell(row, "URL").strip()
         if not url:
             continue
@@ -206,6 +229,12 @@ async def cmd_import(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
         lines.append(_("⏭️ Duplicates skipped: {count}").format(count=skipped))
     if errors:
         lines.append(_("❌ Errors: {count}").format(count=errors))
+    if truncated:
+        lines.append(
+            _("✂️ Stopped at {limit} rows — send the rest in another file.").format(
+                limit=MAX_IMPORT_ROWS
+            )
+        )
     await msg.edit_text(chr(10).join(lines), parse_mode=ParseMode.HTML)
 
 

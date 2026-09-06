@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-09-07 01:37+0200\n"
+"POT-Creation-Date: 2026-09-07 01:44+0200\n"
 "PO-Revision-Date: 2026-09-04 11:53+0200\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: es_ES\n"
@@ -271,7 +271,7 @@ msgstr "◀️ Menú"
 #: src/price_tracker/bot/handlers/callbacks/_product.py:297
 #: src/price_tracker/bot/handlers/callbacks/_product.py:317
 #: src/price_tracker/bot/handlers/callbacks/_product.py:343
-#: src/price_tracker/bot/handlers/debug.py:485
+#: src/price_tracker/bot/handlers/debug.py:503
 #: src/price_tracker/bot/handlers/history.py:123
 #: src/price_tracker/bot/handlers/monitoring.py:102
 #: src/price_tracker/bot/handlers/monitoring.py:119
@@ -570,33 +570,38 @@ msgstr ""
 "✅ Alias: <b>{nick}</b>\n"
 "ID: <code>{tg_id}</code>"
 
-#: src/price_tracker/bot/handlers/debug.py:121
+#: src/price_tracker/bot/handlers/debug.py:122
 msgid "❌ Usage: /debug &lt;url&gt;"
 msgstr "❌ Uso: /debug &lt;url&gt;"
 
-#: src/price_tracker/bot/handlers/debug.py:126
+#: src/price_tracker/bot/handlers/debug.py:140
+#: src/price_tracker/bot/handlers/product.py:280
+msgid "❌ URL not allowed: it points to a private or internal address."
+msgstr "❌ URL no permitida: apunta a una dirección privada o interna."
+
+#: src/price_tracker/bot/handlers/debug.py:144
 msgid "🔍 Analysis in progress..."
 msgstr "🔍 Analizando..."
 
-#: src/price_tracker/bot/handlers/debug.py:145
+#: src/price_tracker/bot/handlers/debug.py:163
 msgid "⚠️ Small response with no structured data, trying a fresh client..."
 msgstr ""
 "⚠️ Respuesta pequeña sin datos estructurados, pruebo con un cliente "
 "nuevo..."
 
-#: src/price_tracker/bot/handlers/debug.py:168
+#: src/price_tracker/bot/handlers/debug.py:186
 msgid "✅ The fresh client got more data!"
 msgstr "✅ ¡El cliente nuevo obtuvo más datos!"
 
-#: src/price_tracker/bot/handlers/debug.py:172
+#: src/price_tracker/bot/handlers/debug.py:190
 msgid "⚠️ 403 — trying curl_cffi..."
 msgstr "⚠️ 403 — pruebo curl_cffi..."
 
-#: src/price_tracker/bot/handlers/debug.py:187
+#: src/price_tracker/bot/handlers/debug.py:205
 msgid "⚠️ Trying Scrapling..."
 msgstr "⚠️ Pruebo Scrapling..."
 
-#: src/price_tracker/bot/handlers/debug.py:206
+#: src/price_tracker/bot/handlers/debug.py:224
 msgid ""
 "\n"
 "❌ Could not load the page with any method."
@@ -604,36 +609,36 @@ msgstr ""
 "\n"
 "❌ No he podido cargar la página con ningún método."
 
-#: src/price_tracker/bot/handlers/debug.py:224
+#: src/price_tracker/bot/handlers/debug.py:242
 msgid "📦 JSON-LD: ❌ BS4 finds no scripts, but the regex does!"
 msgstr "📦 JSON-LD: ❌ BS4 no encuentra los scripts, ¡pero la regex sí!"
 
-#: src/price_tracker/bot/handlers/debug.py:234
+#: src/price_tracker/bot/handlers/debug.py:252
 #, python-brace-format
 msgid "📦 JSON-LD #{n}: empty content"
 msgstr "📦 JSON-LD #{n}: contenido vacío"
 
-#: src/price_tracker/bot/handlers/debug.py:254
+#: src/price_tracker/bot/handlers/debug.py:272
 msgid "📦 JSON-LD: ❌ not found"
 msgstr "📦 JSON-LD: ❌ no encontrado"
 
-#: src/price_tracker/bot/handlers/debug.py:266
+#: src/price_tracker/bot/handlers/debug.py:284
 msgid "🏷 OG/meta price: ❌ not found"
 msgstr "🏷 OG/meta price: ❌ no encontrado"
 
-#: src/price_tracker/bot/handlers/debug.py:274
+#: src/price_tracker/bot/handlers/debug.py:292
 msgid "🔖 itemprop=price: ❌ not found"
 msgstr "🔖 itemprop=price: ❌ no encontrado"
 
-#: src/price_tracker/bot/handlers/debug.py:294
+#: src/price_tracker/bot/handlers/debug.py:312
 msgid "🎯 CSS selectors: ❌ no match"
 msgstr "🎯 Selectores CSS: ❌ sin coincidencias"
 
-#: src/price_tracker/bot/handlers/debug.py:304
+#: src/price_tracker/bot/handlers/debug.py:322
 msgid "🔎 Regex €: ❌ no match"
 msgstr "🔎 Regex €: ❌ sin coincidencias"
 
-#: src/price_tracker/bot/handlers/debug.py:314
+#: src/price_tracker/bot/handlers/debug.py:332
 msgid ""
 "\n"
 "🤖 <b>Scraper result:</b>"
@@ -641,83 +646,83 @@ msgstr ""
 "\n"
 "🤖 <b>Resultado del scraper:</b>"
 
-#: src/price_tracker/bot/handlers/debug.py:316
+#: src/price_tracker/bot/handlers/debug.py:334
 msgid "   ❌ no known scraper for this domain"
 msgstr "   ❌ no hay scraper conocido para este dominio"
 
-#: src/price_tracker/bot/handlers/debug.py:319
+#: src/price_tracker/bot/handlers/debug.py:337
 #, python-brace-format
 msgid "   Name: {name}"
 msgstr "   Nombre: {name}"
 
-#: src/price_tracker/bot/handlers/debug.py:321
+#: src/price_tracker/bot/handlers/debug.py:339
 #, python-brace-format
 msgid "   Price: {price}"
 msgstr "   Precio: {price}"
 
-#: src/price_tracker/bot/handlers/debug.py:346
+#: src/price_tracker/bot/handlers/debug.py:364
 msgid "📊 <b>Your stats</b>\n"
 msgstr "📊 <b>Tus estadísticas</b>\n"
 
-#: src/price_tracker/bot/handlers/debug.py:347
+#: src/price_tracker/bot/handlers/debug.py:365
 #, python-brace-format
 msgid "📦 Active products: {n}"
 msgstr "📦 Productos activos: {n}"
 
-#: src/price_tracker/bot/handlers/debug.py:348
+#: src/price_tracker/bot/handlers/debug.py:366
 #, python-brace-format
 msgid "📁 Total products: {n}"
 msgstr "📁 Productos totales: {n}"
 
-#: src/price_tracker/bot/handlers/debug.py:349
+#: src/price_tracker/bot/handlers/debug.py:367
 #, python-brace-format
 msgid "🔍 Checks run: {n}"
 msgstr "🔍 Comprobaciones hechas: {n}"
 
-#: src/price_tracker/bot/handlers/debug.py:350
+#: src/price_tracker/bot/handlers/debug.py:368
 #, python-brace-format
 msgid "⏱ Check interval: every {interval}"
 msgstr "⏱ Intervalo de comprobación: cada {interval}"
 
-#: src/price_tracker/bot/handlers/debug.py:361
+#: src/price_tracker/bot/handlers/debug.py:379
 msgid "<b>👑 Admin overview</b>"
 msgstr "<b>👑 Resumen de admin</b>"
 
-#: src/price_tracker/bot/handlers/debug.py:362
+#: src/price_tracker/bot/handlers/debug.py:380
 #, python-brace-format
 msgid "👥 Active users: {n}"
 msgstr "👥 Usuarios activos: {n}"
 
-#: src/price_tracker/bot/handlers/debug.py:363
+#: src/price_tracker/bot/handlers/debug.py:381
 #, python-brace-format
 msgid "📦 Total products (global): {n}"
 msgstr "📦 Productos totales (globales): {n}"
 
-#: src/price_tracker/bot/handlers/debug.py:364
+#: src/price_tracker/bot/handlers/debug.py:382
 #, python-brace-format
 msgid "🔍 Total checks (global): {n}"
 msgstr "🔍 Comprobaciones totales (globales): {n}"
 
-#: src/price_tracker/bot/handlers/debug.py:478
+#: src/price_tracker/bot/handlers/debug.py:496
 msgid "✅ No recent errors on your products."
 msgstr "✅ Sin errores recientes en tus productos."
 
-#: src/price_tracker/bot/handlers/debug.py:481
+#: src/price_tracker/bot/handlers/debug.py:499
 #, python-brace-format
 msgid "⚠️ <b>Recent errors ({count})</b>"
 msgstr "⚠️ <b>Errores recientes ({count})</b>"
 
-#: src/price_tracker/bot/handlers/debug.py:493
+#: src/price_tracker/bot/handlers/debug.py:511
 #, python-brace-format
 msgid " — 🔒 {tier} (resumes in {until})"
 msgstr " — 🔒 {tier} (se reanuda en {until})"
 
-#: src/price_tracker/bot/handlers/debug.py:497
+#: src/price_tracker/bot/handlers/debug.py:515
 #, python-brace-format
 msgid "  ❌ {n} failed reads"
 msgstr "  ❌ {n} lecturas fallidas"
 
-#: src/price_tracker/bot/handlers/debug.py:506
+#: src/price_tracker/bot/handlers/debug.py:524
 msgid ""
 "ℹ️ Sites in 🔒 quarantine resume on their own; use /reactivate to bring a "
 "paused product back."
@@ -1171,10 +1176,6 @@ msgstr ""
 "🎯 Umbral fijado: <b>{threshold}</b>\n"
 "📦 #{pid} — {name}"
 
-#: src/price_tracker/bot/handlers/product.py:280
-msgid "❌ URL not allowed: it points to a private or internal address."
-msgstr "❌ URL no permitida: apunta a una dirección privada o interna."
-
 #: src/price_tracker/bot/handlers/product.py:291
 #, python-brace-format
 msgid ""
@@ -1288,16 +1289,16 @@ msgstr ""
 "\n"
 "<b>¿Cómo quieres que te avise?</b>"
 
-#: src/price_tracker/bot/handlers/product_io.py:62
+#: src/price_tracker/bot/handlers/product_io.py:69
 msgid "📭 You have no products to export."
 msgstr "📭 No tienes productos que exportar."
 
-#: src/price_tracker/bot/handlers/product_io.py:88
+#: src/price_tracker/bot/handlers/product_io.py:95
 #, python-brace-format
 msgid "📊 {count} products exported."
 msgstr "📊 {count} productos exportados."
 
-#: src/price_tracker/bot/handlers/product_io.py:99
+#: src/price_tracker/bot/handlers/product_io.py:106
 msgid ""
 "📁 <b>Import products from CSV</b>\n"
 "\n"
@@ -1309,41 +1310,51 @@ msgstr ""
 "Envía un archivo CSV (el que genera /export) como adjunto.\n"
 "Los productos duplicados (misma URL) se omitirán."
 
-#: src/price_tracker/bot/handlers/product_io.py:109
+#: src/price_tracker/bot/handlers/product_io.py:116
 msgid "❌ The file must be a CSV."
 msgstr "❌ El archivo debe ser un CSV."
 
-#: src/price_tracker/bot/handlers/product_io.py:120
+#: src/price_tracker/bot/handlers/product_io.py:123
+#, python-brace-format
+msgid "❌ That file is too big — the limit is {limit} KB."
+msgstr "❌ Ese archivo es demasiado grande — el límite son {limit} KB."
+
+#: src/price_tracker/bot/handlers/product_io.py:137
 #, python-brace-format
 msgid "❌ Error parsing the CSV: {error}"
 msgstr "❌ Error al leer el CSV: {error}"
 
-#: src/price_tracker/bot/handlers/product_io.py:131
+#: src/price_tracker/bot/handlers/product_io.py:148
 msgid "⏳ Import in progress..."
 msgstr "⏳ Importación en curso..."
 
-#: src/price_tracker/bot/handlers/product_io.py:168
+#: src/price_tracker/bot/handlers/product_io.py:191
 msgid "Imported"
 msgstr "Importado"
 
-#: src/price_tracker/bot/handlers/product_io.py:203
+#: src/price_tracker/bot/handlers/product_io.py:226
 msgid "📁 <b>Import complete</b>"
 msgstr "📁 <b>Importación completada</b>"
 
-#: src/price_tracker/bot/handlers/product_io.py:204
+#: src/price_tracker/bot/handlers/product_io.py:227
 #, python-brace-format
 msgid "✅ Imported: {count}"
 msgstr "✅ Importados: {count}"
 
-#: src/price_tracker/bot/handlers/product_io.py:206
+#: src/price_tracker/bot/handlers/product_io.py:229
 #, python-brace-format
 msgid "⏭️ Duplicates skipped: {count}"
 msgstr "⏭️ Duplicados omitidos: {count}"
 
-#: src/price_tracker/bot/handlers/product_io.py:208
+#: src/price_tracker/bot/handlers/product_io.py:231
 #, python-brace-format
 msgid "❌ Errors: {count}"
 msgstr "❌ Errores: {count}"
+
+#: src/price_tracker/bot/handlers/product_io.py:234
+#, python-brace-format
+msgid "✂️ Stopped at {limit} rows — send the rest in another file."
+msgstr "✂️ Parado en {limit} filas — envía el resto en otro archivo."
 
 #: src/price_tracker/bot/handlers/product_list.py:73
 #, python-brace-format

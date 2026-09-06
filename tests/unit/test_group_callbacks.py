@@ -191,3 +191,70 @@ async def test_a_chart_with_too_little_history_says_so_instead_of_failing() -> N
 @pytest.mark.asyncio
 async def test_unrelated_callbacks_fall_through() -> None:
     assert not await handle_group_buttons(_query(), _context(), _db(group=None), OWNER, "edit_3")
+
+
+# ── The chart is drawn under aliases, spelled out beneath it ─────────────
+
+
+def _history(product_id: int, days: int = 5) -> list[dict[str, Any]]:
+    from datetime import datetime, timedelta
+
+    base = datetime(2026, 7, 1)
+    return [
+        {"checked_at": (base + timedelta(days=d)).isoformat(), "price": f"{100 + product_id + d}"}
+        for d in range(days)
+    ]
+
+
+def _photo_query() -> MagicMock:
+    """A panel the chart can replace: it gets deleted, and a photo takes its place."""
+    query = MagicMock(
+        message=MagicMock(message_id=5, delete=AsyncMock()), edit_message_text=AsyncMock()
+    )
+    query.message.reply_photo = AsyncMock(return_value=MagicMock(message_id=99))
+    return query
+
+
+def _chart_db(products: list[dict[str, Any]], histories: dict[int, list[dict[str, Any]]]) -> Any:
+    db = _db(group=_group(), products=products)
+    db.get_price_history_for_products = AsyncMock(
+        side_effect=lambda ids, **kw: {i: histories.get(i, []) for i in ids}
+    )
+    return db
+
+
+@pytest.mark.asyncio
+async def test_the_caption_maps_every_alias_to_a_full_name() -> None:
+    """The chart carries only letters; a caption has room for the names it lacks."""
+    products = [
+        {**_product(1), "name": "LG UltraGear 27GP850-B", "domain": "amazon.es", "url": ""},
+        {**_product(2), "name": "LG UltraGear 27GP850-B", "domain": "mediamarkt.es", "url": ""},
+    ]
+    db = _chart_db(products, {1: _history(1), 2: _history(2)})
+    query = _photo_query()
+
+    await handle_group_buttons(query, _context(), db, OWNER, f"grp_chart_{GROUP_ID}")
+
+    caption = query.message.reply_photo.await_args.kwargs["caption"]
+    assert "<b>A</b> — LG UltraGear 27GP850-B · amazon.es" in caption
+    assert "<b>B</b> — LG UltraGear 27GP850-B · mediamarkt.es" in caption
+    # Telegram's caption cap.
+    assert len(caption) <= 1024
+
+
+@pytest.mark.asyncio
+async def test_aliases_skip_the_products_that_could_not_be_drawn() -> None:
+    """A caption naming a letter the reader cannot find on the chart is worse
+    than not naming it: aliases follow what was actually plotted."""
+    products = [_product(1), _product(2), _product(3)]
+    # #2 has a single reading, which is not a line.
+    db = _chart_db(products, {1: _history(1), 2: _history(2, days=1), 3: _history(3)})
+    query = _photo_query()
+
+    await handle_group_buttons(query, _context(), db, OWNER, f"grp_chart_{GROUP_ID}")
+
+    caption = query.message.reply_photo.await_args.kwargs["caption"]
+    assert "<b>A</b> — Widget 1" in caption
+    assert "<b>B</b> — Widget 3" in caption
+    assert "Widget 2" not in caption
+    assert "1 not drawn" in caption

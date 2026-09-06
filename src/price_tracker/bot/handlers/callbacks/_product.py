@@ -215,7 +215,8 @@ async def handle_chart_button(
         )
         return True
 
-    caption = f"📊 <b>#{product_id}</b> {_escape_html(product_label(product, 50))}"
+    # The image itself carries only "#id · shop"; the caption has room for the name.
+    caption = f"📊 <b>#{product_id}</b> {_escape_html(product_label(product, 80))}"
 
     # Built against the panel's trail, which the photo is about to inherit.
     keyboard = result_keyboard(context, origin_id)

@@ -71,6 +71,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   "🌐 Store" field no longer repeat it.
 - Naming a new group opens the "add a product" picker straight away instead of returning
   to /groups.
+- Charts name their series `A`, `B`, `C`… and spell the key out in the caption below the
+  image, rather than squeezing truncated product names beside the lines. A single
+  product's chart is titled `#id · shop` for the same reason, with the name in the
+  caption.
 - "Who has been cheapest" records a change of hands rather than every price move by the
   leader, which used to bury the few lines that answer the question.
 - The default timezone for a user who has not set one is `Europe/Madrid`, was `Europe/Rome`.

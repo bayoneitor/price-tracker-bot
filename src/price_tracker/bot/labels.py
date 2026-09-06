@@ -42,3 +42,18 @@ def product_label(product: Mapping[str, Any] | Any, budget: int = NAME_BUDGET) -
         # since it is what a duplicate row differs by.
         return truncate_visible(shop, budget)
     return f"{truncate_visible(name, budget - len(tail))}{tail}"
+
+
+def chart_title(product: Mapping[str, Any] | Any) -> str:
+    """What goes *on* a single-product chart: ``#3 · shop.com``.
+
+    Deliberately not the product name. A name long enough to be interesting is
+    long enough to be truncated at this width, and the caption underneath can
+    carry it whole — so the image gets the two parts that are always short, and
+    nothing on screen is cut.
+    """
+    pid = product.get("id")
+    shop = store_label(url=product.get("url") or "", domain=product.get("domain") or "")
+    if not shop:
+        return f"#{pid}"
+    return f"#{pid}{SEPARATOR}{shop}"

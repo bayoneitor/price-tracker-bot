@@ -192,11 +192,26 @@ bot already had, so a group created today covers every month its members have be
 One line per change of hands, not per price move: the leader's own price drifting is not
 an event, or a quiet month would bury the three lines that answer the question.
 
-**📈 Chart** labels each line with the same `product · shop` name and draws them on a
-single axis (prices in other currencies are
-converted to euro first, so the lines are actually comparable). Up to eight members are
-drawn; past that the group is charted in part rather than with two products sharing a
-colour.
+**📈 Chart** draws one line per member on a single axis, labelled `A`, `B`, `C`… with the
+key spelled out in the caption underneath:
+
+```
+📈 Monitors 27" — 3 products
+
+A — LG UltraGear 27GP850-B 27" QHD 180Hz Nano IPS · amazon.es — €399.00
+B — LG UltraGear 27GP850-B 27" QHD 180Hz Nano IPS · mediamarkt.es — €429.00
+C — LG UltraGear 27GP850-B 27" QHD 180Hz Nano IPS · pccomponentes.com — €459.00
+```
+
+A name worth comparing does not fit beside a line — it had to be cut, and several cut
+names all starting `LG UltraGear 27…` are exactly the confusion the shop was added to
+clear up. A letter never needs cutting, and a caption has room for the whole name. The
+same split applies to a single product's chart: the image is titled `#3 · mediamarkt.es`
+and the name goes underneath.
+
+Prices in other currencies are converted to euro first, so the lines are actually
+comparable. Up to eight members are drawn; past that the group is charted in part rather
+than with two products sharing a colour, and the caption says how many were left out.
 
 Deleting a group deletes only the grouping — the products stay tracked.
 

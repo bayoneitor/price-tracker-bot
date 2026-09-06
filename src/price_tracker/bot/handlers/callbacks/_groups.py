@@ -17,7 +17,7 @@ from telegram.constants import ParseMode
 from telegram.error import TelegramError
 
 from price_tracker.bot.charts import MAX_SERIES, generate_comparison_chart
-from price_tracker.bot.handlers._helpers import _escape_html, _parse_id
+from price_tracker.bot.handlers._helpers import _escape_html, _parse_id, _safe_dec
 from price_tracker.bot.handlers.groups_view import (
     GROUP_OPEN_PREFIX,
     build_comparison_table,
@@ -33,6 +33,8 @@ from price_tracker.bot.navigation import set_pending, transfer_nav
 from price_tracker.core.textlimits import truncate_visible
 
 if TYPE_CHECKING:
+    from collections.abc import Mapping, Sequence
+
     from telegram.ext import ContextTypes
 
 logger = logging.getLogger(__name__)
@@ -170,20 +172,16 @@ async def _chart(
     """
     products = await db.list_group_products(group.id, user_id=user_id)
     origin_id = _message_id(query)
-    chart = await generate_comparison_chart(db, products, group.name)
-    if chart is None:
+    rendered = await generate_comparison_chart(db, products, group.name)
+    if rendered is None:
         await query.edit_message_text(
             _("📭 Not enough history yet — at least two products need two readings each."),
             reply_markup=result_keyboard(context, origin_id),
         )
         return True
 
-    caption = _("📈 <b>{name}</b> — {count} products").format(
-        name=_escape_html(truncate_visible(group.name, 40)),
-        count=min(len(products), MAX_SERIES),
-    )
-    if len(products) > MAX_SERIES:
-        caption += _("\n(showing the first {count})").format(count=MAX_SERIES)
+    chart, drawn = rendered
+    caption = _build_caption(group, drawn, skipped=len(products) - len(drawn))
 
     keyboard = result_keyboard(context, origin_id)
     with contextlib.suppress(TelegramError):
@@ -197,6 +195,37 @@ async def _chart(
     if origin_id is not None:
         transfer_nav(context, origin_id, photo.message_id)
     return True
+
+
+def _build_caption(
+    group: Any, drawn: Sequence[tuple[str, Mapping[str, Any]]], *, skipped: int
+) -> str:
+    """The A/B/C key, spelled out under the chart.
+
+    The chart itself carries only the letters, so this is where the full name and
+    shop live — a caption has room for them, a line on a plot does not.
+    """
+    lines = [
+        _("📈 <b>{name}</b> — {count} products").format(
+            name=_escape_html(truncate_visible(group.name, 40)), count=len(drawn)
+        ),
+        "",
+    ]
+    for alias, product in drawn:
+        price = _safe_dec(product.get("current_price"))
+        tail = f" — €{price:.2f}" if price else ""
+        lines.append(f"<b>{alias}</b> — {_escape_html(product_label(product, 70))}{tail}")
+    if skipped > 0:
+        lines.append("")
+        lines.append(
+            _("({count} not drawn — too little history, or past the {max} the chart holds)").format(
+                count=skipped, max=MAX_SERIES
+            )
+        )
+    # Telegram caps a caption at 1024 characters. Eight of these fit with room to
+    # spare — that is why the budget can be generous where the chart's could not —
+    # but a pathological name must not cost the reader the rest of the key.
+    return truncate_visible("\n".join(lines), 1000)
 
 
 async def _rename(

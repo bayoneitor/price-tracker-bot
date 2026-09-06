@@ -73,7 +73,9 @@ async def cmd_history(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
     if chart_buf:
         lowest = _safe_dec(product.get("lowest_price"))
         highest = _safe_dec(product.get("highest_price"))
-        caption = f"📊 <b>#{product_id}</b> {_escape_html(product_label(product, 50))}"
+        # The image itself carries only "#id · shop": a caption has room for the
+        # whole name, a line on a plot does not.
+        caption = f"📊 <b>#{product_id}</b> {_escape_html(product_label(product, 80))}"
         if lowest:
             caption += _("\n📉 Min: €{price:.2f}").format(price=lowest)
         if highest:

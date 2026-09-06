@@ -20,7 +20,7 @@ from datetime import datetime
 from decimal import Decimal
 from typing import TYPE_CHECKING, Any
 
-from price_tracker.bot.labels import product_label
+from price_tracker.bot.labels import chart_title
 
 if TYPE_CHECKING:
     from collections.abc import Mapping, Sequence
@@ -56,8 +56,12 @@ SERIES_COLOURS = (
 # is worse than not drawing one of them.
 MAX_SERIES = len(SERIES_COLOURS)
 
-# Below this, naming each line beside it beats making the reader match a legend.
-DIRECT_LABEL_LIMIT = 4
+# Series are labelled A, B, C… on the chart itself and spelled out in the caption
+# underneath. A product name long enough to be worth comparing does not fit beside
+# a line — it had to be truncated, and eight truncated names all beginning "LG
+# UltraGear 27…" is exactly the confusion the shop was added to clear up. A single
+# letter never collides with a neighbour and never needs cutting.
+SERIES_ALIASES = "ABCDEFGH"
 
 
 def _style_axes(fig: Any, ax: Any, title: str) -> None:
@@ -140,38 +144,35 @@ def _render_comparison(
     ax = fig.subplots()
     _style_axes(fig, ax, title)
 
-    for index, (name, dates, prices) in enumerate(series):
+    for index, (alias, dates, prices) in enumerate(series):
         colour = SERIES_COLOURS[index]
-        ax.plot(dates, prices, color=colour, linewidth=2, antialiased=True, label=name)
-        if len(series) <= DIRECT_LABEL_LIMIT:
-            # A coloured dot carries the identity; the name itself stays in the
-            # text colour so it reads as a label and not as another mark.
-            ax.plot(dates[-1], prices[-1], marker="o", markersize=6, color=colour)
-            ax.annotate(
-                name,
-                xy=(dates[-1], prices[-1]),
-                xytext=(6, 0),
-                textcoords="offset points",
-                color=INK,
-                fontsize=8,
-                va="center",
-            )
+        ax.plot(dates, prices, color=colour, linewidth=2, antialiased=True, label=alias)
+        # Every line is labelled, not just the first few: an alias is one character
+        # wide, so there is no width to run out of.
+        ax.plot(dates[-1], prices[-1], marker="o", markersize=6, color=colour)
+        ax.annotate(
+            alias,
+            xy=(dates[-1], prices[-1]),
+            xytext=(7, 0),
+            textcoords="offset points",
+            color=INK,
+            fontsize=9,
+            fontweight="bold",
+            va="center",
+        )
 
-    if len(series) <= DIRECT_LABEL_LIMIT:
-        # Room on the right for the direct labels, which would otherwise run off
-        # the edge of the plot.
-        left, right = ax.get_xlim()
-        ax.set_xlim(left, right + (right - left) * 0.22)
+    # Room on the right for the aliases, which would otherwise sit on the frame.
+    left, right = ax.get_xlim()
+    ax.set_xlim(left, right + (right - left) * 0.04)
 
-    # Always present with two or more series, so identity is never colour alone.
-    # Below the plot rather than inside it: at eight series a boxed legend covers
-    # the very lines it is naming.
+    # Always present with two or more series, so identity is never colour alone:
+    # this is the colour-to-letter key, and the caption is the letter-to-product one.
     ax.legend(
         labelcolor=INK,
-        fontsize=8,
+        fontsize=9,
         loc="upper center",
         bbox_to_anchor=(0.5, -0.18),
-        ncol=min(4, len(series)),
+        ncol=min(8, len(series)),
         frameon=False,
     )
     ax.xaxis.set_major_formatter(mdates.DateFormatter("%d/%m"))
@@ -191,14 +192,17 @@ async def generate_chart(db: Any, product_id: int, product: dict[str, Any]) -> i
         dates,
         prices,
         product.get("target_price"),
-        product_label(product, 50),
+        chart_title(product),
     )
 
 
 async def generate_comparison_chart(
     db: Any, products: Sequence[dict[str, Any]], title: str
-) -> io.BytesIO | None:
-    """A group's members on one chart. None when fewer than two have a history.
+) -> tuple[io.BytesIO, list[tuple[str, dict[str, Any]]]] | None:
+    """A group's members on one chart, with the alias each was drawn under.
+
+    Returns the PNG and the A/B/C → product mapping the caller spells out below
+    it, or None when fewer than two members have enough history to draw.
 
     Prices are converted to euro first: the members can be tracked on stores in
     different currencies, and drawing those raw on one axis would compare numbers
@@ -211,19 +215,22 @@ async def generate_comparison_chart(
     by_id = {int(p["id"]): p for p in products}
 
     series: list[tuple[str, list[datetime], list[float]]] = []
+    drawn: list[tuple[str, dict[str, Any]]] = []
     for product_id in ids:
         product = by_id[product_id]
         dates, prices = _points(histories.get(product_id, ()), product.get("currency", "EUR"))
         if len(dates) < 2:
+            # Aliases are assigned to what is actually drawn, so the caption can
+            # never name a letter the reader cannot find on the chart.
             continue
-        # The shop is in the label: comparing the same product across shops is
-        # the reason this chart exists, and three identical legend entries would
-        # defeat it.
-        series.append((product_label(product, 28), dates, prices))
+        alias = SERIES_ALIASES[len(series)]
+        series.append((alias, dates, prices))
+        drawn.append((alias, product))
 
     if len(series) < 2:
         return None
-    return await asyncio.to_thread(_render_comparison, series, title)
+    png = await asyncio.to_thread(_render_comparison, series, title)
+    return png, drawn
 
 
 def _points(history: Sequence[Any], currency: str = "EUR") -> tuple[list[datetime], list[float]]:

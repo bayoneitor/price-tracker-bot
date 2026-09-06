@@ -34,7 +34,7 @@ def _db(*, group: ProductGroup | None, products: list[dict[str, Any]] | None = N
     db.list_groups = AsyncMock(return_value=[group] if group else [])
     db.list_group_products = AsyncMock(return_value=products or [])
     db.get_active_products = AsyncMock(return_value=products or [])
-    db.get_price_history_for_products = AsyncMock(return_value={})
+    db.get_price_change_points = AsyncMock(return_value={})
     return db
 
 
@@ -217,7 +217,7 @@ def _photo_query() -> MagicMock:
 
 def _chart_db(products: list[dict[str, Any]], histories: dict[int, list[dict[str, Any]]]) -> Any:
     db = _db(group=_group(), products=products)
-    db.get_price_history_for_products = AsyncMock(
+    db.get_price_change_points = AsyncMock(
         side_effect=lambda ids, **kw: {i: histories.get(i, []) for i in ids}
     )
     return db

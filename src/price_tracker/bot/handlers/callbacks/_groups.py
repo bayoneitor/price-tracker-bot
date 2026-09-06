@@ -151,7 +151,10 @@ async def _leaders(
     """Who has been cheapest, and since when — read out of the price history."""
     products = await db.list_group_products(group.id, user_id=user_id)
     ids = [int(p["id"]) for p in products]
-    histories = await db.get_price_history_for_products(ids) if ids else {}
+    # No window here, unlike a chart: the question is who has been cheapest for as
+    # long as these products have been tracked. Change points are exactly the rows
+    # that can move the answer, so this reads far less than the full history.
+    histories = await db.get_price_change_points(ids) if ids else {}
     names = {int(p["id"]): product_label(p) for p in products}
     await query.edit_message_text(
         render_leader_timeline(build_leader_timeline(histories), names),

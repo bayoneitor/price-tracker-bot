@@ -159,19 +159,58 @@ async def test_a_foreign_product_cannot_be_added_to_my_group(repo: Repository) -
     assert await repo.list_group_products(group_id, user_id=OWNER) == []
 
 
-# ── The comparison reads every member's history in one query ─────────────
+# ── The comparison reads change points, in one query ─────────────────────
 
 
-async def test_history_for_several_products_comes_back_keyed_by_product(
-    repo: Repository,
-) -> None:
+async def test_change_points_keep_the_moves_and_drop_the_repeats(repo: Repository) -> None:
+    """History records every check, not every change.
+
+    A chart asking for "the last N readings" therefore covered a window measured in
+    checks — about four days on a real deployment — and drew a flat line for a
+    product whose price had moved several times.
+    """
+    pid = await _product(repo, "A")
+    for price in ("100", "100", "90", "90", "90", "80"):
+        await repo.add_price_history(pid, Decimal(price))
+
+    histories = await repo.get_price_change_points([pid])
+
+    # First reading, each change, and the last row so the window keeps its end.
+    assert [str(r.price) for r in histories[pid]] == ["100", "90", "80"]
+
+
+async def test_the_end_of_the_window_survives_a_long_flat_run(repo: Repository) -> None:
+    pid = await _product(repo, "A")
+    await repo.add_price_history(pid, Decimal("100"))
+    for _ in range(20):
+        await repo.add_price_history(pid, Decimal("90"))
+
+    points = (await repo.get_price_change_points([pid]))[pid]
+
+    assert [str(r.price) for r in points] == ["100", "90", "90"]
+
+
+async def test_a_window_excludes_what_falls_before_it(repo: Repository) -> None:
+    pid = await _product(repo, "A")
+    await repo.add_price_history(pid, Decimal("100"))
+    await repo._conn.execute(  # noqa: SLF001 — backdate a row the API cannot
+        "UPDATE price_history SET checked_at = '2020-01-01 00:00:00' WHERE product_id = ?",
+        (pid,),
+    )
+    await repo.add_price_history(pid, Decimal("90"))
+
+    assert len((await repo.get_price_change_points([pid], since="2021-01-01 00:00:00"))[pid]) == 1
+    assert len((await repo.get_price_change_points([pid]))[pid]) == 2
+
+
+async def test_change_points_come_back_keyed_by_product(repo: Repository) -> None:
     first = await _product(repo, "A")
     second = await _product(repo, "B")
     for price in ("100", "90"):
         await repo.add_price_history(first, Decimal(price))
     await repo.add_price_history(second, Decimal("50"))
 
-    histories = await repo.get_price_history_for_products([first, second])
+    histories = await repo.get_price_change_points([first, second])
 
     assert [str(r.price) for r in histories[first]] == ["100", "90"]
     assert [str(r.price) for r in histories[second]] == ["50"]
@@ -185,16 +224,26 @@ async def test_one_chatty_product_cannot_crowd_out_the_others(repo: Repository) 
         await repo.add_price_history(chatty, Decimal(100 + step))
     await repo.add_price_history(quiet, Decimal("50"))
 
-    histories = await repo.get_price_history_for_products([chatty, quiet], limit_per_product=3)
+    histories = await repo.get_price_change_points([chatty, quiet], limit_per_product=3)
 
     assert len(histories[chatty]) == 3
     assert len(histories[quiet]) == 1
 
 
+async def test_the_cap_keeps_the_most_recent_changes(repo: Repository) -> None:
+    pid = await _product(repo, "A")
+    for price in range(100, 110):
+        await repo.add_price_history(pid, Decimal(price))
+
+    points = (await repo.get_price_change_points([pid], limit_per_product=3))[pid]
+
+    assert [str(r.price) for r in points] == ["107", "108", "109"]
+
+
 async def test_asking_for_no_products_asks_the_database_nothing(repo: Repository) -> None:
-    assert await repo.get_price_history_for_products([]) == {}
+    assert await repo.get_price_change_points([]) == {}
 
 
 @pytest.mark.parametrize("missing", [999])
 async def test_a_product_with_no_history_still_gets_a_key(repo: Repository, missing: int) -> None:
-    assert await repo.get_price_history_for_products([missing]) == {missing: []}
+    assert await repo.get_price_change_points([missing]) == {missing: []}

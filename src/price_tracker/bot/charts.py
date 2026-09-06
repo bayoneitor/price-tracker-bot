@@ -16,7 +16,8 @@ from __future__ import annotations
 import asyncio
 import io
 import logging
-from datetime import datetime
+import math
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from typing import TYPE_CHECKING, Any
 
@@ -63,6 +64,12 @@ MAX_SERIES = len(SERIES_COLOURS)
 # letter never collides with a neighbour and never needs cutting.
 SERIES_ALIASES = "ABCDEFGH"
 
+# A chart covers a period, not a number of readings. History records every check,
+# so "the last 100 rows" was about four days on a real deployment — and in four
+# days almost nothing moves, so every product drew a flat line while its actual
+# history held several distinct prices.
+CHART_WINDOW_DAYS = 90
+
 
 def _style_axes(fig: Any, ax: Any, title: str) -> None:
     """The shared chart furniture: dark surface, recessive axes, muted grid."""
@@ -100,7 +107,16 @@ def _render_chart(
     ax = fig.subplots()
     _style_axes(fig, ax, name)
 
-    ax.plot(dates, prices, color=SINGLE_SERIES, linewidth=2.2, antialiased=True)
+    # Steps, not a diagonal: a price holds until the next change, and drawing the
+    # straight line between two readings invents a slow slide that never happened.
+    ax.plot(
+        dates,
+        prices,
+        color=SINGLE_SERIES,
+        linewidth=2.2,
+        antialiased=True,
+        drawstyle="steps-post",
+    )
 
     if target:
         try:
@@ -146,7 +162,15 @@ def _render_comparison(
 
     for index, (alias, dates, prices) in enumerate(series):
         colour = SERIES_COLOURS[index]
-        ax.plot(dates, prices, color=colour, linewidth=2, antialiased=True, label=alias)
+        ax.plot(
+            dates,
+            prices,
+            color=colour,
+            linewidth=2,
+            antialiased=True,
+            label=alias,
+            drawstyle="steps-post",
+        )
         # Every line is labelled, not just the first few: an alias is one character
         # wide, so there is no width to run out of.
         ax.plot(dates[-1], prices[-1], marker="o", markersize=6, color=colour)
@@ -180,10 +204,15 @@ def _render_comparison(
     return _to_png(fig)
 
 
+def chart_window() -> str:
+    """The lower bound of a chart, as the repository spells timestamps."""
+    return (datetime.now(UTC) - timedelta(days=CHART_WINDOW_DAYS)).strftime("%Y-%m-%d %H:%M:%S")
+
+
 async def generate_chart(db: Any, product_id: int, product: dict[str, Any]) -> io.BytesIO | None:
     """One product's price history as a PNG. None when the data is too sparse."""
-    history = await db.get_price_history(product_id, limit=100)
-    dates, prices = _points(history)
+    histories = await db.get_price_change_points([product_id], since=chart_window())
+    dates, prices = _points(histories.get(product_id, ()))
     if len(dates) < 2:
         return None
 
@@ -211,7 +240,9 @@ async def generate_comparison_chart(
     ids = [int(p["id"]) for p in products][:MAX_SERIES]
     if len(ids) < 2:
         return None
-    histories: Mapping[int, Sequence[Any]] = await db.get_price_history_for_products(ids)
+    histories: Mapping[int, Sequence[Any]] = await db.get_price_change_points(
+        ids, since=chart_window()
+    )
     by_id = {int(p["id"]): p for p in products}
 
     series: list[tuple[str, list[datetime], list[float]]] = []
@@ -243,8 +274,12 @@ def _points(history: Sequence[Any], currency: str = "EUR") -> tuple[list[datetim
     for record in history:
         try:
             when = datetime.fromisoformat(str(record["checked_at"]).replace("Z", "+00:00"))
+            when = when.replace(tzinfo=UTC) if when.tzinfo is None else when.astimezone(UTC)
             price = float(Decimal(str(record["price"])) * rate)
-        except (ValueError, TypeError, KeyError, ArithmeticError):
+        except (ValueError, TypeError, KeyError, ArithmeticError, OverflowError):
+            continue
+        # A corrupt row must not drag the axis away from the real price range.
+        if not math.isfinite(price) or price <= 0:
             continue
         dates.append(when)
         prices.append(price)

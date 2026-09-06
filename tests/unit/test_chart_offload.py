@@ -31,11 +31,13 @@ async def test_chart_renders_off_the_event_loop(monkeypatch) -> None:
     monkeypatch.setattr(charts, "_render_chart", spy)
 
     db = AsyncMock()
-    db.get_price_history = AsyncMock(
-        return_value=[
-            {"checked_at": "2026-06-01T10:00:00", "price": "100"},
-            {"checked_at": "2026-06-02T10:00:00", "price": "90"},
-        ]
+    db.get_price_change_points = AsyncMock(
+        return_value={
+            1: [
+                {"checked_at": "2026-06-01T10:00:00", "price": "100"},
+                {"checked_at": "2026-06-02T10:00:00", "price": "90"},
+            ]
+        }
     )
 
     buf = await charts.generate_chart(db, 1, {"name": "Widget"})
@@ -58,7 +60,7 @@ async def test_comparison_chart_also_renders_off_the_event_loop(monkeypatch) -> 
     monkeypatch.setattr(charts, "_render_comparison", spy)
 
     db = AsyncMock()
-    db.get_price_history_for_products = AsyncMock(
+    db.get_price_change_points = AsyncMock(
         return_value={
             1: [
                 {"checked_at": "2026-06-01T10:00:00", "price": "100"},

@@ -21,6 +21,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   check rather than every price change, so the last 100 rows spanned about four days on a
   real deployment and nearly every product drew a flat line. Charts now cover 90 days,
   with the price changes collapsed in SQL so a long window is never silently truncated.
+  The group comparison had the same flaw — its per-product cap kept the newest rows and
+  quietly dropped the older half of the window — and now shares the query. Chart lines
+  are drawn as steps: a price holds until the next change, and the diagonal between two
+  readings invented a slow slide that never happened.
 - Chart rendering no longer rebuilds a matplotlib cache on every call: `MPLCONFIGDIR`
   points at the writable cache directory, which the read-only root filesystem denied.
 

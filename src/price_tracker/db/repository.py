@@ -534,28 +534,66 @@ class Repository:
         await self._conn.commit()
         return int(cursor.rowcount)
 
-    async def get_price_history_for_products(
-        self, product_ids: Sequence[int], *, limit_per_product: int = 200
+    async def get_price_change_points(
+        self,
+        product_ids: Sequence[int],
+        *,
+        since: str | None = None,
+        limit_per_product: int = 500,
     ) -> dict[int, list[PriceHistoryRecord]]:
-        """History for several products at once, keyed by product id.
+        """When each product's price actually moved, keyed by product id.
 
-        One query rather than one per product: comparing a group of ten would
-        otherwise be ten round trips before anything can be drawn. The per-product
-        cap is applied with a window function so a single chatty product cannot
-        crowd the others out of a global LIMIT.
+        `price_history` records every *check*, not every *change*, so a chart
+        asking for the last hundred rows covered about four days on a real
+        deployment: nearly every product drew a flat line while its real history
+        held several distinct prices. Collapsing the unchanged runs in SQL lets a
+        window measured in **time** keep both of its ends without transferring an
+        arbitrary number of samples.
+
+        The first reading, the last, and every change between them survive; a run
+        of identical prices collapses to the reading that started it. `since` is a
+        `YYYY-MM-DD HH:MM:SS` lower bound, or None for the whole history — the
+        "who has been cheapest" timeline wants all of it, a chart wants a window.
+
+        One query for the whole group: comparing eight products was otherwise
+        eight round trips before anything could be drawn.
         """
         if not product_ids:
             return {}
         placeholders = ",".join("?" for _ in product_ids)
         cursor = await self._conn.execute(
-            "SELECT id, product_id, price, checked_at FROM ("
-            "  SELECT id, product_id, price, checked_at,"
-            "         ROW_NUMBER() OVER ("
-            "             PARTITION BY product_id ORDER BY checked_at DESC, id DESC"
-            "         ) AS rn"
-            f"    FROM price_history WHERE product_id IN ({placeholders})"
-            ") WHERE rn <= ? ORDER BY product_id ASC, checked_at ASC, id ASC",
-            (*product_ids, limit_per_product),
+            f"""
+            WITH windowed AS (
+                SELECT
+                    id, product_id, price, checked_at,
+                    replace(replace(checked_at, 'T', ' '), 'Z', '') AS at
+                FROM price_history
+                WHERE product_id IN ({placeholders})
+                  AND (? IS NULL OR replace(replace(checked_at, 'T', ' '), 'Z', '') >= ?)
+            ), numbered AS (
+                SELECT
+                    id, product_id, price, checked_at, at,
+                    LAG(price) OVER (PARTITION BY product_id ORDER BY at ASC, id ASC)
+                        AS previous_price,
+                    ROW_NUMBER() OVER (PARTITION BY product_id ORDER BY at ASC, id ASC)
+                        AS row_number,
+                    COUNT(*) OVER (PARTITION BY product_id) AS window_row_count
+                FROM windowed
+            ), changes AS (
+                SELECT
+                    id, product_id, price, checked_at, at,
+                    ROW_NUMBER() OVER (PARTITION BY product_id ORDER BY at DESC, id DESC)
+                        AS recency
+                FROM numbered
+                WHERE previous_price IS NULL
+                   OR price <> previous_price
+                   OR row_number = window_row_count
+            )
+            SELECT id, product_id, price, checked_at FROM changes
+            WHERE recency <= ?
+            ORDER BY product_id ASC, at ASC, id ASC
+            """,
+            (*product_ids, since, since, limit_per_product),
         )
         rows = await cursor.fetchall()
         histories: dict[int, list[PriceHistoryRecord]] = {pid: [] for pid in product_ids}

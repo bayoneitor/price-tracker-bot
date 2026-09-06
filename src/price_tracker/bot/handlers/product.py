@@ -38,6 +38,7 @@ from price_tracker.bot.handlers._helpers import (
     _parse_id,
     _parse_threshold_input,
     _safe_dec,
+    product_picker,
 )
 from price_tracker.bot.keyboards import build_threshold_keyboard
 from price_tracker.bot.messages import _
@@ -49,44 +50,6 @@ URL_PATTERN = re.compile(r"https?://[^\s<>\"']+", re.IGNORECASE)
 
 # Re-exported for callback / pending-action consumers:
 _build_threshold_keyboard = build_threshold_keyboard
-
-
-async def _product_picker(
-    update: Update,
-    context: ContextTypes.DEFAULT_TYPE,
-    action: str,
-    label: str,
-    callback_prefix: str | None = None,
-) -> bool:
-    """Show inline product picker if no args. Returns True if picker was shown."""
-    db = _db(context)
-    user_id = update.effective_user.id
-    products = await db.get_active_products(user_id)
-    if not products:
-        await update.message.reply_text(_("📭 You have no tracked products."))
-        return True
-
-    buttons = []
-    for p in products:
-        name = (p.get("name") or _("Unknown"))[:35]
-        current = _safe_dec(p.get("current_price"))
-        price_tag = f" €{current:.2f}" if current else ""
-        prefix = callback_prefix or action
-        buttons.append(
-            [
-                InlineKeyboardButton(
-                    f"#{p['id']} {name}{price_tag}",
-                    callback_data=f"{prefix}_{p['id']}",
-                )
-            ]
-        )
-
-    await update.message.reply_text(
-        f"📦 <b>{label}:</b>",
-        parse_mode=ParseMode.HTML,
-        reply_markup=InlineKeyboardMarkup(buttons),
-    )
-    return True
 
 
 @with_locale
@@ -178,13 +141,7 @@ async def cmd_delete(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
 async def cmd_target(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Set or clear the target price for a product."""
     if not context.args:
-        await _product_picker(
-            update,
-            context,
-            "target",
-            _("Pick a product to set a target for"),
-            "settarget",
-        )
+        await product_picker(update, context, _("Pick a product to set a target for"), "settarget")
         return
     if len(context.args) < 2:
         await update.message.reply_text(
@@ -248,12 +205,8 @@ async def cmd_target(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
 async def cmd_threshold(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Set the price-drop threshold for a product."""
     if not context.args:
-        await _product_picker(
-            update,
-            context,
-            "threshold",
-            _("Pick a product to set a threshold for"),
-            "setsoglia",
+        await product_picker(
+            update, context, _("Pick a product to set a threshold for"), "setsoglia"
         )
         return
     if len(context.args) < 2:

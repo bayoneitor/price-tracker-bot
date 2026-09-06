@@ -31,6 +31,7 @@ from price_tracker.bot.handlers._helpers import (
     _get_user_product,
     _parse_id,
     _safe_dec,
+    product_picker,
 )
 from price_tracker.bot.messages import _, ngettext
 
@@ -41,61 +42,12 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-def _product_picker_args() -> tuple[str, str]:
-    """Sentinel — kept for future extraction."""
-    return ("", "")
-
-
-async def _product_picker(
-    update: Update,
-    context: ContextTypes.DEFAULT_TYPE,
-    action: str,
-    label: str,
-    callback_prefix: str | None = None,
-) -> bool:
-    """Show inline product picker if no args. Returns True if picker was shown."""
-    db = _db(context)
-    user_id = update.effective_user.id
-    products = await db.get_active_products(user_id)
-    if not products:
-        await update.message.reply_text(_("📭 You have no tracked products."))
-        return True
-
-    buttons = []
-    for p in products:
-        name = (p.get("name") or _("Unknown"))[:35]
-        current = _safe_dec(p.get("current_price"))
-        price_tag = f" €{current:.2f}" if current else ""
-        prefix = callback_prefix or action
-        buttons.append(
-            [
-                InlineKeyboardButton(
-                    f"#{p['id']} {name}{price_tag}",
-                    callback_data=f"{prefix}_{p['id']}",
-                )
-            ]
-        )
-
-    await update.message.reply_text(
-        f"📦 <b>{label}:</b>",
-        parse_mode=ParseMode.HTML,
-        reply_markup=InlineKeyboardMarkup(buttons),
-    )
-    return True
-
-
 @with_locale
 @restricted
 async def cmd_refresh(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Set per-product check interval. Usage: /refresh <id> <minutes>"""
     if not context.args:
-        await _product_picker(
-            update,
-            context,
-            "refresh",
-            _("Choose product to set interval"),
-            "setrefresh",
-        )
+        await product_picker(update, context, _("Choose product to set interval"), "setrefresh")
         return
     if len(context.args) < 2:
         await update.message.reply_text(
@@ -171,7 +123,7 @@ async def cmd_refresh(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
 async def cmd_check(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Check a single product price on demand."""
     if not context.args:
-        await _product_picker(update, context, "check", _("Choose product to check"), "check")
+        await product_picker(update, context, _("Choose product to check"), "check")
         return
 
     product_id = _parse_id(context.args[0])
@@ -324,7 +276,7 @@ async def cmd_reactivate(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 async def cmd_pause(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Pause a tracked product."""
     if not context.args:
-        await _product_picker(update, context, "pause", _("Choose product to pause"), "pause")
+        await product_picker(update, context, _("Choose product to pause"), "pause")
         return
     product_id = _parse_id(context.args[0])
     if product_id is None:

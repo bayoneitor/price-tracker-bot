@@ -17,6 +17,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- A product's own check interval is honoured. `/refresh` wrote it, the listing card
+  rendered it, and the sweep read it nowhere — every product was checked on the global
+  cadence whatever it said. The interval is a minimum gap between checks, so a value
+  below the sweep interval cannot make a product checked more often than the sweep runs;
+  the command now says so instead of implying otherwise.
+
 - Price charts covered a window measured in readings, not in time. History records every
   check rather than every price change, so the last 100 rows spanned about four days on a
   real deployment and nearly every product drew a flat line. Charts now cover 90 days,

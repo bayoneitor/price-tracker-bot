@@ -43,6 +43,21 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
+def _interval_caveat(minutes: int, sweep_minutes: int) -> str:
+    """Say so when an interval is shorter than the sweep that would honour it.
+
+    The per-product interval is a *minimum gap*: the sweep skips a product until
+    it is due. It cannot check one more often than the sweep itself runs, so a
+    smaller number means "every sweep" — and silently meaning something other
+    than what was typed is how this setting came to be ignored in the first place.
+    """
+    if minutes >= sweep_minutes:
+        return ""
+    return _("\n\nℹ️ Checks run every {sweep} minutes, so this one is checked on every run.").format(
+        sweep=sweep_minutes
+    )
+
+
 @with_locale
 @restricted
 async def cmd_refresh(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -102,6 +117,7 @@ async def cmd_refresh(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
 
     await db.set_product_interval(product_id, minutes)
     name = product.get("name") or _("Unknown")
+    sweep = _config(context).check_interval_minutes
 
     if minutes >= 60:
         hours = minutes / 60
@@ -111,12 +127,11 @@ async def cmd_refresh(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
     else:
         display = _("{n} minutes").format(n=minutes)
 
-    await update.message.reply_text(
-        _("🔄 Check interval: <b>every {display}</b>\n📦 #{pid} — {name}").format(
-            display=display, pid=product_id, name=_escape_html(name[:80])
-        ),
-        parse_mode=ParseMode.HTML,
+    text = _("🔄 Check interval: <b>every {display}</b>\n📦 #{pid} — {name}").format(
+        display=display, pid=product_id, name=_escape_html(name[:80])
     )
+    text += _interval_caveat(minutes, sweep)
+    await update.message.reply_text(text, parse_mode=ParseMode.HTML)
 
 
 @with_locale

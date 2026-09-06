@@ -323,10 +323,12 @@ async def _do_refresh(
     if minutes < 5:
         raise _Retry(_("❌ Minimum is 5 minutes."))
 
+    from price_tracker.bot.handlers.monitoring import _interval_caveat  # noqa: PLC0415 — cycle
+
     await db.set_product_interval(pending.target_id, minutes)
     return _("🔄 Check: every <b>{interval}</b>\n📦 {name}").format(
         interval=_format_minutes(minutes), name=name
-    )
+    ) + _interval_caveat(minutes, _config(context).check_interval_minutes)
 
 
 async def _do_admin_adduser(

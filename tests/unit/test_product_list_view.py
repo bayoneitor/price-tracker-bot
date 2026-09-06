@@ -240,7 +240,9 @@ def _text_context(products: list[dict[str, Any]], **user_data: Any) -> Any:
     db.update_user_info = AsyncMock()
     context = MagicMock()
     context.user_data = dict(user_data)
-    context.bot_data = {"db": db}
+    # The refresh prompt reads the global sweep to say whether a shorter
+    # per-product interval can actually be honoured.
+    context.bot_data = {"db": db, "config": MagicMock(check_interval_minutes=360)}
     context.bot.edit_message_text = AsyncMock()
     return context
 

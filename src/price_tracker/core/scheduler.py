@@ -167,6 +167,23 @@ def _no_op_health_mgr() -> HealthManager:
     return _NoOpHealthManager()
 
 
+def _last_checked(value: str | None) -> datetime | None:
+    """Parse `products.last_checked_at`, or None when it is unusable.
+
+    SQLite stores it naive (`YYYY-MM-DD HH:MM:SS`) in UTC, so a naive value is
+    read as UTC rather than as local time — subtracting a naive from an aware
+    datetime raises, and treating it as local would shift every gap by the
+    host's offset.
+    """
+    if not value:
+        return None
+    try:
+        parsed = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+    except (TypeError, ValueError):
+        return None
+    return parsed.replace(tzinfo=UTC) if parsed.tzinfo is None else parsed.astimezone(UTC)
+
+
 @dataclass
 class SchedulerDeps:
     """Dependencies bundle for the Scheduler."""
@@ -320,6 +337,21 @@ class Scheduler:
                     "Failed to record failure for product %d after unexpected error", product.id
                 )
 
+    def _is_due(self, product: ProductRecord) -> bool:
+        """Whether enough time has passed since this product was last checked.
+
+        Only a product with an interval of its own can be skipped; everything
+        else rides the sweep, which already runs at the global cadence. A row
+        that has never been checked is always due.
+        """
+        interval = product.check_interval_minutes
+        if not interval or interval <= 0:
+            return True
+        last = _last_checked(product.last_checked_at)
+        if last is None:
+            return True
+        return datetime.now(UTC) - last >= timedelta(minutes=interval)
+
     async def _run_tick(
         self,
         products: list[ProductRecord],
@@ -341,6 +373,11 @@ class Scheduler:
 
         Rate-limiting pacing (`delay_between_products`) is applied between scrapes
         to be friendly to upstream servers.
+
+        Products carrying their own `check_interval_minutes` are skipped until
+        that long has passed since their last check. Before this the column was
+        written by `/refresh`, rendered on the listing card and read by nobody:
+        the bot reported a setting it did not apply.
         """
         metrics = self.deps.metrics
         if metrics is not None:
@@ -348,6 +385,8 @@ class Scheduler:
         if half_open_seen is None:
             half_open_seen = set()
         for product in products:
+            if not self._is_due(product):
+                continue
             domain = extract_etld_plus_one(product.url)
             if not domain:
                 # Unknown domain — best-effort scrape (Generic scraper handles it)

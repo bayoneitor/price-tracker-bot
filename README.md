@@ -303,8 +303,8 @@ follow them, which is maintenance rather than a breaking change.
 - v0.2.0 — confirmation-based alerting: a single bad scrape can no longer raise a price-drop alert
 - **v1.0.0 — stable schema and command surface**; per-domain quarantine reachable from every
   scraper, public metadata and artwork carrying no real tracked listing
-- next — operational notices grouped per store and explaining themselves, per-product check
-  intervals honoured by the scheduler, full UI localisation
+- next — operational notices grouped per store and explaining themselves, full UI
+  localisation
 - proposed — [docs/roadmap.md](docs/roadmap.md): candidate features with the problem each
   solves and what it would cost, including all-time-low alerts and dedicated scrapers for
   the Spanish retailers that currently fall to the generic chain

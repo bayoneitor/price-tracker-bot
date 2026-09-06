@@ -115,3 +115,99 @@ def clear_pending(context: ContextTypes.DEFAULT_TYPE) -> PendingInput | None:
     if context.user_data is not None:
         context.user_data.pop(PENDING_KEY, None)
     return pending
+
+
+# ── Where "back" goes ─────────────────────────────────────────────
+#
+# Panels are rendered by editing one message, and the same panel is reachable
+# from several places — the edit panel opens from the listing, from Menu →
+# Products and from Menu → Notifications — so no screen can name its own parent.
+# Each message therefore keeps the trail of callback tokens that rendered it, and
+# "back" re-dispatches the previous one. Tokens, not rendered screens: replaying
+# `list_go_2` re-reads the products, so going back never shows a stale price.
+#
+# The dispatcher does the pushing, once, for every screen; a screen only has to
+# ask `nav_row()` for the button.
+
+NAV_KEY = "nav"
+
+# Deep enough for any real path through the menus, shallow enough that an
+# abandoned message cannot grow without bound.
+NAV_DEPTH = 8
+
+
+def _family(token: str) -> str:
+    """Which screen a token renders, ignoring which page of it.
+
+    Paging through a listing re-renders the same screen, so the pages must
+    collapse onto one stack entry — otherwise "back" would walk the user through
+    every page turn before leaving the listing.
+    """
+    for prefix in ("list_go_", "grp_go_"):
+        if token.startswith(prefix):
+            return prefix
+    return token
+
+
+def _stack(context: ContextTypes.DEFAULT_TYPE, message_id: int) -> list[str]:
+    if context.user_data is None:
+        return []
+    trails: dict[int, list[str]] = context.user_data.setdefault(NAV_KEY, {})
+    return trails.setdefault(message_id, [])
+
+
+def push_nav(context: ContextTypes.DEFAULT_TYPE, message_id: int, token: str) -> None:
+    """Record that `token` rendered what is now on `message_id`."""
+    stack = _stack(context, message_id)
+    if stack and _family(stack[-1]) == _family(token):
+        stack[-1] = token
+        return
+    stack.append(token)
+    del stack[:-NAV_DEPTH]
+
+
+def previous_nav(context: ContextTypes.DEFAULT_TYPE, message_id: int) -> str | None:
+    """The screen a "back" button would return to, or None if there is none.
+
+    Called while building a keyboard — before the dispatcher pushes the screen
+    being built — so the top of the stack is the screen the user came from.
+    """
+    stack = _stack(context, message_id)
+    return stack[-1] if stack else None
+
+
+def pop_nav(context: ContextTypes.DEFAULT_TYPE, message_id: int) -> str | None:
+    """Leave the current screen and return the token to render instead.
+
+    Both entries come off: the caller re-dispatches the returned token through
+    the normal path, which pushes it back on.
+    """
+    stack = _stack(context, message_id)
+    if len(stack) < 2:
+        stack.clear()
+        return None
+    stack.pop()
+    return stack.pop()
+
+
+def transfer_nav(context: ContextTypes.DEFAULT_TYPE, from_id: int, to_id: int) -> None:
+    """Move a trail onto another message.
+
+    Telegram cannot turn a text message into a photo, so opening a chart replaces
+    the panel with a new message; the trail has to follow it or "back" would have
+    nowhere to go.
+    """
+    if context.user_data is None:
+        return
+    trails: dict[int, list[str]] = context.user_data.setdefault(NAV_KEY, {})
+    trail = trails.pop(from_id, None)
+    if trail is not None:
+        trails[to_id] = trail
+
+
+def forget_nav(context: ContextTypes.DEFAULT_TYPE, message_id: int) -> None:
+    """Drop a closed message's trail so user_data does not grow forever."""
+    if context.user_data is None:
+        return
+    trails: dict[int, list[str]] = context.user_data.get(NAV_KEY, {})
+    trails.pop(message_id, None)

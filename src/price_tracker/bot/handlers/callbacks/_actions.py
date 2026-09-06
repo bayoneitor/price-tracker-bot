@@ -10,17 +10,16 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING, Any
 
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import InlineKeyboardButton
 from telegram.constants import ParseMode
 
 from price_tracker.bot.handlers._helpers import (
     _escape_html,
     _format_threshold,
-    _get_user_product,
-    _parse_id,
     _safe_dec,
+    resolve_owned_product,
 )
-from price_tracker.bot.keyboards import close_button
+from price_tracker.bot.keyboards import prompt_keyboard, result_keyboard
 from price_tracker.bot.messages import _
 from price_tracker.bot.navigation import set_pending
 
@@ -30,6 +29,11 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
+def _message_id(query: Any) -> int | None:
+    """The id of the message a callback arrived on, if it still has one."""
+    return getattr(getattr(query, "message", None), "message_id", None)
+
+
 async def handle_edit_button(
     query: Any, context: ContextTypes.DEFAULT_TYPE, db: Any, user_id: int, data: str
 ) -> bool:
@@ -37,14 +41,10 @@ async def handle_edit_button(
     if not data.startswith("edit_"):
         return False
 
-    product_id = _parse_id(data.replace("edit_", ""))
-    if product_id is None:
-        await query.edit_message_text(_("❌ Invalid ID."))
+    resolved = await resolve_owned_product(query, context, data, "edit_", user_id)
+    if resolved is None:
         return True
-    product = await _get_user_product(context, product_id, user_id)
-    if not product:
-        await query.edit_message_text(_("❌ Product not found."))
-        return True
+    product_id, product = resolved
 
     name = (product.get("name") or _("Unknown"))[:60]
     threshold_type = product.get("threshold_type", "percentage")
@@ -70,11 +70,11 @@ async def handle_edit_button(
         edit_buttons.append(
             [InlineKeyboardButton(_("🔄 Reset base price"), callback_data=f"reset_{product_id}")]
         )
-    # This panel is a new message rather than an edit of the caller's, so
-    # without this it could only be scrolled past, never dismissed.
-    edit_buttons.append([close_button()])
 
-    await query.message.reply_text(
+    # Edits the caller's message rather than adding one: opened from the listing
+    # this panel used to leave the listing sitting above it, and every product the
+    # user peeked at left another panel behind.
+    await query.edit_message_text(
         _(
             "✏️ <b>Edit #{pid}</b> {name}\n\n"
             "🎯 Current threshold: <b>{threshold}</b>\n"
@@ -89,7 +89,7 @@ async def handle_edit_button(
             initial=initial_str,
         ),
         parse_mode=ParseMode.HTML,
-        reply_markup=InlineKeyboardMarkup(edit_buttons),
+        reply_markup=result_keyboard(context, _message_id(query), *edit_buttons),
     )
     return True
 
@@ -101,14 +101,10 @@ async def handle_pause_button(
     if not data.startswith("pause_"):
         return False
 
-    product_id = _parse_id(data.replace("pause_", ""))
-    if product_id is None:
-        await query.edit_message_text(_("❌ Invalid ID."))
+    resolved = await resolve_owned_product(query, context, data, "pause_", user_id)
+    if resolved is None:
         return True
-    product = await _get_user_product(context, product_id, user_id)
-    if not product:
-        await query.edit_message_text(_("❌ Product not found."))
-        return True
+    product_id, product = resolved
 
     name = (product.get("name") or _("Unknown"))[:50]
     await db.deactivate_product(product_id)
@@ -117,6 +113,7 @@ async def handle_pause_button(
             name=_escape_html(name), pid=product_id
         ),
         parse_mode=ParseMode.HTML,
+        reply_markup=result_keyboard(context, _message_id(query)),
     )
     return True
 
@@ -128,32 +125,25 @@ async def handle_remove_button(
     if not data.startswith("remove_"):
         return False
 
-    product_id = _parse_id(data.replace("remove_", ""))
-    if product_id is None:
-        await query.edit_message_text(_("❌ Invalid ID."))
+    resolved = await resolve_owned_product(query, context, data, "remove_", user_id)
+    if resolved is None:
         return True
-    product = await _get_user_product(context, product_id, user_id)
-    if not product:
-        await query.edit_message_text(_("❌ Product not found."))
-        return True
+    product_id, product = resolved
 
     name = (product.get("name") or _("Unknown"))[:50]
-    keyboard = InlineKeyboardMarkup(
-        [
-            [
-                InlineKeyboardButton(
-                    _("🗑 Yes, delete everything"),
-                    callback_data=f"confirm_delete_{product_id}",
-                ),
-                InlineKeyboardButton(_("⏸ Just pause"), callback_data=f"pause_{product_id}"),
-                InlineKeyboardButton(_("❌ Cancel"), callback_data="cancel_delete"),
-            ]
-        ]
-    )
+    choices = [
+        InlineKeyboardButton(
+            _("🗑 Yes, delete everything"),
+            callback_data=f"confirm_delete_{product_id}",
+        ),
+        InlineKeyboardButton(_("⏸ Just pause"), callback_data=f"pause_{product_id}"),
+    ]
     await query.edit_message_text(
         _("❓ What do you want to do with <b>{name}</b>?").format(name=_escape_html(name)),
         parse_mode=ParseMode.HTML,
-        reply_markup=keyboard,
+        # The old "❌ Cancel" here dropped the user on a dead "Operation cancelled"
+        # screen; ◀️ Back puts them where they were.
+        reply_markup=result_keyboard(context, _message_id(query), choices),
     )
     return True
 
@@ -165,14 +155,10 @@ async def handle_reset_button(
     if not data.startswith("reset_"):
         return False
 
-    product_id = _parse_id(data.replace("reset_", ""))
-    if product_id is None:
-        await query.edit_message_text(_("❌ Invalid ID."))
+    resolved = await resolve_owned_product(query, context, data, "reset_", user_id)
+    if resolved is None:
         return True
-    product = await _get_user_product(context, product_id, user_id)
-    if not product:
-        await query.edit_message_text(_("❌ Product not found."))
-        return True
+    product_id, product = resolved
     success = await db.reset_initial_price(product_id)
     if success:
         name = (product.get("name") or _("Unknown"))[:60]
@@ -183,9 +169,13 @@ async def handle_reset_button(
                 "✅ Base price updated!\n\n📦 <b>#{pid}</b> {name}\n💰 New base: <b>{price}</b>"
             ).format(pid=product_id, name=_escape_html(name), price=price_str),
             parse_mode=ParseMode.HTML,
+            reply_markup=result_keyboard(context, _message_id(query)),
         )
     else:
-        await query.edit_message_text(_("❌ Update failed."))
+        await query.edit_message_text(
+            _("❌ Update failed."),
+            reply_markup=result_keyboard(context, _message_id(query)),
+        )
     return True
 
 
@@ -196,85 +186,71 @@ async def handle_reactivate_button(
     if not data.startswith("reactivate_"):
         return False
 
-    product_id = _parse_id(data.replace("reactivate_", ""))
-    if product_id is None:
-        await query.edit_message_text(_("❌ Invalid ID."))
+    resolved = await resolve_owned_product(query, context, data, "reactivate_", user_id)
+    if resolved is None:
         return True
-    product = await _get_user_product(context, product_id, user_id)
-    if not product:
-        await query.edit_message_text(_("❌ Product not found."))
-        return True
+    product_id, product = resolved
     await db.reactivate_product(product_id)
     name = (product.get("name") or _("Unknown"))[:50]
     await query.edit_message_text(
         _("▶️ <b>Reactivated:</b> {name}").format(name=_escape_html(name)),
         parse_mode=ParseMode.HTML,
+        reply_markup=result_keyboard(context, _message_id(query)),
     )
     return True
+
+
+def _target_prompt(product: dict[str, Any]) -> str:
+    name = _escape_html((product.get("name") or _("Unknown"))[:50])
+    current = _safe_dec(product.get("current_price"))
+    price_info = _(" (current: €{price:.2f})").format(price=current) if current else ""
+    return _(
+        "🎯 <b>{name}</b>{price_info}\n\nType the target price (e.g. <code>29.99</code>):"
+    ).format(name=name, price_info=price_info)
+
+
+def _threshold_prompt(product: dict[str, Any]) -> str:
+    return _(
+        "🎯 <b>{name}</b>\n\nType the threshold (e.g. <code>20%</code> or <code>50</code>):"
+    ).format(name=_escape_html((product.get("name") or _("Unknown"))[:50]))
+
+
+def _refresh_prompt(product: dict[str, Any]) -> str:
+    return _(
+        "🔄 <b>{name}</b>\n\n"
+        "Type the interval in minutes (e.g. <code>30</code>, <code>720</code> for 12h):"
+    ).format(name=_escape_html((product.get("name") or _("Unknown"))[:50]))
+
+
+# Built per call, never at import: a module-level table would freeze whichever
+# locale happened to be active when this module was first imported.
+_PROMPTS = {
+    "target": _target_prompt,
+    "threshold": _threshold_prompt,
+    "refresh": _refresh_prompt,
+}
 
 
 async def handle_picker(
     query: Any, context: ContextTypes.DEFAULT_TYPE, db: Any, user_id: int, data: str
 ) -> bool:
     """Handle inline pickers that need a follow-up text reply (`set*_<id>`)."""
-    if data.startswith("settarget_"):
-        product_id = _parse_id(data.replace("settarget_", ""))
-        if product_id is None:
-            await query.edit_message_text(_("❌ Invalid ID."))
+    for prefix, action in (
+        ("settarget_", "target"),
+        ("setsoglia_", "threshold"),
+        ("setrefresh_", "refresh"),
+    ):
+        if not data.startswith(prefix):
+            continue
+        resolved = await resolve_owned_product(query, context, data, prefix, user_id)
+        if resolved is None:
             return True
-        product = await _get_user_product(context, product_id, user_id)
-        if not product:
-            await query.edit_message_text(_("❌ Product not found."))
-            return True
-        name = (product.get("name") or _("Unknown"))[:50]
-        current = _safe_dec(product.get("current_price"))
-        price_info = _(" (current: €{price:.2f})").format(price=current) if current else ""
-        set_pending(context, "target", product_id, message=query.message)
+        product_id, product = resolved
+        set_pending(context, action, product_id, message=query.message)
         await query.edit_message_text(
-            _(
-                "🎯 <b>{name}</b>{price_info}\n\nType the target price (e.g. <code>29.99</code>):"
-            ).format(name=_escape_html(name), price_info=price_info),
+            _PROMPTS[action](product),
             parse_mode=ParseMode.HTML,
-        )
-        return True
-
-    if data.startswith("setsoglia_"):
-        product_id = _parse_id(data.replace("setsoglia_", ""))
-        if product_id is None:
-            await query.edit_message_text(_("❌ Invalid ID."))
-            return True
-        product = await _get_user_product(context, product_id, user_id)
-        if not product:
-            await query.edit_message_text(_("❌ Product not found."))
-            return True
-        name = (product.get("name") or _("Unknown"))[:50]
-        set_pending(context, "threshold", product_id, message=query.message)
-        await query.edit_message_text(
-            _(
-                "🎯 <b>{name}</b>\n\nType the threshold (e.g. <code>20%</code> or <code>50</code>):"
-            ).format(name=_escape_html(name)),
-            parse_mode=ParseMode.HTML,
-        )
-        return True
-
-    if data.startswith("setrefresh_"):
-        product_id = _parse_id(data.replace("setrefresh_", ""))
-        if product_id is None:
-            await query.edit_message_text(_("❌ Invalid ID."))
-            return True
-        product = await _get_user_product(context, product_id, user_id)
-        if not product:
-            await query.edit_message_text(_("❌ Product not found."))
-            return True
-        name = (product.get("name") or _("Unknown"))[:50]
-        set_pending(context, "refresh", product_id, message=query.message)
-        await query.edit_message_text(
-            _(
-                "🔄 <b>{name}</b>\n\n"
-                "Type the interval in minutes (e.g. <code>30</code>, "
-                "<code>720</code> for 12h):"
-            ).format(name=_escape_html(name)),
-            parse_mode=ParseMode.HTML,
+            reply_markup=prompt_keyboard(context, _message_id(query)),
         )
         return True
 

@@ -40,7 +40,7 @@ from price_tracker.bot.handlers._helpers import (
     _safe_dec,
     product_picker,
 )
-from price_tracker.bot.keyboards import build_threshold_keyboard
+from price_tracker.bot.keyboards import build_threshold_keyboard, close_button
 from price_tracker.bot.messages import _
 
 logger = logging.getLogger(__name__)
@@ -97,6 +97,7 @@ async def cmd_delete(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
             buttons.append(
                 [InlineKeyboardButton(_("🗑 Delete all products"), callback_data="delete_all")]
             )
+        buttons.append([close_button()])
 
         await update.message.reply_text(
             _("📦 <b>Pick a product to delete:</b>"),

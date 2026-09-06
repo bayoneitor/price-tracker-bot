@@ -24,6 +24,7 @@ from price_tracker.bot.handlers._helpers import (
     _parse_id,
     _safe_dec,
 )
+from price_tracker.bot.keyboards import close_button
 from price_tracker.bot.messages import _
 from price_tracker.core.url_utils import store_label
 
@@ -138,6 +139,7 @@ async def cmd_history(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
             buttons.append(
                 [InlineKeyboardButton(f"#{p['id']} {name}", callback_data=f"chart_{p['id']}")]
             )
+        buttons.append([close_button()])
 
         await update.message.reply_text(
             _("📊 <b>Pick a product to see its history:</b>"),
@@ -173,6 +175,7 @@ async def cmd_history(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
             photo=InputFile(chart_buf, filename=f"chart_{product_id}.png"),
             caption=caption,
             parse_mode=ParseMode.HTML,
+            reply_markup=InlineKeyboardMarkup([[close_button()]]),
         )
     else:
         await update.message.reply_text(

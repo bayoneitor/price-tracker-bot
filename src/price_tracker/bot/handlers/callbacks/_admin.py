@@ -17,7 +17,7 @@ from telegram.constants import ParseMode
 
 from price_tracker.bot.decorators import _config
 from price_tracker.bot.handlers._helpers import _escape_html, _parse_id
-from price_tracker.bot.keyboards import menu_back_button
+from price_tracker.bot.keyboards import close_button, menu_exit_row, prompt_keyboard
 from price_tracker.bot.messages import _
 from price_tracker.bot.navigation import set_pending
 
@@ -27,15 +27,26 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-def _back_to_admin() -> InlineKeyboardMarkup:
-    """Build the 'back to admin settings' markup under the caller's locale.
+def _message_id(query: Any) -> int | None:
+    """The id of the message a callback arrived on, if it still has one."""
+    return getattr(getattr(query, "message", None), "message_id", None)
 
-    A module-level constant would freeze whichever locale was active at import
-    time; this is rebuilt per call instead.
+
+def _settings_exit_row() -> list[InlineKeyboardButton]:
+    """Up to the admin settings screen, or out of the panel entirely.
+
+    Rebuilt per call: a module-level constant would freeze whichever locale
+    happened to be active at import time.
     """
-    return InlineKeyboardMarkup(
-        [[InlineKeyboardButton(_("◀️ Settings"), callback_data="menu_admin")]]
-    )
+    return [
+        InlineKeyboardButton(_("◀️ Settings"), callback_data="menu_admin"),
+        close_button(),
+    ]
+
+
+def _back_to_admin() -> InlineKeyboardMarkup:
+    """The exit row on its own, for screens with no other buttons."""
+    return InlineKeyboardMarkup([_settings_exit_row()])
 
 
 async def handle_admin_menu(
@@ -63,7 +74,7 @@ async def handle_admin_menu(
                 )
             ],
             [InlineKeyboardButton(_("🔧 Scraper debug"), callback_data="menu_admin_debug")],
-            menu_back_button(),
+            menu_exit_row(),
         ]
         await query.edit_message_text(
             _(
@@ -101,6 +112,7 @@ async def handle_admin_menu(
         await query.edit_message_text(
             _("➕ <b>Add user</b>\n\nType the Telegram ID of the user to add:"),
             parse_mode=ParseMode.HTML,
+            reply_markup=prompt_keyboard(context, _message_id(query)),
         )
         return True
 
@@ -120,7 +132,7 @@ async def handle_admin_menu(
             rows.append(
                 [InlineKeyboardButton(f"🚫 {nm}", callback_data=f"admin_rm_{u['user_id']}")]
             )
-        rows.append([InlineKeyboardButton(_("◀️ Settings"), callback_data="menu_admin")])
+        rows.append(_settings_exit_row())
         await query.edit_message_text(
             _("🚫 <b>Remove user</b>\n\nTap to remove:"),
             parse_mode=ParseMode.HTML,
@@ -156,7 +168,7 @@ async def handle_admin_menu(
             rows.append(
                 [InlineKeyboardButton(f"✏️ {nm}", callback_data=f"admin_nick_{u['user_id']}")]
             )
-        rows.append([InlineKeyboardButton(_("◀️ Settings"), callback_data="menu_admin")])
+        rows.append(_settings_exit_row())
         await query.edit_message_text(
             _("✏️ <b>Nickname</b>\n\nPick a user:"),
             parse_mode=ParseMode.HTML,
@@ -179,6 +191,7 @@ async def handle_admin_menu(
                 uid=target_id, name=_escape_html(str(current_name))
             ),
             parse_mode=ParseMode.HTML,
+            reply_markup=prompt_keyboard(context, _message_id(query)),
         )
         return True
 
@@ -192,6 +205,7 @@ async def handle_admin_menu(
                 "Type the minutes (e.g. <code>60</code>, <code>360</code>):"
             ),
             parse_mode=ParseMode.HTML,
+            reply_markup=prompt_keyboard(context, _message_id(query)),
         )
         return True
 
@@ -202,6 +216,7 @@ async def handle_admin_menu(
         await query.edit_message_text(
             _("🔧 <b>Scraper debug</b>\n\nPaste the URL of the product to analyse:"),
             parse_mode=ParseMode.HTML,
+            reply_markup=prompt_keyboard(context, _message_id(query)),
         )
         return True
 

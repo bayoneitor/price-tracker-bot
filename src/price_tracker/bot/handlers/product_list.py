@@ -13,11 +13,13 @@ without a Telegram round trip.
 
 from __future__ import annotations
 
+import contextlib
 import logging
 from typing import TYPE_CHECKING, Any
 
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.constants import ParseMode
+from telegram.error import TelegramError
 from telegram.ext import Application, CommandHandler, ContextTypes
 
 from price_tracker.bot.decorators import _convert_display, _db, restricted, with_locale
@@ -27,13 +29,16 @@ from price_tracker.bot.handlers._helpers import (
     _format_threshold,
     _safe_dec,
 )
-from price_tracker.bot.keyboards import close_button
+from price_tracker.bot.keyboards import close_button, nav_row
 from price_tracker.bot.messages import _
+from price_tracker.bot.navigation import push_nav
 from price_tracker.core.textlimits import truncate_visible
 from price_tracker.core.url_utils import store_label
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
+
+    from telegram.ext import ContextTypes
 
 logger = logging.getLogger(__name__)
 
@@ -153,17 +158,28 @@ def _jump_window(total: int, current: int) -> range:
 
 
 def build_list_view(
-    products: Sequence[dict[str, Any]], index: int
+    products: Sequence[dict[str, Any]],
+    index: int,
+    *,
+    context: ContextTypes.DEFAULT_TYPE | None = None,
+    message_id: int | None = None,
 ) -> tuple[str, InlineKeyboardMarkup]:
     """Render the whole listing for `products` with `index` selected.
 
     `index` is clamped, so a stale button from a listing whose products have
     since been deleted lands on a valid product instead of raising.
+
+    `context`/`message_id` are only needed for the exit row: a listing reached
+    from the menu offers ◀️ Back, one opened by /list has nowhere to go back to.
     """
+    exits = (nav_row(context, message_id) if context is not None else [close_button()]) or [
+        close_button()
+    ]
+
     if not products:
         return (
             _("📭 You have no tracked products.\nPaste me a link to get started!"),
-            InlineKeyboardMarkup([[close_button()]]),
+            InlineKeyboardMarkup([exits]),
         )
 
     current = max(0, min(index, len(products) - 1))
@@ -222,7 +238,7 @@ def build_list_view(
     if url:
         action_row.insert(0, InlineKeyboardButton(_("🔗 Open"), url=url))
     rows.append(action_row)
-    rows.append([close_button()])
+    rows.append(exits)
 
     return text, InlineKeyboardMarkup(rows)
 
@@ -230,8 +246,14 @@ def build_list_view(
 @with_locale
 @restricted
 async def cmd_list(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Show the user's tracked products as one paginated message."""
+    """Show the user's tracked products as one paginated message.
+
+    Only ever one: a second /list used to leave the first listing behind as a
+    dead panel whose buttons still worked, which is exactly the chat clutter the
+    single-message listing was built to remove.
+    """
     db = _db(context)
+    await _close_open_listing(update, context)
     products = await db.get_active_products(update.effective_user.id)
     text, keyboard = build_list_view(products, 0)
     message = await update.message.reply_text(
@@ -242,6 +264,18 @@ async def cmd_list(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     )
     if context.user_data is not None:
         context.user_data[LIST_MESSAGE_KEY] = message.message_id
+        push_nav(context, message.message_id, f"{LIST_GOTO_PREFIX}0")
+
+
+async def _close_open_listing(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Delete the listing already on screen, if there is one and it still exists."""
+    if context.user_data is None:
+        return
+    message_id = context.user_data.pop(LIST_MESSAGE_KEY, None)
+    if message_id is None:
+        return
+    with contextlib.suppress(TelegramError):
+        await context.bot.delete_message(chat_id=update.effective_chat.id, message_id=message_id)
 
 
 def register(app: Application) -> None:

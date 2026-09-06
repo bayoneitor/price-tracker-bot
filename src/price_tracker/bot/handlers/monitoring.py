@@ -33,6 +33,7 @@ from price_tracker.bot.handlers._helpers import (
     _safe_dec,
     product_picker,
 )
+from price_tracker.bot.keyboards import close_button
 from price_tracker.bot.messages import _, ngettext
 
 if TYPE_CHECKING:
@@ -247,6 +248,7 @@ async def cmd_reactivate(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             buttons.append(
                 [InlineKeyboardButton(f"#{p['id']} {name}", callback_data=f"reactivate_{p['id']}")]
             )
+        buttons.append([close_button()])
         await update.message.reply_text(
             _("⏸ <b>Paused products — choose to reactivate:</b>"),
             parse_mode=ParseMode.HTML,

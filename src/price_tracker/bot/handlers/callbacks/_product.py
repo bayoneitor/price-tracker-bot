@@ -8,6 +8,7 @@ otherwise — keeps the dispatcher a thin if/elif on prefixes.
 
 from __future__ import annotations
 
+import contextlib
 import logging
 from typing import TYPE_CHECKING, Any
 
@@ -17,6 +18,7 @@ from telegram import (
     InputFile,
 )
 from telegram.constants import ParseMode
+from telegram.error import TelegramError
 
 from price_tracker.bot.decorators import (
     _convert_display,
@@ -29,15 +31,24 @@ from price_tracker.bot.handlers._helpers import (
     resolve_owned_product,
 )
 from price_tracker.bot.handlers.history import _generate_chart
-from price_tracker.bot.keyboards import build_threshold_keyboard
+from price_tracker.bot.keyboards import (
+    build_threshold_keyboard,
+    prompt_keyboard,
+    result_keyboard,
+)
 from price_tracker.bot.messages import _
-from price_tracker.bot.navigation import set_pending
+from price_tracker.bot.navigation import push_nav, set_pending, transfer_nav
 from price_tracker.core.url_utils import store_label
 
 if TYPE_CHECKING:
     from telegram.ext import ContextTypes
 
 logger = logging.getLogger(__name__)
+
+
+def _message_id(query: Any) -> int | None:
+    """The id of the message a callback arrived on, if it still has one."""
+    return getattr(getattr(query, "message", None), "message_id", None)
 
 
 async def handle_delete_flow(
@@ -58,13 +69,20 @@ async def handle_delete_flow(
             await query.edit_message_text(
                 _("🗑 Permanently deleted: <b>{name}</b>").format(name=_escape_html(name[:80])),
                 parse_mode=ParseMode.HTML,
+                reply_markup=result_keyboard(context, _message_id(query)),
             )
         else:
-            await query.edit_message_text(_("❌ Product not found or not authorized."))
+            await query.edit_message_text(
+                _("❌ Product not found or not authorized."),
+                reply_markup=result_keyboard(context, _message_id(query)),
+            )
         return True
 
     if data == "cancel_delete":
-        await query.edit_message_text(_("👍 Operation cancelled."))
+        await query.edit_message_text(
+            _("👍 Operation cancelled."),
+            reply_markup=result_keyboard(context, _message_id(query)),
+        )
         return True
 
     if data == "delete_all":
@@ -106,6 +124,7 @@ async def handle_delete_flow(
         await query.edit_message_text(
             _("🗑 <b>Deleted {count} products</b> and all their history.").format(count=count),
             parse_mode=ParseMode.HTML,
+            reply_markup=result_keyboard(context, _message_id(query)),
         )
         return True
 
@@ -164,12 +183,10 @@ async def handle_check_button(
             old=alert.old_price, new=alert.new_price
         )
 
-    keyboard = InlineKeyboardMarkup(
-        [
-            [
-                InlineKeyboardButton(_("📊 Price history"), callback_data=f"chart_{product_id}"),
-            ]
-        ]
+    keyboard = result_keyboard(
+        context,
+        _message_id(query),
+        [InlineKeyboardButton(_("📊 Price history"), callback_data=f"chart_{product_id}")],
     )
     await query.edit_message_text(text, parse_mode=ParseMode.HTML, reply_markup=keyboard)
     return True
@@ -178,7 +195,13 @@ async def handle_check_button(
 async def handle_chart_button(
     query: Any, context: ContextTypes.DEFAULT_TYPE, db: Any, user_id: int, data: str
 ) -> bool:
-    """Handle the per-product 'Price history' button (`chart_<id>`)."""
+    """Handle the per-product 'Price history' button (`chart_<id>`).
+
+    The chart replaces the panel it was opened from rather than piling up under
+    it. Telegram cannot edit a text message into a photo, so the panel is deleted
+    and the photo sent — and the navigation trail moves with it, which is what
+    lets ◀️ Back reopen the panel afterwards.
+    """
     if not data.startswith("chart_"):
         return False
 
@@ -187,22 +210,34 @@ async def handle_chart_button(
         return True
     product_id, product = resolved
 
+    origin_id = _message_id(query)
     chart = await _generate_chart(db, product_id, product)
-    if chart:
-        name = (product.get("name") or _("Product"))[:50]
-        caption = f"📊 <b>#{product_id}</b> {_escape_html(name)}"
-        store = store_label(url=product.get("url", ""), domain=product.get("domain", ""))
-        if store:
-            caption += _("\n🌐 Store: {store}").format(store=_escape_html(store))
-        await query.message.reply_photo(
-            photo=InputFile(chart, filename=f"chart_{product_id}.png"),
-            caption=caption,
-            parse_mode=ParseMode.HTML,
+    if not chart:
+        await query.edit_message_text(
+            _("📭 Not enough data to generate the chart (at least 2 points needed)."),
+            reply_markup=result_keyboard(context, origin_id),
         )
-    else:
-        await query.message.reply_text(
-            _("📭 Not enough data to generate the chart (at least 2 points needed).")
-        )
+        return True
+
+    name = (product.get("name") or _("Product"))[:50]
+    caption = f"📊 <b>#{product_id}</b> {_escape_html(name)}"
+    store = store_label(url=product.get("url", ""), domain=product.get("domain", ""))
+    if store:
+        caption += _("\n🌐 Store: {store}").format(store=_escape_html(store))
+
+    # Built against the panel's trail, which the photo is about to inherit.
+    keyboard = result_keyboard(context, origin_id)
+    with contextlib.suppress(TelegramError):
+        await query.message.delete()
+    photo = await query.message.reply_photo(
+        photo=InputFile(chart, filename=f"chart_{product_id}.png"),
+        caption=caption,
+        parse_mode=ParseMode.HTML,
+        reply_markup=keyboard,
+    )
+    if origin_id is not None:
+        transfer_nav(context, origin_id, photo.message_id)
+        push_nav(context, photo.message_id, data)
     return True
 
 
@@ -234,7 +269,7 @@ async def handle_amazon_pref(
                     label=_(label), pid=product_id, name=_escape_html(name)
                 ),
                 parse_mode=ParseMode.HTML,
-                reply_markup=build_threshold_keyboard(product_id),
+                reply_markup=build_threshold_keyboard(product_id, context, _message_id(query)),
             )
             return True
     return False
@@ -258,6 +293,7 @@ async def handle_track_choice(
                 "You will get a notification on every price drop."
             ).format(pid=product_id, name=_escape_html(name)),
             parse_mode=ParseMode.HTML,
+            reply_markup=result_keyboard(context, _message_id(query)),
         )
         return True
 
@@ -277,6 +313,7 @@ async def handle_track_choice(
                 "• <code>50</code> — alert me if it drops by €50"
             ).format(pid=product_id, name=_escape_html(name)),
             parse_mode=ParseMode.HTML,
+            reply_markup=prompt_keyboard(context, _message_id(query)),
         )
         return True
 
@@ -301,6 +338,7 @@ async def handle_track_choice(
                 "Type the price you are aiming for (e.g. <code>100</code>):"
             ).format(pid=product_id, name=_escape_html(name), hint=price_hint),
             parse_mode=ParseMode.HTML,
+            reply_markup=prompt_keyboard(context, _message_id(query)),
         )
         return True
 
@@ -319,6 +357,7 @@ async def handle_track_choice(
                 "from the initial price."
             ).format(pid=product_id, name=_escape_html(name)),
             parse_mode=ParseMode.HTML,
+            reply_markup=result_keyboard(context, _message_id(query)),
         )
         return True
 

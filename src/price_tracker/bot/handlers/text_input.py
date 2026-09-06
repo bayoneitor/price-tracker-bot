@@ -10,6 +10,11 @@ unusable: it asked for a link and tracked it instead of analysing it.
 Ordering can't express "unless something else is pending", so there is now a
 single handler that asks the question in the right order: an open prompt wins,
 then a pasted link, then a bare number steering an open `/list`.
+
+An answer is shown by editing the message that asked for it, and the typed
+answer itself is deleted: a three-message exchange (question, answer,
+confirmation) collapses to the one message the user is looking at, and a
+rejected value no longer leaves a trail of failed attempts behind.
 """
 
 from __future__ import annotations
@@ -19,10 +24,12 @@ import logging
 from decimal import Decimal, InvalidOperation
 from typing import TYPE_CHECKING, Any
 
+from telegram import InlineKeyboardMarkup
 from telegram.constants import ParseMode
-from telegram.error import BadRequest
+from telegram.error import BadRequest, TelegramError
 from telegram.ext import (
     Application,
+    CommandHandler,
     MessageHandler,
     filters,
 )
@@ -37,6 +44,7 @@ from price_tracker.bot.handlers._helpers import (
     _safe_dec,
 )
 from price_tracker.bot.handlers.settings import _reschedule_periodic_check
+from price_tracker.bot.keyboards import cancel_button, nav_row
 from price_tracker.bot.messages import _
 from price_tracker.bot.navigation import PendingInput, clear_pending, get_pending
 
@@ -88,18 +96,22 @@ async def _answer_prompt(
 
     if text.lower() in _CANCEL_WORDS:
         clear_pending(context)
-        await update.message.reply_text(_("👍 OK, nothing changed."))
+        await _show(update, context, pending, _("👍 Cancelled — nothing was changed."))
         return
 
     spec = pending.spec
     if not spec.accepts_url and URL_PATTERN.search(text):
         # The prompt stays open: the user almost certainly meant to answer it, and
         # silently tracking the link is what made `/debug` unreachable before.
-        await update.message.reply_text(
+        await _show(
+            update,
+            context,
+            pending,
             _(
                 "⏳ I am still waiting for {what}.\n"
                 "Send /cancel first if you wanted to track that link instead."
-            ).format(what=_(spec.label))
+            ).format(what=_(spec.label)),
+            keep_open=True,
         )
         return
 
@@ -109,20 +121,65 @@ async def _answer_prompt(
         product = await _get_user_product(context, pending.target_id, user_id)
         if not product:
             clear_pending(context)
-            await update.message.reply_text(_("❌ Product not found."))
+            await _show(update, context, pending, _("❌ Product not found."))
             return
     elif pending.action.startswith("admin_") and not await _db(context).is_user_admin(user_id):
         clear_pending(context)
-        await update.message.reply_text(_("⛔ Admin-only command."))
+        await _show(update, context, pending, _("⛔ Admin-only command."))
         return
 
     try:
-        await _ACTIONS[pending.action](update, context, pending, text, product)
+        outcome = await _ACTIONS[pending.action](update, context, pending, text, product)
     except _Retry as retry:
         # Leave the prompt armed so the next message is read as another attempt.
-        await update.message.reply_text(str(retry))
+        await _show(update, context, pending, str(retry), keep_open=True)
         return
     clear_pending(context)
+    await _show(update, context, pending, outcome)
+
+
+async def _show(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE,
+    pending: PendingInput,
+    text: str,
+    *,
+    keep_open: bool = False,
+) -> None:
+    """Report the outcome in the message that asked, and drop the typed answer.
+
+    Falls back to a plain reply when the question is gone — too old to edit, or
+    deleted by the user — because losing the answer entirely would be worse than
+    one extra message. The typed answer is only deleted once the outcome is
+    actually on screen somewhere.
+    """
+    row = (
+        [cancel_button()] if keep_open else nav_row(context, pending.prompt_message_id, close=True)
+    )
+    markup = InlineKeyboardMarkup([row]) if row else None
+
+    edited = False
+    if pending.prompt_message_id is not None and pending.chat_id is not None:
+        try:
+            await context.bot.edit_message_text(
+                chat_id=pending.chat_id,
+                message_id=pending.prompt_message_id,
+                text=text,
+                parse_mode=ParseMode.HTML,
+                reply_markup=markup,
+            )
+            edited = True
+        except TelegramError as exc:
+            logger.debug("Could not edit the prompt, replying instead: %s", exc)
+
+    if not edited:
+        await update.message.reply_text(text, parse_mode=ParseMode.HTML, reply_markup=markup)
+        return
+
+    # Bots may delete incoming messages in private chats; if this one cannot, the
+    # answer simply stays visible.
+    with contextlib.suppress(TelegramError):
+        await update.message.delete()
 
 
 async def _try_list_jump(update: Update, context: ContextTypes.DEFAULT_TYPE, text: str) -> bool:
@@ -168,8 +225,9 @@ async def _try_list_jump(update: Update, context: ContextTypes.DEFAULT_TYPE, tex
 
 
 # ── One function per prompt ───────────────────────────────────────
-# Each receives the resolved product when its spec asks for one, and raises
-# `_Retry` when the answer cannot be used. Returning normally closes the prompt.
+# Each receives the resolved product when its spec asks for one, returns the text
+# to show, and raises `_Retry` when the answer cannot be used. Returning is what
+# closes the prompt; raising keeps it open for another attempt.
 
 
 def _product_name(product: dict[str, Any] | None) -> str:
@@ -182,7 +240,7 @@ async def _do_target(
     pending: PendingInput,
     text: str,
     product: dict[str, Any] | None,
-) -> None:
+) -> str:
     """Set or clear a product's target price."""
     try:
         target = Decimal(text.replace(",", ".").replace("€", "").strip())
@@ -193,22 +251,21 @@ async def _do_target(
     product_id = pending.target_id
     if target <= 0:
         await db.set_target_price(product_id, None)
-        await update.message.reply_text(_("🎯 Target cleared for #{pid}.").format(pid=product_id))
-        return
+        return _("🎯 Target cleared for #{pid}.").format(pid=product_id)
 
     await db.set_target_price(product_id, target)
     assert product is not None
     current = _safe_dec(product.get("current_price"))
     currency = product.get("currency", "EUR")
-    msg = _("🎯 Target: <b>{target}</b>\n📦 {name}").format(
+    lines = _("🎯 Target: <b>{target}</b>\n📦 {name}").format(
         target=_convert_display(target, currency), name=_escape_html(_product_name(product))
     )
     if current and target < current:
         diff_pct = ((current - target) / current) * 100
-        msg += _("\n💰 Current: {price} (-{pct:.1f}% needed)").format(
+        lines += _("\n💰 Current: {price} (-{pct:.1f}% needed)").format(
             price=_convert_display(current, currency), pct=diff_pct
         )
-    await update.message.reply_text(msg, parse_mode=ParseMode.HTML)
+    return lines
 
 
 async def _do_threshold(
@@ -217,7 +274,7 @@ async def _do_threshold(
     pending: PendingInput,
     text: str,
     product: dict[str, Any] | None,
-) -> None:
+) -> str:
     """Set a product's price-drop threshold."""
     try:
         threshold_type, threshold_value = _parse_threshold_input(text)
@@ -225,12 +282,9 @@ async def _do_threshold(
         raise _Retry(_("❌ Invalid value. Try again (e.g. 20% or 50).")) from exc
 
     await _db(context).set_threshold(pending.target_id, threshold_type, threshold_value)
-    await update.message.reply_text(
-        _("🎯 Threshold: <b>{threshold}</b>\n📦 {name}").format(
-            threshold=_format_threshold(threshold_type, threshold_value),
-            name=_escape_html(_product_name(product)),
-        ),
-        parse_mode=ParseMode.HTML,
+    return _("🎯 Threshold: <b>{threshold}</b>\n📦 {name}").format(
+        threshold=_format_threshold(threshold_type, threshold_value),
+        name=_escape_html(_product_name(product)),
     )
 
 
@@ -240,7 +294,7 @@ async def _do_refresh(
     pending: PendingInput,
     text: str,
     product: dict[str, Any] | None,
-) -> None:
+) -> str:
     """Set a product's own check interval, or hand it back to the global one."""
     try:
         minutes = int(text.strip())
@@ -251,22 +305,15 @@ async def _do_refresh(
     name = _escape_html(_product_name(product))
     if minutes <= 0:
         await db.set_product_interval(pending.target_id, None)
-        await update.message.reply_text(
-            _("🔄 Interval reset to the global one ({minutes} min)\n📦 {name}").format(
-                minutes=_config(context).check_interval_minutes, name=name
-            ),
-            parse_mode=ParseMode.HTML,
+        return _("🔄 Interval reset to the global one ({minutes} min)\n📦 {name}").format(
+            minutes=_config(context).check_interval_minutes, name=name
         )
-        return
     if minutes < 5:
         raise _Retry(_("❌ Minimum is 5 minutes."))
 
     await db.set_product_interval(pending.target_id, minutes)
-    await update.message.reply_text(
-        _("🔄 Check: every <b>{interval}</b>\n📦 {name}").format(
-            interval=_format_minutes(minutes), name=name
-        ),
-        parse_mode=ParseMode.HTML,
+    return _("🔄 Check: every <b>{interval}</b>\n📦 {name}").format(
+        interval=_format_minutes(minutes), name=name
     )
 
 
@@ -276,7 +323,7 @@ async def _do_admin_adduser(
     pending: PendingInput,
     text: str,
     product: dict[str, Any] | None,
-) -> None:
+) -> str:
     """Authorize a Telegram user by id."""
     try:
         new_uid = int(text.strip())
@@ -286,21 +333,14 @@ async def _do_admin_adduser(
     db = _db(context)
     existing = await db.get_user(new_uid)
     if existing and existing.get("is_active"):
-        await update.message.reply_text(
-            _("ℹ️ User <code>{uid}</code> is already authorized.").format(uid=new_uid),
-            parse_mode=ParseMode.HTML,
-        )
-        return
+        return _("ℹ️ User <code>{uid}</code> is already authorized.").format(uid=new_uid)
 
     await db.add_user(new_uid, is_admin=False)
-    await update.message.reply_text(
-        _("✅ User <code>{uid}</code> added!").format(uid=new_uid),
-        parse_mode=ParseMode.HTML,
-    )
     with contextlib.suppress(Exception):
         await context.bot.send_message(
             chat_id=new_uid, text=_("🎉 You have been authorized! Send /start.")
         )
+    return _("✅ User <code>{uid}</code> added!").format(uid=new_uid)
 
 
 async def _do_admin_nick(
@@ -309,17 +349,14 @@ async def _do_admin_nick(
     pending: PendingInput,
     text: str,
     product: dict[str, Any] | None,
-) -> None:
+) -> str:
     """Rename a user. `target_id` is a *user* id here, never a product id."""
     nickname = text.strip()
     if not nickname:
         raise _Retry(_("❌ Empty nickname."))
 
     await _db(context).update_user_info(pending.target_id, display_name=nickname)
-    await update.message.reply_text(
-        _("✅ Nickname updated: <b>{name}</b>").format(name=_escape_html(nickname)),
-        parse_mode=ParseMode.HTML,
-    )
+    return _("✅ Nickname updated: <b>{name}</b>").format(name=_escape_html(nickname))
 
 
 async def _do_admin_interval(
@@ -328,7 +365,7 @@ async def _do_admin_interval(
     pending: PendingInput,
     text: str,
     product: dict[str, Any] | None,
-) -> None:
+) -> str:
     """Set the global check interval, with the same bounds as /setinterval."""
     try:
         minutes = int(text.strip())
@@ -341,9 +378,8 @@ async def _do_admin_interval(
 
     await _db(context).set_config("check_interval_minutes", str(minutes))
     _reschedule_periodic_check(context, minutes)
-    await update.message.reply_text(
-        _("✅ Interval updated: <b>every {interval}</b>").format(interval=_format_minutes(minutes)),
-        parse_mode=ParseMode.HTML,
+    return _("✅ Interval updated: <b>every {interval}</b>").format(
+        interval=_format_minutes(minutes)
     )
 
 
@@ -353,7 +389,7 @@ async def _do_admin_debug(
     pending: PendingInput,
     text: str,
     product: dict[str, Any] | None,
-) -> None:
+) -> str:
     """Run the scraper debug report. This is the prompt that legitimately wants a URL."""
     url_input = text.strip()
     if not url_input.startswith("http"):
@@ -363,6 +399,7 @@ async def _do_admin_debug(
 
     context.args = [url_input]
     await cmd_debug(update, context)
+    return _("🔧 Scraper debug: {url}").format(url=_escape_html(url_input[:80]))
 
 
 _ACTIONS = {
@@ -376,6 +413,22 @@ _ACTIONS = {
 }
 
 
+@with_locale
+@restricted
+async def cmd_cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """`/cancel` — abandon whatever the bot is waiting for.
+
+    There was no way to say this before except guessing one of a fixed, untranslated
+    list of words ("no", "skip", "salta", "annulla", "cancel") that the bot never
+    mentioned anywhere.
+    """
+    pending = clear_pending(context)
+    if pending is None:
+        await update.message.reply_text(_("👍 Nothing to cancel."))
+        return
+    await _show(update, context, pending, _("👍 Cancelled — nothing was changed."))
+
+
 def register(app: Application) -> None:
     """Register the plain-text intake handler on `app`.
 
@@ -383,4 +436,6 @@ def register(app: Application) -> None:
     match in a group, so two handlers would reintroduce the ordering bug this
     module exists to fix.
     """
+    for name in ("cancel", "cancelar", "annulla"):
+        app.add_handler(CommandHandler(name, cmd_cancel))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text_input))

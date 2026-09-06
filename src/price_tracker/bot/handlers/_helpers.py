@@ -170,6 +170,7 @@ async def product_picker(
     callback prefix. One copy, one parameter.
     """
     from price_tracker.bot.decorators import _db  # noqa: PLC0415 — module-load cycle
+    from price_tracker.bot.keyboards import close_button  # noqa: PLC0415 — module-load cycle
 
     products = await _db(context).get_active_products(update.effective_user.id)
     if not products:
@@ -190,6 +191,7 @@ async def product_picker(
             ]
         )
 
+    buttons.append([close_button()])
     await update.message.reply_text(
         f"📦 <b>{label}:</b>",
         parse_mode=ParseMode.HTML,

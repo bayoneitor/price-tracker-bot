@@ -8,6 +8,7 @@ the sibling modules.
 from __future__ import annotations
 
 import logging
+from typing import Any
 
 from telegram import (
     InlineKeyboardButton,
@@ -32,6 +33,7 @@ from price_tracker.bot.handlers import (
 )
 from price_tracker.bot.handlers._helpers import _escape_html
 from price_tracker.bot.messages import _
+from price_tracker.bot.navigation import push_nav
 
 logger = logging.getLogger(__name__)
 
@@ -63,14 +65,17 @@ async def cmd_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """`/menu` — render the main menu."""
     db = _db(context)
     is_admin = await db.is_user_admin(update.effective_user.id)
-    await _send_main_menu(update.message, is_admin)
+    message = await _send_main_menu(update.message, is_admin)
+    if message is not None:
+        # Seeds the trail: every screen opened from here knows what ◀️ Back means.
+        push_nav(context, message.message_id, "menu_main")
 
 
 # Alias
 cmd_help = cmd_menu
 
 
-async def _send_main_menu(message: object, is_admin: bool = False) -> None:
+async def _send_main_menu(message: Any, is_admin: bool = False) -> Any:
     """Render the main menu inline keyboard."""
     rows = [
         [
@@ -85,7 +90,7 @@ async def _send_main_menu(message: object, is_admin: bool = False) -> None:
     ]
     if is_admin:
         rows.append([InlineKeyboardButton(_("👑 Settings (admin)"), callback_data="menu_admin")])
-    await message.reply_text(  # type: ignore[attr-defined]
+    return await message.reply_text(
         _("📋 <b>Menu</b>\n\nWhat do you want to do?"),
         parse_mode=ParseMode.HTML,
         reply_markup=InlineKeyboardMarkup(rows),

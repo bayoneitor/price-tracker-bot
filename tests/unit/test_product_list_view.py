@@ -14,6 +14,7 @@ import pytest
 from telegram.error import BadRequest
 
 from price_tracker.bot.handlers.callbacks._list import handle_list_navigation
+from price_tracker.bot.handlers.callbacks._nav import handle_close
 from price_tracker.bot.handlers.product_list import (
     LIST_GOTO_PREFIX,
     MAX_JUMP_BUTTONS,
@@ -172,7 +173,7 @@ async def test_close_deletes_the_message_and_forgets_the_listing() -> None:
     query = MagicMock(message=MagicMock(message_id=555, delete=AsyncMock()))
     context = MagicMock(user_data={"list_message_id": 555})
 
-    handled = await handle_list_navigation(query, context, AsyncMock(), 7, CLOSE_CALLBACK)
+    handled = await handle_close(query, context, CLOSE_CALLBACK)
 
     assert handled is True
     query.message.delete.assert_awaited_once()
@@ -189,7 +190,7 @@ async def test_closing_another_panel_keeps_the_listing_reference() -> None:
     query = MagicMock(message=MagicMock(message_id=999, delete=AsyncMock()))
     context = MagicMock(user_data={"list_message_id": 555})
 
-    handled = await handle_list_navigation(query, context, AsyncMock(), 7, CLOSE_CALLBACK)
+    handled = await handle_close(query, context, CLOSE_CALLBACK)
 
     assert handled is True
     query.message.delete.assert_awaited_once()
@@ -204,9 +205,7 @@ async def test_close_collapses_when_the_message_is_too_old_to_delete() -> None:
         edit_message_text=AsyncMock(),
     )
 
-    handled = await handle_list_navigation(
-        query, MagicMock(user_data={}), AsyncMock(), 7, CLOSE_CALLBACK
-    )
+    handled = await handle_close(query, MagicMock(user_data={}), CLOSE_CALLBACK)
 
     assert handled is True
     assert "closed" in query.edit_message_text.await_args.args[0].lower()
@@ -320,19 +319,26 @@ async def test_a_stale_listing_reference_is_dropped() -> None:
 
 
 @pytest.mark.asyncio
-async def test_edit_panel_offers_a_close_button() -> None:
-    """It opens as a new message, so without this it could only be scrolled past."""
+async def test_edit_panel_replaces_the_listing_and_can_be_dismissed() -> None:
+    """It used to open as a *new* message, leaving the listing stranded above it.
+
+    Every product the user peeked at left another panel in the chat, and the panel
+    could only be scrolled past until a close button was bolted on. It now edits
+    the message it was opened from, so ◀️ Back returns to the listing.
+    """
     from price_tracker.bot.handlers.callbacks._actions import handle_edit_button
 
-    query = MagicMock(message=MagicMock(reply_text=AsyncMock()), edit_message_text=AsyncMock())
+    query = MagicMock(message=MagicMock(message_id=42), edit_message_text=AsyncMock())
     db = AsyncMock()
     context = MagicMock()
     context.bot_data = {"db": db}
+    context.user_data = {}
     db.is_user_admin = AsyncMock(return_value=False)
     db.get_product_for_user = AsyncMock(return_value=_product(3))
 
     handled = await handle_edit_button(query, context, db, 7, "edit_3")
 
     assert handled is True
-    markup = query.message.reply_text.await_args.kwargs["reply_markup"]
+    query.message.reply_text.assert_not_called()
+    markup = query.edit_message_text.await_args.kwargs["reply_markup"]
     assert CLOSE_CALLBACK in _button_data(markup)

@@ -141,6 +141,94 @@ has just woken you up.
 - `/health` — scraper health and quarantine state
 - `/debug <url>` — run a scraper against a URL without tracking it
 
+## Groups: comparing products against each other
+
+Tracking three monitors tells you each one's price and nothing about how they stand
+against each other. A group answers that.
+
+```
+/groups                          → 🏷 Groups (0) — you have none yet
+  ➕ New group  →  type: Monitors
+/list                            → pick a product → ✏️ Edit → 🏷 Groups → ✅ Monitors
+```
+
+Or from the group itself: **`/groups` → Monitors → ➕ Add product**. A product can be in
+several groups at once — a monitor belongs in `Monitors` and in `Christmas gifts` without
+being tracked twice.
+
+**📊 Compare** — every member side by side, cheapest first:
+
+```
+📊 Comparison
+
+#7 LG 27GP850-B — €399.00 (-7.0%)  min €389.00
+#3 Dell U2724DE — €479.00 (-12.8%)  min €459.00
+#9 BenQ PD2705U — €529.00 (+6.0%)  min €499.00
+
+🥇 Cheapest now: LG 27GP850-B at €399.00
+↔️ Spread: €130.00
+```
+
+The percentage is the change since you started tracking that product, so a product can be
+the cheapest today and still the one that has risen most.
+
+**🕐 Who has been cheapest** — the same group over time, read out of the price history the
+bot already had, so a group created today covers every month its members have been tracked:
+
+```
+🕐 Who has been cheapest
+
+02/07 — Dell U2724DE at €549.00
+03/07 — BenQ PD2705U at €499.00
+04/07 — LG 27GP850-B at €429.00
+16/07 — LG 27GP850-B at €409.00
+27/07 — LG 27GP850-B at €399.00
+```
+
+**📈 Chart** draws one line per member on a single axis (prices in other currencies are
+converted to euro first, so the lines are actually comparable). Up to eight members are
+drawn; past that the group is charted in part rather than with two products sharing a
+colour.
+
+Deleting a group deletes only the grouping — the products stay tracked.
+
+## Getting out of a screen
+
+Every screen that does something ends with the same row:
+
+| Button | What it does |
+|--------|--------------|
+| ◀️ Back | returns to whichever screen opened this one, rebuilt from current data |
+| ✖ Cancel | drops the answer the bot is waiting for (also `/cancel`) |
+| ✖ Close | dismisses the panel |
+
+So a question the bot asks is never a trap:
+
+```
+/target                                        → pick a product, then:
+
+  🎯 Dell U2724DE (current: €479.00)
+  Type the target price (e.g. 29.99):          [✖ Cancel]
+
+you: 420                                       ← removed from the chat
+
+  🎯 Target: €420.00                            ← the question itself is rewritten
+  📦 Dell U2724DE
+  💰 Current: €479.00 (-12.3% needed)          [✖ Close]
+```
+
+(◀️ Back joins the row whenever the screen was opened from another one — from `/menu`
+or from `/list` — and is left off when there is nowhere to go back to, as above.)
+
+If you meant to track a link instead, the bot says so rather than quietly adding it:
+
+```
+you: https://www.example.com/p/1234
+
+  ⏳ I am still waiting for a target price.
+  Send /cancel first if you wanted to track that link instead.
+```
+
 ## Supported sites
 
 See [docs/scrapers.md](docs/scrapers.md) for the full list of 17 built-in scrapers with status, coverage, and notes. Generic fallback (`GenericScraper`) handles any site exposing JSON-LD, microdata, OpenGraph, or RDFa product metadata.

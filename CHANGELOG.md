@@ -108,6 +108,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   into English at exactly those settings.
 - README documented `/setinterval` as the per-product interval and `/refresh` as the
   global one. It is the other way round.
+- Seventeen multi-line messages had lost their line breaks in all three catalogs, so they
+  rendered as two sentences run together ("…waiting for a target priceSend /cancel…").
+  The catalogs are now checked in CI for line breaks, placeholders, HTML tags and
+  leftover fuzzy entries — every one of those renders wrong or raises at send time, and
+  none of them fails a test that asserts on substrings.
 
 - **Price-drop alerts were never translated.** `format_alert`,
   `format_back_in_stock` and `format_error_notification` were plain English

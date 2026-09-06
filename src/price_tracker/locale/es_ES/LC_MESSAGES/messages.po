@@ -821,14 +821,11 @@ msgid ""
 "\n"
 "You have none yet."
 msgstr ""
-"🏷 <b>Grupos</b>
-"
-"
-"
-"Un grupo es un conjunto de productos que quieres comparar: tres monitores, por ejemplo, o toda una lista de la compra.
-"
-"
-"
+"🏷 <b>Grupos</b>\n"
+"\n"
+"Un grupo es un conjunto de productos que quieres comparar: tres "
+"monitores, por ejemplo, o toda una lista de la compra.\n"
+"\n"
 "Todavía no tienes ninguno."
 
 #: src/price_tracker/bot/handlers/groups_view.py:203
@@ -838,10 +835,8 @@ msgid ""
 "\n"
 "Pick one to compare its products."
 msgstr ""
-"🏷 <b>Grupos</b> ({count})
-"
-"
-"
+"🏷 <b>Grupos</b> ({count})\n"
+"\n"
 "Elige uno para comparar sus productos."
 
 #: src/price_tracker/bot/handlers/groups_view.py:220
@@ -1641,8 +1636,8 @@ msgid ""
 "⏳ I am still waiting for {what}.\n"
 "Send /cancel first if you wanted to track that link instead."
 msgstr ""
-"⏳ Sigo esperando {what}Envía /cancel antes si lo que querías era seguir "
-"ese enlace."
+"⏳ Sigo esperando {what}.\n"
+"Envía /cancel antes si lo que querías era seguir ese enlace."
 
 #: src/price_tracker/bot/handlers/text_input.py:204
 #, python-brace-format
@@ -2055,7 +2050,10 @@ msgid ""
 "🔕 <b>Mute</b>\n"
 "\n"
 "For how long?"
-msgstr "🔕 <b>Silenciar</b¿Durante cuánto tiempo?"
+msgstr ""
+"🔕 <b>Silenciar</b>\n"
+"\n"
+"¿Durante cuánto tiempo?"
 
 #: src/price_tracker/bot/handlers/callbacks/_delivery.py:150
 msgid "off"
@@ -2140,8 +2138,10 @@ msgid ""
 "Type a window like <code>22:00-08:00</code>, or <code>off</code> to "
 "disable it."
 msgstr ""
-"🌙 <b>Horas de silencio</bEscribe un intervalo como "
-"<code>22:00-08:00</code>, o <code>off</code> para desactivarlo."
+"🌙 <b>Horas de silencio</b>\n"
+"\n"
+"Escribe un intervalo como <code>22:00-08:00</code>, o <code>off</code> "
+"para desactivarlo."
 
 #: src/price_tracker/bot/handlers/callbacks/_delivery.py:204
 msgid ""
@@ -2149,8 +2149,9 @@ msgid ""
 "\n"
 "Type an IANA name, e.g. <code>Europe/Madrid</code>."
 msgstr ""
-"🌍 <b>Zona horaria</bEscribe un nombre IANA, p. ej. "
-"<code>Europe/Madrid</code>."
+"🌍 <b>Zona horaria</b>\n"
+"\n"
+"Escribe un nombre IANA, p. ej. <code>Europe/Madrid</code>."
 
 #: src/price_tracker/bot/handlers/callbacks/_delivery.py:207
 msgid ""
@@ -2158,8 +2159,10 @@ msgid ""
 "\n"
 "Type the most alerts you want in an hour, or <code>off</code> for no cap."
 msgstr ""
-"🚦 <b>Límite por hora</bEscribe cuántos avisos como mucho quieres en una "
-"hora, o <code>off</code> para no poner tope."
+"🚦 <b>Límite por hora</b>\n"
+"\n"
+"Escribe cuántos avisos como mucho quieres en una hora, o <code>off</code>"
+" para no poner tope."
 
 #: src/price_tracker/bot/handlers/callbacks/_delivery.py:211
 msgid ""
@@ -2167,8 +2170,9 @@ msgid ""
 "\n"
 "Type how many minutes between digests, e.g. <code>60</code>."
 msgstr ""
-"⏱ <b>Intervalo del resumen</bEscribe cuántos minutos hay entre resúmenes,"
-" p. ej. <code>60</code>."
+"⏱ <b>Intervalo del resumen</b>\n"
+"\n"
+"Escribe cuántos minutos hay entre resúmenes, p. ej. <code>60</code>."
 
 #: src/price_tracker/bot/handlers/callbacks/_groups.py:66
 msgid ""
@@ -2176,10 +2180,8 @@ msgid ""
 "\n"
 "Type a name for it, e.g. <code>Monitors</code>:"
 msgstr ""
-"🏷 <b>Grupo nuevo</b>
-"
-"
-"
+"🏷 <b>Grupo nuevo</b>\n"
+"\n"
 "Escribe un nombre, p. ej. <code>Monitores</code>:"
 
 #: src/price_tracker/bot/handlers/callbacks/_groups.py:83
@@ -2190,7 +2192,9 @@ msgstr "❌ Grupo no encontrado."
 
 #: src/price_tracker/bot/handlers/callbacks/_groups.py:175
 msgid "📭 Not enough history yet — at least two products need two readings each."
-msgstr "📭 Aún no hay historial suficiente: hacen falta al menos dos productos con dos lecturas cada uno."
+msgstr ""
+"📭 Aún no hay historial suficiente: hacen falta al menos dos productos con"
+" dos lecturas cada uno."
 
 #: src/price_tracker/bot/handlers/callbacks/_groups.py:180
 #, python-brace-format
@@ -2203,8 +2207,7 @@ msgid ""
 "\n"
 "(showing the first {count})"
 msgstr ""
-"
-"
+"\n"
 "(se muestran los primeros {count})"
 
 #: src/price_tracker/bot/handlers/callbacks/_groups.py:207
@@ -2214,10 +2217,8 @@ msgid ""
 "\n"
 "Type the new name:"
 msgstr ""
-"✏️ <b>{name}</b>
-"
-"
-"
+"✏️ <b>{name}</b>\n"
+"\n"
 "Escribe el nombre nuevo:"
 
 #: src/price_tracker/bot/handlers/callbacks/_groups.py:221
@@ -2227,10 +2228,8 @@ msgid ""
 "\n"
 "The {count} products in it stay tracked — only the grouping goes."
 msgstr ""
-"🗑 ¿Borrar el grupo <b>{name}</b>?
-"
-"
-"
+"🗑 ¿Borrar el grupo <b>{name}</b>?\n"
+"\n"
 "Los {count} productos siguen vigilados: solo se borra la agrupación."
 
 #: src/price_tracker/bot/handlers/callbacks/_groups.py:230
@@ -2248,10 +2247,8 @@ msgid ""
 "\n"
 "Pick a product to add:"
 msgstr ""
-"➕ <b>{name}</b>
-"
-"
-"
+"➕ <b>{name}</b>\n"
+"\n"
 "Elige un producto para añadir:"
 
 #: src/price_tracker/bot/handlers/callbacks/_groups.py:283
@@ -2265,10 +2262,8 @@ msgid ""
 "\n"
 "Pick a product to remove:"
 msgstr ""
-"➖ <b>{name}</b>
-"
-"
-"
+"➖ <b>{name}</b>\n"
+"\n"
 "Elige un producto para quitar:"
 
 #: src/price_tracker/bot/handlers/callbacks/_groups.py:341
@@ -2282,10 +2277,8 @@ msgid ""
 "\n"
 "Tap to add or remove."
 msgstr ""
-"🏷 <b>Grupos de #{pid}</b>
-"
-"
-"
+"🏷 <b>Grupos de #{pid}</b>\n"
+"\n"
 "Toca para añadir o quitar."
 
 #: src/price_tracker/bot/handlers/callbacks/_menu.py:72
@@ -2390,8 +2383,10 @@ msgid ""
 "Delivery covers muting, quiet hours and digests.\n"
 "Tap a product to change its threshold or target."
 msgstr ""
-"🔔 <b>Notificaciones</bEn Entrega están el silencio, las horas de silencio"
-" y los resúmenesToca un producto para cambiar su umbral u objetivo."
+"🔔 <b>Notificaciones</b>\n"
+"\n"
+"En Entrega están el silencio, las horas de silencio y los resúmenes.\n"
+"Toca un producto para cambiar su umbral u objetivo."
 
 #: src/price_tracker/bot/handlers/callbacks/_menu.py:241
 msgid "💾 Export CSV"
@@ -2457,7 +2452,10 @@ msgid ""
 "💾 <b>Export</b>\n"
 "\n"
 "{count} products sent as a CSV file below."
-msgstr "💾 <b>Exportar</b{count} productos enviados como CSV aquí abajo."
+msgstr ""
+"💾 <b>Exportar</b>\n"
+"\n"
+"{count} productos enviados como CSV aquí abajo."
 
 #: src/price_tracker/bot/handlers/callbacks/_menu.py:396
 #, python-brace-format

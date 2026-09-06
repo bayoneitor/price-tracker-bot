@@ -35,6 +35,34 @@ same `settings.update_prefs` read-before-write path. That shared path matters:
 `upsert_notification_prefs` writes the whole row, so a partial write would silently reset
 the fields it does not name — muting would clear the user's timezone.
 
+```
+📬 Delivery
+
+🔕 Muted: no
+🌙 Quiet hours: 22:00–08:00
+🌍 Timezone: Europe/Madrid
+🚦 Rate limit: 5
+📥 Delivery: digest every 120 min.
+
+[🔕 Mute]
+[🌙 Quiet hours]     [🌍 Timezone]
+[🚦 Rate limit]      [📬 Instant]
+[⏱ Digest interval]  [📨 Send digest now]
+[◀️ Menu]            [✖ Close]
+```
+
+The buttons are stateful: `🔕 Mute` becomes `🔔 Unmute` once muted, and `📥 Digest` becomes
+`📬 Instant` once digest mode is on — the button always names what pressing it will do.
+`🔕 Mute` opens a second step (1h / 8h / 24h / until I turn it back on) rather than
+committing to a duration, and the four settings that need a value ask for it with a
+`✖ Cancel` button attached:
+
+```
+🌙 Quiet hours
+
+Type a window like 22:00-08:00, or off to disable it.   [◀️ Back] [✖ Cancel]
+```
+
 ### `/mute [product_id|all] [hours|forever]`
 Silence alerts for a single product or all products.
 

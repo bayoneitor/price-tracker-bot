@@ -352,8 +352,25 @@ scrapers.
   published at all, and a registry with nothing registered in it, both
   produce the exact confirmation card this repo already had.
 
-- [ ] **9.** **Create the private repo** with `gh` and clone it into `plugins/`. Stubs
+- [x] **9.** **Create the private repo** with `gh` and clone it into `plugins/`. Stubs
    that register and return `HistoryResult()` so startup logs show both names.
+
+  `gh repo create bayoneitor/price-tracker-plugins --private` — done, cloned
+  into `plugins/`, stubs pushed. Its own `plugins/README.md` (operator notes)
+  lives in that repo's history and GitHub page; the public repo's own
+  `plugins/README.md` (general drop-in mechanism, both plugin kinds) is what
+  `git checkout -- plugins/README.md` restores locally, per the plan's own
+  install sequence.
+
+  The acceptance check itself ("startup logs show both names") failed the
+  first time — for a reason that had nothing to do with either provider.
+  `configure_logging` never configured the stdlib `logging` module, only
+  `structlog`, so every `logging.getLogger(__name__).info(...)` call in this
+  codebase — plugin discovery included — was silently dropped. Fixed
+  separately (`83878cc`) with a stdlib→structlog bridge, verified against the
+  real container: 18 built-in scrapers and both `keepa`/`precioreal` now
+  appear in the startup log, which had never shown a single one of them
+  before.
 
 - [ ] **10.** **Shared `_browser.py`.** Headless Chromium, same UA as
   `playwright_fallback.py`, `page.on("response")` collector, timeout,

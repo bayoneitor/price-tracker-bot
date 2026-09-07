@@ -6,9 +6,11 @@ action buttons — but the buttons acted on whichever product the index had
 marked with a `▸`, so a screen of seven button rows never said what any of them
 would touch.
 
-Two screens instead. The index is one button per product, ten to a page, each
-carrying its price. Tapping one opens that product: its card, and actions that
-can only mean the product named above them.
+Two screens instead. The index is a written list — ten products to a page, each
+with its shop and its price, and the one under the cursor marked — and the
+buttons move rather than act: one row steps the cursor product by product, a
+second jumps a page at a time, and a third opens whatever the cursor is on. The
+product's own screen is where the actions live, under the name they apply to.
 
 Rendering is a pure function of its inputs, so the command and the callbacks
 build the same screens and the tests assert on them without a Telegram round
@@ -34,6 +36,7 @@ from price_tracker.bot.handlers._helpers import (
     _safe_dec,
 )
 from price_tracker.bot.keyboards import (
+    LIST_CURSOR_PREFIX,
     LIST_GOTO_PREFIX,
     PRODUCT_PREFIX,
     close_button,
@@ -58,9 +61,9 @@ LIST_MESSAGE_KEY = "list_message_id"
 # away, which is cheaper than a wall.
 PAGE_SIZE = 10
 
-# The index is a list, so a name is budgeted to keep each row scannable. The
-# product's own screen shows it whole.
-BUTTON_NAME_BUDGET = 32
+# The index is a list to scan, so a name is budgeted to keep every line one row
+# on a phone. The product's own screen shows it whole.
+INDEX_NAME_BUDGET = 46
 
 
 def _product_card(product: dict[str, Any]) -> list[str]:
@@ -137,16 +140,18 @@ def page_count(total: int) -> int:
 
 def build_index_view(
     products: Sequence[dict[str, Any]],
-    page: int = 0,
+    cursor: int = 0,
     *,
     context: ContextTypes.DEFAULT_TYPE | None = None,
     message_id: int | None = None,
     extra_rows: Sequence[list[InlineKeyboardButton]] = (),
 ) -> tuple[str, InlineKeyboardMarkup]:
-    """One page of the index: a button per product, carrying its price.
+    """The written index, with `cursor` marking the product the buttons act on.
 
-    `page` is clamped, so a stale button from a listing whose products have since
-    been deleted lands on a page that exists.
+    `cursor` is an absolute position in `products` and the page follows from it,
+    so there is one piece of state travelling in the callback data rather than
+    two that could disagree. It is clamped, so a stale button from an index whose
+    products have since been deleted lands on one that exists.
 
     `context`/`message_id` are only needed for the exit row: an index reached from
     the menu offers ◀️ Back, one opened by /list has nowhere to go back to.
@@ -161,55 +166,63 @@ def build_index_view(
             InlineKeyboardMarkup([*extra_rows, exits]),
         )
 
-    pages = page_count(len(products))
-    current = max(0, min(page, pages - 1))
-    shown = products[current * PAGE_SIZE : (current + 1) * PAGE_SIZE]
+    total = len(products)
+    current = max(0, min(cursor, total - 1))
+    pages = page_count(total)
+    page = current // PAGE_SIZE
+    shown = list(enumerate(products))[page * PAGE_SIZE : (page + 1) * PAGE_SIZE]
 
+    lines = [_("<b>📦 Your products ({count})</b>").format(count=total)]
+    if pages > 1:
+        lines.append(_("Page {page} of {pages}").format(page=page + 1, pages=pages))
+    lines.append("")
+    for position, product in shown:
+        row = f"{_escape_html(product_label(product, INDEX_NAME_BUDGET))}{_price_tag(product)}"
+        lines.append(
+            f"<b>▸ #{product['id']} {row}</b>"
+            if position == current
+            else f"   #{product['id']} {row}"
+        )
+
+    selected = products[current]
     rows = [
+        # Step: one product at a time. Wraps, so the row keeps its shape at both
+        # ends — an arrow that vanishes moves everything beside it.
+        [
+            InlineKeyboardButton("◀", callback_data=f"{LIST_CURSOR_PREFIX}{(current - 1) % total}"),
+            InlineKeyboardButton(
+                f"{current + 1}/{total}", callback_data=f"{LIST_CURSOR_PREFIX}{current}"
+            ),
+            InlineKeyboardButton("▶", callback_data=f"{LIST_CURSOR_PREFIX}{(current + 1) % total}"),
+        ],
+        # Open: named, so nothing has to be inferred from the ▸ above.
         [
             InlineKeyboardButton(
-                _index_label(product), callback_data=f"{PRODUCT_PREFIX}{product['id']}"
+                _("✅ Open #{pid}").format(pid=selected["id"]),
+                callback_data=f"{PRODUCT_PREFIX}{selected['id']}",
             )
-        ]
-        for product in shown
+        ],
     ]
-
     if pages > 1:
-        # Only the arrows that lead somewhere. A greyed-out one still looks
-        # tappable, and tapping it does nothing — which reads as a broken button
-        # rather than as the end of the list.
-        pager = []
-        if current > 0:
-            pager.append(
-                InlineKeyboardButton("◀", callback_data=f"{LIST_GOTO_PREFIX}{current - 1}")
-            )
-        pager.append(
-            InlineKeyboardButton(
-                f"{current + 1}/{pages}", callback_data=f"{LIST_GOTO_PREFIX}{current}"
-            )
+        # Jump: a page at a time, and labelled as pages so the two rows cannot be
+        # read as the same control.
+        rows.append(
+            [
+                InlineKeyboardButton("⏪", callback_data=f"{LIST_GOTO_PREFIX}{(page - 1) % pages}"),
+                InlineKeyboardButton(
+                    _("Page {page}/{pages}").format(page=page + 1, pages=pages),
+                    callback_data=f"{LIST_GOTO_PREFIX}{page}",
+                ),
+                InlineKeyboardButton("⏩", callback_data=f"{LIST_GOTO_PREFIX}{(page + 1) % pages}"),
+            ]
         )
-        if current < pages - 1:
-            pager.append(
-                InlineKeyboardButton("▶", callback_data=f"{LIST_GOTO_PREFIX}{current + 1}")
-            )
-        rows.append(pager)
 
-    text = _("<b>📦 Your products ({count})</b>").format(count=len(products))
-    if pages > 1:
-        text += _("\n\nPage {page} of {pages} — tap a product to open it.").format(
-            page=current + 1, pages=pages
-        )
-    else:
-        text += _("\n\nTap a product to open it.")
-
-    return text, InlineKeyboardMarkup([*rows, *extra_rows, exits])
+    return "\n".join(lines), InlineKeyboardMarkup([*rows, *extra_rows, exits])
 
 
-def _index_label(product: dict[str, Any]) -> str:
-    """`#3 Name · shop — €429.00`, sized to stay one readable row."""
+def _price_tag(product: dict[str, Any]) -> str:
     price = _safe_dec(product.get("current_price"))
-    tail = f" — €{price:.2f}" if price else ""
-    return f"#{product['id']} {product_label(product, BUTTON_NAME_BUDGET)}{tail}"
+    return f" — €{price:.2f}" if price else ""
 
 
 def build_product_view(

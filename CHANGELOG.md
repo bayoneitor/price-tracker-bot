@@ -113,10 +113,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `/list` is two screens instead of one. It held a text index, one selected product's
   card and its action buttons all at once — and the buttons acted on whichever product
   the index had marked with a `▸`, so seven rows of buttons never said what any of them
-  would touch. The index is now one button per product, ten to a page and each carrying
-  its current price; tapping one opens that product, where the actions can only mean the
-  product named above them. Typing a number opens that product by id, which is what its
-  button shows, rather than by a position nothing on screen carried.
+  would touch.
+
+  The index is still written out, ten products to a page with their shop and their
+  current price and the cursor marked, but its buttons only *move*: one row steps the
+  cursor product by product, another jumps a page at a time, and a third opens what the
+  cursor is on, naming it so nothing has to be inferred from the `▸`. The two movements
+  are separate rows, at two speeds, so neither reads as the other. Both wrap, which keeps
+  each row the same shape at the ends — an arrow that vanishes moves its neighbours.
+
+  Acting on a product happens on the product's own screen, where every button sits under
+  the name it applies to. Typing a number opens that product by id, which is what each
+  line shows, rather than by a position nothing on screen carried.
 - The menu is organised around the product rather than the verb. It held four separate
   "pick a product" screens — Products, Prices, Price history, Notifications — each capped
   at eight or ten products and none able to page, jump or close, while the listing that

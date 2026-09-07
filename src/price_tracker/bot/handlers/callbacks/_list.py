@@ -24,10 +24,15 @@ from telegram.error import BadRequest
 from price_tracker.bot.handlers._helpers import _get_user_product, _parse_id
 from price_tracker.bot.handlers.product_list import (
     LIST_MESSAGE_KEY,
+    PAGE_SIZE,
     build_index_view,
     build_product_view,
 )
-from price_tracker.bot.keyboards import LIST_GOTO_PREFIX, PRODUCT_PREFIX
+from price_tracker.bot.keyboards import (
+    LIST_CURSOR_PREFIX,
+    LIST_GOTO_PREFIX,
+    PRODUCT_PREFIX,
+)
 from price_tracker.bot.messages import _
 
 if TYPE_CHECKING:
@@ -57,24 +62,35 @@ async def _extra_rows(db: Any, user_id: int) -> list[list[InlineKeyboardButton]]
 async def handle_list_navigation(
     query: Any, context: ContextTypes.DEFAULT_TYPE, db: Any, user_id: int, data: str
 ) -> bool:
-    """Handle `list_go_<page>` and `prod_<id>`. True when handled."""
+    """Handle the index's two movements and its one action. True when handled.
+
+    `list_cur_<i>` steps the cursor, `list_go_<page>` jumps a page, `prod_<id>`
+    opens what the cursor is on. The page follows from the cursor, so only the
+    cursor travels in the callback data and the two can never disagree.
+    """
     if data.startswith(PRODUCT_PREFIX):
         return await _open_product(query, context, user_id, data)
-    if not data.startswith(LIST_GOTO_PREFIX):
+
+    if data.startswith(LIST_CURSOR_PREFIX):
+        cursor = _parse_id(data.removeprefix(LIST_CURSOR_PREFIX))
+    elif data.startswith(LIST_GOTO_PREFIX):
+        page = _parse_id(data.removeprefix(LIST_GOTO_PREFIX))
+        # A page lands on its first product, which is where a reader looks.
+        cursor = None if page is None else page * PAGE_SIZE
+    else:
         return False
 
-    page = _parse_id(data.removeprefix(LIST_GOTO_PREFIX))
-    if page is None or page < 0:
-        # Tampered callback data: start from the first page rather than fail.
-        page = 0
+    if cursor is None or cursor < 0:
+        # Tampered callback data: start from the top rather than fail.
+        cursor = 0
 
     # Re-read: the index may be minutes old and products deleted since.
-    # build_index_view clamps the page, so a stale button lands on one that exists.
+    # build_index_view clamps the cursor, so a stale button lands somewhere valid.
     products = await db.get_active_products(user_id)
     message_id = getattr(getattr(query, "message", None), "message_id", None)
     text, keyboard = build_index_view(
         products,
-        page,
+        cursor,
         context=context,
         message_id=message_id,
         extra_rows=await _extra_rows(db, user_id),
@@ -83,7 +99,7 @@ async def handle_list_navigation(
 
     # Whichever message is showing the index is the one a typed id opens. Only
     # /list used to record this, so an index opened from the menu ignored the
-    # very numbers its buttons put on screen.
+    # very numbers its lines put on screen.
     if context.user_data is not None and message_id is not None:
         context.user_data[LIST_MESSAGE_KEY] = message_id
     return True

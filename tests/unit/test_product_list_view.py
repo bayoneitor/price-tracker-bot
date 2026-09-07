@@ -5,8 +5,10 @@ a single message holding a text index, one selected product's card and its actio
 buttons — but the buttons acted on whichever product the index had marked with a
 `▸`, so seven rows of buttons never said what any of them would touch.
 
-Two screens now: an index of ten buttons a page, each carrying its price, and a
-product's own screen where the actions can only mean the product named above them.
+Two screens now. The index is a written list — ten to a page, each with its shop
+and its price, the one under the cursor marked — and its buttons only move: one
+row steps the cursor, another jumps a page, a third opens what the cursor is on.
+The product's own screen is where the actions live, under the name they apply to.
 """
 
 from __future__ import annotations
@@ -21,13 +23,17 @@ from telegram.error import BadRequest
 from price_tracker.bot.handlers.callbacks._list import handle_list_navigation
 from price_tracker.bot.handlers.callbacks._nav import handle_close
 from price_tracker.bot.handlers.product_list import (
-    PAGE_SIZE,
     build_index_view,
     build_product_view,
     cmd_list,
     page_count,
 )
-from price_tracker.bot.keyboards import CLOSE_CALLBACK, LIST_GOTO_PREFIX, PRODUCT_PREFIX
+from price_tracker.bot.keyboards import (
+    CLOSE_CALLBACK,
+    LIST_CURSOR_PREFIX,
+    LIST_GOTO_PREFIX,
+    PRODUCT_PREFIX,
+)
 from price_tracker.bot.navigation import PendingInput
 
 
@@ -57,63 +63,98 @@ def _button_text(markup: Any) -> list[str]:
 # ── The index ────────────────────────────────────────────────────────────
 
 
-def test_every_product_on_the_page_gets_its_own_button() -> None:
-    products = [_product(i) for i in range(1, 4)]
+def test_the_page_is_written_out_with_shops_and_prices() -> None:
+    text, _markup = build_index_view([_product(i) for i in range(1, 4)], 0)
 
-    _text, markup = build_index_view(products, 0)
-
-    assert [f"{PRODUCT_PREFIX}{i}" for i in (1, 2, 3)] == [
-        d for d in _button_data(markup) if d.startswith(PRODUCT_PREFIX)
-    ]
+    for pid in (1, 2, 3):
+        assert f"#{pid} Widget {pid} · mediamarkt.es — €259.00" in text
 
 
-def test_a_button_carries_the_product_its_shop_and_its_price() -> None:
-    _text, markup = build_index_view([_product(3)], 0)
+def test_the_cursor_is_visible_in_the_text() -> None:
+    """The buttons act on one product; the reader has to be able to see which."""
+    text, _markup = build_index_view([_product(i) for i in range(1, 4)], 1)
 
-    label = next(t for t in _button_text(markup) if t.startswith("#3"))
-    assert "Widget 3" in label
-    assert "mediamarkt.es" in label
-    assert "€259.00" in label
+    assert "<b>▸ #2" in text
+    assert "<b>▸ #1" not in text
+    assert "<b>▸ #3" not in text
 
 
 def test_a_page_holds_ten_products_and_the_rest_wait() -> None:
-    products = [_product(i) for i in range(1, 26)]
+    text, _markup = build_index_view([_product(i) for i in range(1, 26)], 0)
 
-    _text, markup = build_index_view(products, 0)
+    assert "#10 " in text
+    assert "#11 " not in text
 
-    assert len([d for d in _button_data(markup) if d.startswith(PRODUCT_PREFIX)]) == PAGE_SIZE
+
+def test_the_page_follows_the_cursor() -> None:
+    """One piece of state travels, so the page and the cursor cannot disagree."""
+    text, _markup = build_index_view([_product(i) for i in range(1, 26)], 14)
+
+    assert "<b>▸ #15" in text
+    assert "#11 " in text
+    assert "#21 " not in text
 
 
-@pytest.mark.parametrize(("total", "pages"), [(0, 1), (1, 1), (10, 1), (11, 2), (20, 2), (21, 3)])
+@pytest.mark.parametrize(("total", "pages"), [(0, 1), (1, 1), (10, 1), (11, 2), (21, 3)])
 def test_pages_are_counted_from_the_products(total: int, pages: int) -> None:
     assert page_count(total) == pages
 
 
-def test_the_pager_appears_only_when_there_is_a_second_page() -> None:
-    _text, one = build_index_view([_product(i) for i in range(1, 5)], 0)
-    _text, many = build_index_view([_product(i) for i in range(1, 25)], 0)
+def test_the_two_movements_are_separate_rows() -> None:
+    """Stepping one product and jumping a page must not read as one control."""
+    products = [_product(i) for i in range(1, 26)]
 
-    assert not [d for d in _button_data(one) if d.startswith(LIST_GOTO_PREFIX)]
-    assert f"{LIST_GOTO_PREFIX}1" in _button_data(many)
+    _text, markup = build_index_view(products, 2)
+
+    step, open_row, page = (
+        markup.inline_keyboard[0],
+        markup.inline_keyboard[1],
+        markup.inline_keyboard[2],
+    )
+    assert [b.callback_data for b in step] == [
+        f"{LIST_CURSOR_PREFIX}1",
+        f"{LIST_CURSOR_PREFIX}2",
+        f"{LIST_CURSOR_PREFIX}3",
+    ]
+    assert open_row[0].callback_data == f"{PRODUCT_PREFIX}3"
+    assert [b.callback_data for b in page] == [
+        f"{LIST_GOTO_PREFIX}2",
+        f"{LIST_GOTO_PREFIX}0",
+        f"{LIST_GOTO_PREFIX}1",
+    ]
 
 
-def test_the_pager_does_not_wrap_past_the_ends() -> None:
-    """Wrapping made "next" on the last page look like it had failed."""
-    products = [_product(i) for i in range(1, 25)]
+def test_the_open_button_names_what_it_will_open() -> None:
+    """Nothing then has to be inferred from the ▸ in the text above."""
+    _text, markup = build_index_view([_product(i) for i in range(1, 4)], 1)
 
-    _text, first = build_index_view(products, 0)
-    _text, last = build_index_view(products, 2)
-
-    assert f"{LIST_GOTO_PREFIX}-1" not in _button_data(first)
-    assert f"{LIST_GOTO_PREFIX}3" not in _button_data(last)
+    assert "#2" in markup.inline_keyboard[1][0].text
 
 
-def test_a_page_past_the_end_is_clamped_not_raised() -> None:
+def test_the_step_row_keeps_its_shape_at_both_ends() -> None:
+    """An arrow that vanishes moves every button beside it."""
+    products = [_product(i) for i in range(1, 4)]
+
+    _t, first = build_index_view(products, 0)
+    _t, last = build_index_view(products, 2)
+
+    assert len(first.inline_keyboard[0]) == len(last.inline_keyboard[0]) == 3
+    # …by wrapping, which the position indicator makes legible.
+    assert first.inline_keyboard[0][0].callback_data == f"{LIST_CURSOR_PREFIX}2"
+    assert last.inline_keyboard[0][2].callback_data == f"{LIST_CURSOR_PREFIX}0"
+
+
+def test_a_single_page_has_no_page_row() -> None:
+    _text, markup = build_index_view([_product(1), _product(2)], 0)
+
+    assert not [d for d in _button_data(markup) if d.startswith(LIST_GOTO_PREFIX)]
+
+
+def test_a_cursor_past_the_end_is_clamped_not_raised() -> None:
     """A stale button from an index whose products have since been deleted."""
-    text, markup = build_index_view([_product(1)], 99)
+    text, _markup = build_index_view([_product(1)], 99)
 
-    assert "#1" in " ".join(_button_text(markup))
-    assert text
+    assert "<b>▸ #1" in text
 
 
 def test_an_empty_list_still_offers_a_way_out() -> None:
@@ -430,14 +471,12 @@ async def test_a_stale_index_reference_is_dropped() -> None:
     assert "list_message_id" not in context.user_data
 
 
-def test_the_pager_shows_only_arrows_that_lead_somewhere() -> None:
-    """A greyed-out arrow still looks tappable and does nothing."""
-    products = [_product(i) for i in range(1, 25)]
+def test_the_page_row_wraps_so_it_keeps_its_shape() -> None:
+    """Same reason as the step row: a vanishing arrow moves its neighbours."""
+    products = [_product(i) for i in range(1, 26)]
 
     _t, first = build_index_view(products, 0)
-    _t, middle = build_index_view(products, 1)
-    _t, last = build_index_view(products, 2)
+    _t, last = build_index_view(products, 20)
 
-    assert [b.text for b in first.inline_keyboard[-2]] == ["1/3", "▶"]
-    assert [b.text for b in middle.inline_keyboard[-2]] == ["◀", "2/3", "▶"]
-    assert [b.text for b in last.inline_keyboard[-2]] == ["◀", "3/3"]
+    assert first.inline_keyboard[2][0].callback_data == f"{LIST_GOTO_PREFIX}2"
+    assert last.inline_keyboard[2][2].callback_data == f"{LIST_GOTO_PREFIX}0"

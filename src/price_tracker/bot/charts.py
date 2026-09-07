@@ -291,11 +291,12 @@ async def generate_chart(db: Any, product_id: int, product: dict[str, Any]) -> i
     which is the whole point of importing it.
     """
     backfilled = bool(product.get("history_source"))
-    days = CHART_MAX_WINDOW_DAYS if backfilled else CHART_WINDOW_DAYS
+    # Imported history is the reason the chart exists on add day: crop nothing.
+    # Live-only products still sit in the 90-day window so a long-tracked item
+    # does not flatten into a decade of noise.
+    since = None if backfilled else chart_window(CHART_WINDOW_DAYS)
     limit = CHART_MAX_ROWS if backfilled else 500
-    histories = await db.get_price_change_points(
-        [product_id], since=chart_window(days), limit_per_product=limit
-    )
+    histories = await db.get_price_change_points([product_id], since=since, limit_per_product=limit)
     dates, prices, sources = _points(histories.get(product_id, ()))
     if len(dates) < 2:
         return None

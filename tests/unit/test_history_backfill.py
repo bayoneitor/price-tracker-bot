@@ -13,7 +13,11 @@ from decimal import Decimal
 from typing import TYPE_CHECKING, Any
 from unittest.mock import AsyncMock
 
-from price_tracker.bot.handlers._history_backfill import backfill_history
+from price_tracker.bot.handlers._history_backfill import (
+    _average_price,
+    backfill_history,
+    send_backfill_chart,
+)
 from price_tracker.core.history_base import AbstractHistoryProvider, HistoryPoint, HistoryResult
 from price_tracker.core.registry import HistoryRegistry
 
@@ -326,6 +330,7 @@ async def test_the_outcome_carries_the_count_source_and_earliest_date() -> None:
     assert outcome.source == "keepa"
     assert outcome.first_observed_at == datetime(2026, 1, 1, tzinfo=UTC)
     assert outcome.lowest_price == Decimal("40")
+    assert outcome.average_price == Decimal("42.33")  # (40+42+45)/3
 
 
 async def test_a_zero_write_count_is_treated_as_a_miss() -> None:
@@ -348,3 +353,56 @@ async def test_a_zero_write_count_is_treated_as_a_miss() -> None:
     )
 
     assert outcome is None
+
+
+def test_average_price_rounds_half_up() -> None:
+    # 30.01 / 3 = 10.0033... → 10.00
+    assert _average_price((_point(1, "10.00"), _point(2, "10.00"), _point(3, "10.01"))) == Decimal(
+        "10.00"
+    )
+    # 20.01 / 2 = 10.005 → 10.01
+    assert _average_price((_point(1, "10.00"), _point(2, "10.01"))) == Decimal("10.01")
+
+
+async def test_send_backfill_chart_posts_a_photo(monkeypatch: Any) -> None:
+    from io import BytesIO
+    from unittest.mock import MagicMock
+
+    lookup = {
+        "lowest_price": Decimal("35"),
+        "highest_price": Decimal("50"),
+        "name": "Widget",
+        "alias": None,
+        "url": "https://example.com/p",
+        "domain": "example.com",
+        "history_source": "keepa",
+        "created_at": "2026-01-01 00:00:00",
+    }
+    product = MagicMock()
+    product.get.side_effect = lambda key, default=None: lookup.get(key, default)
+    db = AsyncMock()
+    db.get_product = AsyncMock(return_value=product)
+
+    async def fake_chart(*args: object, **kwargs: object) -> BytesIO:
+        return BytesIO(b"png")
+
+    monkeypatch.setattr("price_tracker.bot.handlers._history_backfill.generate_chart", fake_chart)
+    message = AsyncMock()
+
+    await send_backfill_chart(message, db, 12, currency="EUR", average_price=Decimal("40.00"))
+
+    message.reply_photo.assert_awaited()
+    caption = message.reply_photo.await_args.kwargs["caption"]
+    assert "Min" in caption
+    assert "Avg" in caption
+    assert "Max" in caption
+
+
+async def test_send_backfill_chart_swallows_a_renderer_failure() -> None:
+    db = AsyncMock()
+    db.get_product = AsyncMock(side_effect=RuntimeError("db down"))
+    message = AsyncMock()
+
+    await send_backfill_chart(message, db, 12, currency="EUR", average_price=Decimal("40.00"))
+
+    message.reply_photo.assert_not_called()

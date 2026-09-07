@@ -88,8 +88,7 @@ async def test_a_backfilled_product_asks_the_wider_window() -> None:
     await _rendered(db, product)
 
     call_kwargs = db.get_price_change_points.await_args.kwargs
-    since = datetime.strptime(call_kwargs["since"], "%Y-%m-%d %H:%M:%S").replace(tzinfo=UTC)
-    assert (datetime.now(UTC) - since).days == charts.CHART_MAX_WINDOW_DAYS
+    assert call_kwargs["since"] is None
     assert call_kwargs["limit_per_product"] == charts.CHART_MAX_ROWS
 
 

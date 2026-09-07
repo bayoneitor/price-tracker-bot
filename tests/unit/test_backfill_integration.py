@@ -177,6 +177,9 @@ async def test_a_discovered_plugin_actually_backfills_the_database(
     card = msg.edit_text.await_args.args[0]
     assert "Imported 2 historical prices" in card
     assert "fakekeepa" in card
+    assert "Lowest ever" in card
+    assert "Average" in card
+    msg.reply_photo.assert_awaited()
 
     product = await repo.get_product_by_url_for_user(URL, 1)
     assert product is not None

@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-09-07 13:52+0200\n"
+"POT-Creation-Date: 2026-09-07 16:02+0200\n"
 "PO-Revision-Date: 2026-09-04 11:53+0200\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: es_ES\n"
@@ -459,6 +459,21 @@ msgstr "❌ Producto no encontrado."
 #: src/price_tracker/bot/handlers/product_list.py:285
 msgid "📭 You have no tracked products."
 msgstr "📭 No tienes productos en seguimiento."
+
+#: src/price_tracker/bot/handlers/_history_backfill.py:217
+#, python-brace-format
+msgid "📉 Min: {price}"
+msgstr "📉 Mín: {price}"
+
+#: src/price_tracker/bot/handlers/_history_backfill.py:218
+#, python-brace-format
+msgid "📊 Avg: {price}"
+msgstr "📊 Media: {price}"
+
+#: src/price_tracker/bot/handlers/_history_backfill.py:220
+#, python-brace-format
+msgid "📈 Max: {price}"
+msgstr "📈 Máx: {price}"
 
 #: src/price_tracker/bot/handlers/auth.py:30
 msgid ""
@@ -1267,13 +1282,13 @@ msgstr "🌐 Sitio: {domain}"
 msgid ""
 "\n"
 "📈 Imported {count} historical prices since {date} (via {source}).\n"
-"🏷 Lowest ever: <b>{low}</b>"
+"🏷 Lowest ever: <b>{low}</b> · Average: <b>{avg}</b>"
 msgstr ""
 "\n"
 "📈 Se importaron {count} precios históricos desde {date} (vía {source}).\n"
-"🏷 El más bajo: <b>{low}</b>"
+"🏷 El más bajo: <b>{low}</b> · Media: <b>{avg}</b>"
 
-#: src/price_tracker/bot/handlers/product.py:409
+#: src/price_tracker/bot/handlers/product.py:410
 msgid ""
 "\n"
 "📋 <b>Amazon preferences:</b>"
@@ -1281,27 +1296,27 @@ msgstr ""
 "\n"
 "📋 <b>Preferencias de Amazon:</b>"
 
-#: src/price_tracker/bot/handlers/product.py:412
+#: src/price_tracker/bot/handlers/product.py:413
 msgid "🆕 New only"
 msgstr "🆕 Solo nuevo"
 
-#: src/price_tracker/bot/handlers/product.py:413
+#: src/price_tracker/bot/handlers/product.py:414
 msgid "♻️ Used only"
 msgstr "♻️ Solo usado"
 
-#: src/price_tracker/bot/handlers/product.py:417
+#: src/price_tracker/bot/handlers/product.py:418
 msgid "📦 Amazon only"
 msgstr "📦 Solo Amazon"
 
-#: src/price_tracker/bot/handlers/product.py:420
+#: src/price_tracker/bot/handlers/product.py:421
 msgid "🏪 Any seller"
 msgstr "🏪 Cualquier vendedor"
 
-#: src/price_tracker/bot/handlers/product.py:425
+#: src/price_tracker/bot/handlers/product.py:426
 msgid "👍 Anything goes (default)"
 msgstr "👍 Me vale cualquiera (por defecto)"
 
-#: src/price_tracker/bot/handlers/product.py:432
+#: src/price_tracker/bot/handlers/product.py:433
 msgid ""
 "\n"
 "<b>How do you want to be notified?</b>"
@@ -1309,20 +1324,20 @@ msgstr ""
 "\n"
 "<b>¿Cómo quieres que te avise?</b>"
 
-#: src/price_tracker/bot/handlers/product.py:443
+#: src/price_tracker/bot/handlers/product.py:444
 #, python-brace-format
 msgid "🎯 Alert at its lowest ever ({price})"
 msgstr "🎯 Avisar en su precio más bajo ({price})"
 
-#: src/price_tracker/bot/handlers/product.py:453
+#: src/price_tracker/bot/handlers/product.py:454
 msgid "🔔 Alert on every drop"
 msgstr "🔔 Avisar en cada bajada"
 
-#: src/price_tracker/bot/handlers/product.py:456
+#: src/price_tracker/bot/handlers/product.py:457
 msgid "🏁 Pick my own target"
 msgstr "🏁 Elegir mi propio objetivo"
 
-#: src/price_tracker/bot/handlers/product.py:464
+#: src/price_tracker/bot/handlers/product.py:465
 msgid "✏️ Give it a name"
 msgstr "✏️ Ponle un nombre"
 
@@ -2353,11 +2368,15 @@ msgstr ""
 "\n"
 "Toca para añadir o quitar."
 
-#: src/price_tracker/bot/handlers/callbacks/_keepa.py:53
+#: src/price_tracker/bot/handlers/callbacks/_keepa.py:62
 msgid "❌ No Amazon ASIN found for this product."
 msgstr "❌ No se encontró un ASIN de Amazon para este producto."
 
-#: src/price_tracker/bot/handlers/callbacks/_keepa.py:60
+#: src/price_tracker/bot/handlers/callbacks/_keepa.py:79
+msgid "📉 Keepa has no graph for this product right now."
+msgstr "📉 Keepa no tiene un gráfico para este producto ahora mismo."
+
+#: src/price_tracker/bot/handlers/callbacks/_keepa.py:84
 #, python-brace-format
 msgid ""
 "📈 <b>#{pid}</b> {name}\n"

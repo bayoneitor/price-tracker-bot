@@ -30,9 +30,22 @@ def _db(product: dict[str, Any] | None) -> AsyncMock:
     return db
 
 
-def _context(db: AsyncMock) -> MagicMock:
+PNG = b"\x89PNG\r\n\x1a\n" + b"fake image bytes"
+
+
+def _context(db: AsyncMock, *, response: MagicMock | None = None) -> MagicMock:
+    """A context whose shared HTTP client answers the Keepa graph request.
+
+    The handler downloads the PNG itself — Keepa serves that endpoint by
+    User-Agent and 403s anything that is not a browser, Telegram's own
+    fetcher included — so a test has to provide the client, not just the db.
+    """
+    if response is None:
+        response = MagicMock(status_code=200, content=PNG, headers={"content-type": "image/png"})
+    client = MagicMock()
+    client.get = AsyncMock(return_value=response)
     context = MagicMock()
-    context.bot_data = {"db": db}
+    context.bot_data = {"db": db, "http_client": client}
     context.user_data = {NAV_KEY: {10: ["prod_5"]}}
     return context
 
@@ -48,18 +61,70 @@ def _amazon_product(**extra: Any) -> dict[str, Any]:
 
 
 @pytest.mark.asyncio
-async def test_sends_keepas_own_png_by_url() -> None:
+async def test_asks_keepa_for_the_right_graph() -> None:
+    db = _db(_amazon_product())
+    query = _query()
+    context = _context(db)
+
+    handled = await handle_keepa_button(query, context, db, 1, "keepa_5")
+
+    assert handled is True
+    requested = context.bot_data["http_client"].get.await_args.args[0]
+    assert requested == (
+        "https://graph.keepa.com/pricehistory.png?asin=B0CX23V2ZK&domain=9&range=365"
+    )
+
+
+@pytest.mark.asyncio
+async def test_the_request_carries_a_browser_user_agent() -> None:
+    """Keepa 403s anything that is not a browser — including Telegram's own
+    fetcher, which is why the URL is not simply handed to `reply_photo`."""
+    db = _db(_amazon_product())
+    context = _context(db)
+
+    await handle_keepa_button(_query(), context, db, 1, "keepa_5")
+
+    headers = context.bot_data["http_client"].get.await_args.kwargs["headers"]
+    assert "Mozilla/5.0" in headers["User-Agent"]
+
+
+@pytest.mark.asyncio
+async def test_the_photo_is_uploaded_not_linked() -> None:
     db = _db(_amazon_product())
     query = _query()
 
-    handled = await handle_keepa_button(query, _context(db), db, 1, "keepa_5")
+    await handle_keepa_button(query, _context(db), db, 1, "keepa_5")
+
+    photo = query.message.reply_photo.await_args.kwargs["photo"]
+    assert not isinstance(photo, str)  # bytes we fetched, not a URL
+
+
+@pytest.mark.asyncio
+async def test_a_refused_graph_keeps_the_panel_instead_of_losing_it() -> None:
+    """The panel is deleted only once the image is in hand: a 403 used to
+    delete it first and then raise on the send, losing both."""
+    db = _db(_amazon_product())
+    query = _query()
+    refused = MagicMock(status_code=403, content=b"<html>no</html>", headers={})
+
+    handled = await handle_keepa_button(query, _context(db, response=refused), db, 1, "keepa_5")
 
     assert handled is True
-    kwargs = query.message.reply_photo.await_args.kwargs
-    assert (
-        kwargs["photo"]
-        == "https://graph.keepa.com/pricehistory.png?asin=B0CX23V2ZK&domain=9&range=365"
-    )
+    query.message.delete.assert_not_awaited()
+    query.message.reply_photo.assert_not_awaited()
+    query.edit_message_text.assert_awaited()
+
+
+@pytest.mark.asyncio
+async def test_a_non_png_body_with_a_200_is_still_refused() -> None:
+    """An HTML error page served with a 200 must not reach Telegram as a photo."""
+    db = _db(_amazon_product())
+    query = _query()
+    html = MagicMock(status_code=200, content=b"<html>nope</html>", headers={})
+
+    await handle_keepa_button(query, _context(db, response=html), db, 1, "keepa_5")
+
+    query.message.reply_photo.assert_not_awaited()
 
 
 @pytest.mark.asyncio

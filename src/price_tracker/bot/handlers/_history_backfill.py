@@ -18,14 +18,23 @@ import dataclasses
 import logging
 from dataclasses import dataclass
 from datetime import UTC, datetime
+from decimal import ROUND_HALF_UP, Decimal
 from typing import TYPE_CHECKING, Any
 
+from telegram import InlineKeyboardMarkup, InputFile
+from telegram.constants import ParseMode
+
+from price_tracker.bot.charts import generate_chart
+from price_tracker.bot.decorators import _convert_display
+from price_tracker.bot.handlers._helpers import _escape_html
+from price_tracker.bot.keyboards import close_button
+from price_tracker.bot.labels import product_label
+from price_tracker.bot.messages import _
 from price_tracker.core.currency import convert_to_eur
 
 if TYPE_CHECKING:
-    from decimal import Decimal
-
     import httpx
+    from telegram import Message
 
     from price_tracker.core.history_base import HistoryPoint
     from price_tracker.core.registry import HistoryRegistry
@@ -45,6 +54,7 @@ class BackfillOutcome:
     source: str
     first_observed_at: datetime
     lowest_price: Decimal
+    average_price: Decimal
 
 
 async def backfill_history(
@@ -71,10 +81,21 @@ async def backfill_history(
     if history_registry is None:
         return None
     cutoff = added_at or datetime.now(UTC)
+    providers = history_registry.resolve_all(url)
+    if not providers:
+        logger.info("No history provider claimed %s", url[:80])
+        return None
 
-    for provider in history_registry.resolve_all(url):
+    for provider in providers:
         result = await _fetch_one(provider, url, client)
         if result is None or result.error is not None:
+            if result is not None and result.error:
+                logger.info(
+                    "History provider %s missed %s: %s",
+                    provider.name,
+                    url[:80],
+                    result.error,
+                )
             continue
         points = _usable_points(result.points, before=cutoff)
         if not points:
@@ -93,8 +114,14 @@ async def backfill_history(
             source=provider.name,
             first_observed_at=min(p.observed_at for p in points),
             lowest_price=min(p.price for p in points),
+            average_price=_average_price(points),
         )
     return None
+
+
+def _average_price(points: tuple[HistoryPoint, ...]) -> Decimal:
+    total = sum((p.price for p in points), Decimal("0"))
+    return (total / Decimal(len(points))).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
 
 
 async def _fetch_one(provider: Any, url: str, client: httpx.AsyncClient) -> Any:
@@ -159,3 +186,45 @@ async def _matched_currency(
         price = await convert_to_eur(db, point.price, from_currency, client)
         converted.append(dataclasses.replace(point, price=price))
     return tuple(converted)
+
+
+async def send_backfill_chart(
+    message: Message,
+    db: Any,
+    product_id: int,
+    *,
+    currency: str,
+    average_price: Decimal,
+) -> None:
+    """Attach the full imported+live chart to the confirmation. Never raises.
+
+    A missing product, a sparse history, or matplotlib failing must not turn a
+    successful add into an error the reader has to act on — the card already
+    carried the numbers.
+    """
+    try:
+        product = await db.get_product(product_id)
+        if product is None:
+            return
+        chart_buf = await generate_chart(db, product_id, product)
+        if chart_buf is None:
+            return
+        lowest = product.get("lowest_price")
+        highest = product.get("highest_price")
+        caption = f"📊 <b>#{product_id}</b> {_escape_html(product_label(product))}"
+        extras: list[str] = []
+        if lowest is not None:
+            extras.append(_("📉 Min: {price}").format(price=_convert_display(lowest, currency)))
+        extras.append(_("📊 Avg: {price}").format(price=_convert_display(average_price, currency)))
+        if highest is not None:
+            extras.append(_("📈 Max: {price}").format(price=_convert_display(highest, currency)))
+        if extras:
+            caption += "\n" + " · ".join(extras)
+        await message.reply_photo(
+            photo=InputFile(chart_buf, filename=f"chart_{product_id}.png"),
+            caption=caption,
+            parse_mode=ParseMode.HTML,
+            reply_markup=InlineKeyboardMarkup([[close_button()]]),
+        )
+    except Exception:  # noqa: BLE001 — the add already succeeded
+        logger.exception("Could not send the backfill chart for product %s", product_id)

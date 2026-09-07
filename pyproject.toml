@@ -30,6 +30,11 @@ dependencies = [
     # keeps a future re-resolve from ever landing back on a vulnerable build.
     "aiohttp>=3.14.3",
     "babel>=2.18.0",
+    # History-provider plugins and playwright_fallback launch Chromium.
+    # The image already ships the matching system libs; without the Python
+    # package `python -m playwright install` is a no-op and every backfill
+    # is a silent miss.
+    "playwright>=1.47",
 ]
 
 [project.urls]

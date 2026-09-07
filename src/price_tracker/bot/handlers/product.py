@@ -42,7 +42,7 @@ from price_tracker.bot.handlers._helpers import (
     _safe_dec,
     product_picker,
 )
-from price_tracker.bot.handlers._history_backfill import backfill_history
+from price_tracker.bot.handlers._history_backfill import backfill_history, send_backfill_chart
 from price_tracker.bot.keyboards import build_threshold_keyboard, close_button
 from price_tracker.bot.messages import _
 
@@ -395,12 +395,13 @@ async def _add_product(
         lines.append(
             _(
                 "\n📈 Imported {count} historical prices since {date} (via {source}).\n"
-                "🏷 Lowest ever: <b>{low}</b>"
+                "🏷 Lowest ever: <b>{low}</b> · Average: <b>{avg}</b>"
             ).format(
                 count=backfill.count,
                 date=backfill.first_observed_at.strftime("%Y-%m-%d"),
                 source=backfill.source,
                 low=_convert_display(backfill.lowest_price, currency),
+                avg=_convert_display(backfill.average_price, currency),
             )
         )
 
@@ -471,6 +472,14 @@ async def _add_product(
         disable_web_page_preview=True,
         reply_markup=keyboard,
     )
+    if backfill is not None:
+        await send_backfill_chart(
+            msg,
+            db,
+            product_id,
+            currency=currency,
+            average_price=backfill.average_price,
+        )
 
 
 def register(app: Application) -> None:

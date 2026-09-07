@@ -35,11 +35,14 @@ RUN useradd -m -r -u 1000 botuser && \
     chown -R botuser:botuser /data /home/botuser /app
 
 COPY --from=builder --chown=botuser:botuser /root/.local /home/botuser/.local
-ENV PATH=/home/botuser/.local/bin:$PATH
+ENV PATH=/home/botuser/.local/bin:$PATH \
+    PLAYWRIGHT_BROWSERS_PATH=/home/botuser/.local/ms-playwright
 
-# Install playwright chromium as botuser
+# Chromium lives under `.local`, not `.cache`: compose mounts a tmpfs on
+# `/home/botuser/.cache` (matplotlib needs to write there) which would hide
+# a browser installed in the default Playwright cache.
 USER botuser
-RUN python -m playwright install chromium 2>/dev/null || true
+RUN python -m playwright install chromium
 
 WORKDIR /app
 COPY --chown=botuser:botuser src ./src

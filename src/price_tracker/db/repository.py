@@ -151,7 +151,7 @@ class Repository:
 
     async def get_user(self, user_id: int) -> UserRecord | None:
         cursor = await self._conn.execute(
-            "SELECT user_id, is_admin, is_active, display_name, username "
+            "SELECT user_id, is_admin, is_active, display_name, username, language_code "
             "FROM users WHERE user_id = ?",
             (user_id,),
         )
@@ -164,7 +164,20 @@ class Repository:
             is_active=bool(row[2]),
             display_name=row[3],
             username=row[4],
+            language_code=row[5],
         )
+
+    async def get_user_language(self, user_id: int) -> str | None:
+        """The language code last seen for this user, or None if never seen.
+
+        Its own query rather than `get_user`: the notification path asks this
+        once per message and needs one column, not a record.
+        """
+        cursor = await self._conn.execute(
+            "SELECT language_code FROM users WHERE user_id = ?", (user_id,)
+        )
+        row = await cursor.fetchone()
+        return row[0] if row else None
 
     async def update_user_info(
         self,
@@ -172,11 +185,13 @@ class Repository:
         *,
         display_name: str | None = None,
         username: str | None = None,
+        language_code: str | None = None,
     ) -> None:
         await self._conn.execute(
             "UPDATE users SET display_name = COALESCE(?, display_name), "
-            "username = COALESCE(?, username) WHERE user_id = ?",
-            (display_name, username, user_id),
+            "username = COALESCE(?, username), "
+            "language_code = COALESCE(?, language_code) WHERE user_id = ?",
+            (display_name, username, language_code, user_id),
         )
         await self._conn.commit()
 
@@ -193,7 +208,7 @@ class Repository:
 
     async def list_users(self) -> list[UserRecord]:
         cursor = await self._conn.execute(
-            "SELECT user_id, is_admin, is_active, display_name, username FROM users"
+            "SELECT user_id, is_admin, is_active, display_name, username, language_code FROM users"
         )
         rows = await cursor.fetchall()
         return [
@@ -203,13 +218,14 @@ class Repository:
                 is_active=bool(r[2]),
                 display_name=r[3],
                 username=r[4],
+                language_code=r[5],
             )
             for r in rows
         ]
 
     async def list_active_users(self) -> list[UserRecord]:
         cursor = await self._conn.execute(
-            "SELECT user_id, is_admin, is_active, display_name, username "
+            "SELECT user_id, is_admin, is_active, display_name, username, language_code "
             "FROM users WHERE is_active = 1"
         )
         rows = await cursor.fetchall()
@@ -220,6 +236,7 @@ class Repository:
                 is_active=bool(r[2]),
                 display_name=r[3],
                 username=r[4],
+                language_code=r[5],
             )
             for r in rows
         ]

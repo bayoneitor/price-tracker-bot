@@ -270,6 +270,13 @@ Drop a custom scraper file in `plugins/<name>.py` (gitignored except `README.md`
 
 Three locales shipped: `en` (source language), `it_IT` and `es_ES`. Runtime selection auto-detects from Telegram `language_code`, falls back to the `LOCALE` environment variable, then to `en`. `LOCALE` is the fallback for clients whose language has no catalog — a supported client language always wins over it. To add a translation, see [docs/i18n.md](docs/i18n.md).
 
+This applies to notifications too, not only to replies. A price drop, a restock,
+an operational notice and a digest are composed by background jobs that are
+answering no message, so the language code Telegram reports is stored on each
+authorized interaction and read back at send time. Two users on one sweep each
+get their own language; `LOCALE` covers anyone who has not spoken to the bot
+since that column landed.
+
 ## Project structure
 
 ```

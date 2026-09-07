@@ -42,6 +42,9 @@ class UserRecord(_DictCompatMixin):
     is_active: bool
     display_name: str | None = None
     username: str | None = None
+    # What Telegram reported on this user's last update. Kept because the
+    # scheduler composes messages with no update in front of it.
+    language_code: str | None = None
 
 
 @dataclass(frozen=True)

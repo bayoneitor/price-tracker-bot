@@ -26,6 +26,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Notifications are written in the language of the person receiving them. Handlers
+  resolved a locale from the update they were answering, but the scheduler answers no
+  update: price drops, restocks, quarantine and operational notices, and digests were
+  all composed under one `LOCALE` for the whole deployment — a Spanish reader whose
+  every interactive reply was in Spanish still got "📉 Price drop!". The
+  `language_code` Telegram sends on each update is now stored (migration 018, written
+  by the same best-effort call that already recorded display name and username) and
+  read back at send time. Two users in one sweep each get their own language; `LOCALE`
+  remains the fallback for anyone who has not spoken to the bot since.
+
 - A product's **✏️ Edit** panel can set its alias. The button existed only in the
   moment right after adding a product (`setalias_<id>`, wired since the alias
   feature landed) — miss that screen and there was no way back to it. It is a

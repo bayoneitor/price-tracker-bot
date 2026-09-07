@@ -9,6 +9,7 @@ Three flush triggers:
 
 from __future__ import annotations
 
+import contextlib
 import json
 import logging
 from datetime import UTC, datetime
@@ -174,6 +175,18 @@ class DigestService:
         self._metrics = metrics
         self._lang = lang
 
+    async def _user_lang(self, user_id: int) -> str | None:
+        """The recipient's language, falling back to the deployment's.
+
+        Checked rather than trusted: the column is nullable, and a background
+        job is the worst place to discover that a stored value is not a string.
+        """
+        with contextlib.suppress(Exception):
+            lang = await self._repo.get_user_language(user_id)
+            if isinstance(lang, str) and lang:
+                return lang
+        return self._lang
+
     async def enqueue(
         self, *, user_id: int, product_id: int | None, payload: dict[str, Any]
     ) -> int:
@@ -187,11 +200,20 @@ class DigestService:
         )
 
     async def flush_user(self, *, user_id: int) -> int:
-        """Flush all pending digest entries for a single user. Returns count flushed."""
+        """Flush all pending digest entries for a single user. Returns count flushed.
+
+        Rendered in that user's language: a digest is composed by a background
+        job, with no update in front of it to read a locale off, and its readers
+        do not all speak the deployment's.
+        """
         entries = await self._repo.list_pending_digest(user_id=user_id)
         if not entries:
             return 0
-        header, blocks, footer, unrenderable_ids = _digest_blocks(entries)
+        token = set_locale(await self._user_lang(user_id))
+        try:
+            header, blocks, footer, unrenderable_ids = _digest_blocks(entries)
+        finally:
+            reset_locale(token)
         pages = paginate(header, blocks, footer)
         flushed_count = 0
         unrenderable_pending = unrenderable_ids.copy()
@@ -224,23 +246,22 @@ class DigestService:
         Per-user ``digest_interval_minutes`` is honoured; ``interval_minutes`` is the
         fallback when a user has no stored preference.
         """
-        token = set_locale(self._lang)
-        try:
-            flushed_total = 0
-            users = await self._repo.list_users_with_pending_digest()
-            now = datetime.now(UTC)
-            for user_id, oldest_enqueued_at in users:
-                prefs = await self._repo.get_notification_prefs(user_id=user_id, product_id=None)
-                threshold = (
-                    prefs.digest_interval_minutes
-                    if prefs is not None and prefs.digest_interval_minutes
-                    else interval_minutes
-                )
-                age = (now - oldest_enqueued_at).total_seconds() / 60.0
-                if _row_is_quiet(prefs, now=now) if prefs is not None else False:
-                    continue
-                if age >= threshold:
-                    flushed_total += await self.flush_user(user_id=user_id)
-            return flushed_total
-        finally:
-            reset_locale(token)
+        # No locale is set here: `flush_user` sets each recipient's own, and one
+        # set for the whole run would be the wrong language for all but one of
+        # them.
+        flushed_total = 0
+        users = await self._repo.list_users_with_pending_digest()
+        now = datetime.now(UTC)
+        for user_id, oldest_enqueued_at in users:
+            prefs = await self._repo.get_notification_prefs(user_id=user_id, product_id=None)
+            threshold = (
+                prefs.digest_interval_minutes
+                if prefs is not None and prefs.digest_interval_minutes
+                else interval_minutes
+            )
+            age = (now - oldest_enqueued_at).total_seconds() / 60.0
+            if _row_is_quiet(prefs, now=now) if prefs is not None else False:
+                continue
+            if age >= threshold:
+                flushed_total += await self.flush_user(user_id=user_id)
+        return flushed_total

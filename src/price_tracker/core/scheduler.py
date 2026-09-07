@@ -17,7 +17,9 @@ Two dispatch modes:
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import logging
+from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING, Any, Protocol, cast
@@ -60,6 +62,7 @@ from price_tracker.core.textlimits import NAME_BUDGET, WHY_BUDGET, truncate_visi
 from price_tracker.core.url_utils import extract_etld_plus_one
 
 if TYPE_CHECKING:
+    from collections.abc import AsyncIterator
     from decimal import Decimal
 
     from price_tracker.core.registry import ScraperRegistry
@@ -442,28 +445,29 @@ class Scheduler:
         Called only on the CLOSED → LOCKED transition. The notifier runs under a
         broad try/except so a flaky transport never aborts the scheduler tick.
         """
-        message = format_quarantine_notification(
-            domain=domain,
-            reason=reason,
-            locked_until=self.deps.health_mgr.locked_until(domain),
-        )
         product_name = truncate_visible(product.name or product.url, NAME_BUDGET)
-        await self._notify(
-            product.user_id,
-            message,
-            product_id=None,
-            payload={
-                "kind": "operational",
-                "event": "quarantine",
-                "domain": domain,
-                "products": [{"id": product.id, "name": product_name, "why": "blocked"}],
-                "count": 1,
-                "event_id": (
-                    f"ops:quarantine:{product.user_id}:{domain}:"
-                    f"{self.deps.health_mgr.locked_until(domain) or 'none'}"
-                ),
-            },
-        )
+        async with self._as_reader(product.user_id):
+            message = format_quarantine_notification(
+                domain=domain,
+                reason=reason,
+                locked_until=self.deps.health_mgr.locked_until(domain),
+            )
+            await self._notify(
+                product.user_id,
+                message,
+                product_id=None,
+                payload={
+                    "kind": "operational",
+                    "event": "quarantine",
+                    "domain": domain,
+                    "products": [{"id": product.id, "name": product_name, "why": "blocked"}],
+                    "count": 1,
+                    "event_id": (
+                        f"ops:quarantine:{product.user_id}:{domain}:"
+                        f"{self.deps.health_mgr.locked_until(domain) or 'none'}"
+                    ),
+                },
+            )
 
     async def _record_failure_and_maybe_disable(
         self,
@@ -585,12 +589,15 @@ class Scheduler:
         }
 
     async def _flush_notices(self, collector: NoticeCollector) -> None:
-        """Render and send every group, isolating failures per group."""
-        token = set_locale(self.deps.lang)
+        """Render and send every group, isolating failures per group.
+
+        The locale is set per group rather than once for the sweep: groups
+        belong to different users, who do not have to read the same language.
+        """
         sweep_started_at = datetime.now(UTC)
-        try:
-            for group in collector.groups():
-                try:
+        for group in collector.groups():
+            try:
+                async with self._as_reader(group.user_id):
                     text = (
                         format_operational_notice(group)
                         if group.event == "suspended"
@@ -602,22 +609,20 @@ class Scheduler:
                         product_id=None,
                         payload=self._operational_payload(group, sweep_started_at),
                     )
-                    if not delivered:
-                        logger.warning(
-                            "Operational notice was not delivered (user_id=%d, group_key=%s, "
-                            "product_ids=%s)",
-                            group.user_id,
-                            group.group_key,
-                            [event.product_id for event in group.events],
-                        )
-                except Exception:  # noqa: BLE001 — one group must not block the remaining groups
-                    logger.exception(
-                        "Failed to render or deliver operational notice (user_id=%d, group_key=%s)",
+                if not delivered:
+                    logger.warning(
+                        "Operational notice was not delivered (user_id=%d, group_key=%s, "
+                        "product_ids=%s)",
                         group.user_id,
                         group.group_key,
+                        [event.product_id for event in group.events],
                     )
-        finally:
-            reset_locale(token)
+            except Exception:  # noqa: BLE001 — one group must not block the remaining groups
+                logger.exception(
+                    "Failed to render or deliver operational notice (user_id=%d, group_key=%s)",
+                    group.user_id,
+                    group.group_key,
+                )
 
     async def _flush_guaranteed(self, collector: NoticeCollector) -> None:
         """Flush once; cancellation cannot cancel the independently shielded flush task."""
@@ -806,26 +811,27 @@ class Scheduler:
             # hours and digest settings as a price drop — it is the same kind of
             # message to the user, and a mute that leaked restocks would be a
             # mute in name only.
-            await self._notify(
-                p.user_id,
-                format_back_in_stock(
-                    product_name=p.name or p.url,
-                    url=p.url,
-                    price=info.price,
-                    currency=p.currency,
-                ),
-                product_id=p.id,
-                payload={
-                    "kind": "price",
-                    "product_id": p.id,
-                    "product_name": p.name or p.url,
-                    "url": p.url,
-                    "old_price": str(p.current_price) if p.current_price is not None else "",
-                    "new_price": str(info.price),
-                    "currency": p.currency,
-                    "domain": domain,
-                },
-            )
+            async with self._as_reader(p.user_id):
+                await self._notify(
+                    p.user_id,
+                    format_back_in_stock(
+                        product_name=p.name or p.url,
+                        url=p.url,
+                        price=info.price,
+                        currency=p.currency,
+                    ),
+                    product_id=p.id,
+                    payload={
+                        "kind": "price",
+                        "product_id": p.id,
+                        "product_name": p.name or p.url,
+                        "url": p.url,
+                        "old_price": str(p.current_price) if p.current_price is not None else "",
+                        "new_price": str(info.price),
+                        "currency": p.currency,
+                        "domain": domain,
+                    },
+                )
 
         if old_price is None:
             return (p.user_id, None, False)
@@ -853,6 +859,31 @@ class Scheduler:
             threshold_value=p.threshold_value,
         )
         return (p.user_id, alert, False)
+
+    @asynccontextmanager
+    async def _as_reader(self, user_id: int) -> AsyncIterator[None]:
+        """Compose in the recipient's language for the duration of the block.
+
+        Handlers get their locale from the update they are answering. The
+        scheduler answers no update, so every message it composed came out in
+        the one language the deployment was configured with — a Spanish reader
+        whose interactive replies were all in Spanish still got "Price drop!".
+
+        The code Telegram reports is stored on each authorized interaction
+        (`bot.decorators.restricted`); a user who has not spoken since that
+        landed has none, and the deployment's LOCALE remains the fallback.
+        Failing to read it is never worth losing the message over.
+        """
+        lang = self.deps.lang
+        with contextlib.suppress(Exception):
+            stored = await self.deps.repo.get_user_language(user_id)
+            if isinstance(stored, str) and stored:
+                lang = stored
+        token = set_locale(lang)
+        try:
+            yield
+        finally:
+            reset_locale(token)
 
     async def _notify(
         self,
@@ -972,12 +1003,14 @@ class Scheduler:
             if self.deps.metrics is not None:
                 self.deps.metrics.notification_skipped_total.labels(reason="cooldown").inc()
             return
-        if await self._notify(
-            user_id,
-            format_alert(alert),
-            product_id=alert.product_id,
-            payload=_alert_payload(alert, domain=domain),
-        ):
+        async with self._as_reader(user_id):
+            delivered = await self._notify(
+                user_id,
+                format_alert(alert),
+                product_id=alert.product_id,
+                payload=_alert_payload(alert, domain=domain),
+            )
+        if delivered:
             await self.deps.repo.record_alert_sent(alert.product_id, alert.new_price)
 
     def _is_duplicate_alert(

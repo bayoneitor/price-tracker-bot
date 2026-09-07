@@ -82,12 +82,16 @@ def restricted(func: HandlerFn) -> HandlerFn:
                     parse_mode=ParseMode.HTML,
                 )
             return None
-        # Save user display name (best-effort; ignored on failure)
+        # Save user display name (best-effort; ignored on failure).
+        # The language travels with it: `with_locale` reads it off the update to
+        # answer *this* message, and the scheduler — which has no update in front
+        # of it — reads it back out of here hours later.
         with contextlib.suppress(Exception):
             await db.update_user_info(
                 user.id,
                 display_name=user.first_name or user.full_name,
                 username=user.username,
+                language_code=user.language_code,
             )
         return await func(update, context, *args, **kwargs)
 

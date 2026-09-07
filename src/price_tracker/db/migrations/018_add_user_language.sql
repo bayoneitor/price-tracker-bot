@@ -1,0 +1,15 @@
+-- The language a user's notifications are written in.
+--
+-- Locale was resolved per update: every handler read it off the Telegram
+-- message it was answering. The scheduler answers no update, so price drops,
+-- restocks and operational notices came out in whichever single language the
+-- deployment was configured with -- English, for a Spanish reader whose every
+-- interactive reply was already in Spanish.
+--
+-- Telegram reports `language_code` on every update and nothing was keeping it.
+-- This is where it is kept, so a message composed hours later by a background
+-- sweep can still be written in the reader's language.
+--
+-- Nullable: a user who has not spoken to the bot since this landed has no
+-- stored code, and the deployment's LOCALE remains the fallback.
+ALTER TABLE users ADD COLUMN language_code TEXT;

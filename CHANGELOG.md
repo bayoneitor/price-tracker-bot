@@ -64,6 +64,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Standard-library `logging` calls reach the logs. `configure_logging` only ever
+  configured `structlog`; anything using plain `logging.getLogger(__name__)` — plugin
+  discovery in `core.registry`, every built-in scraper, several third-party
+  dependencies — had no handler on the stdlib root logger, so an INFO-level call was
+  silently dropped rather than merely uninteresting. Found while verifying that a
+  newly-discovered drop-in provider actually shows up in the startup log, and it
+  never had, for any plugin, scraper or built-in, the whole time. Routed into the
+  same JSON stream via `structlog.stdlib.ProcessorFormatter`, `structlog.get_logger()`
+  callers unaffected.
+
 - ◀️ Back after deleting a product no longer answers "❌ Product not found." The
   dispatcher records every screen on a per-message trail so Back can re-render the
   one before, but the trail outlived its subject: deleting left `prod_5`, `remove_5`

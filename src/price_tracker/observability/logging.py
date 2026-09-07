@@ -41,6 +41,28 @@ def configure_logging(*, level: str = "INFO") -> None:
         cache_logger_on_first_use=True,
     )
 
+    # Routes the *standard library* `logging` module into the same JSON stream.
+    # Most of this codebase calls `structlog.get_logger()`, which the config
+    # above already covers — but `core.registry`'s plugin discovery, the
+    # scrapers, and several third-party libraries use plain
+    # `logging.getLogger(__name__)`. Left unconfigured, the stdlib root logger
+    # has no handler, so every one of those calls — "Registered drop-in
+    # scraper: amazon", the history-provider equivalent, a plugin's own import
+    # error — was silently dropped rather than merely uninteresting.
+    formatter = structlog.stdlib.ProcessorFormatter(
+        processor=structlog.processors.JSONRenderer(),
+        foreign_pre_chain=[
+            structlog.contextvars.merge_contextvars,
+            structlog.stdlib.add_log_level,
+            structlog.processors.TimeStamper(fmt="iso", utc=True),
+        ],
+    )
+    handler = logging.StreamHandler(sys.stdout)
+    handler.setFormatter(formatter)
+    root = logging.getLogger()
+    root.handlers = [handler]
+    root.setLevel(log_level)
+
 
 @contextlib.contextmanager
 def bind_request_context(**ctx: Any) -> Iterator[None]:

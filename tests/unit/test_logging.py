@@ -61,3 +61,37 @@ class TestBindRequestContext:
         log.info("after")
         rec = json.loads(capsys.readouterr().out.strip().splitlines()[-1])
         assert "request_id" not in rec
+
+
+class TestStdlibLoggingBridge:
+    """`logging.getLogger(__name__).info(...)` — used throughout `core.registry`
+    (plugin discovery), the scrapers, and third-party libraries — reaches the
+    same JSON stream `structlog.get_logger()` does. Without a handler on the
+    stdlib root logger, every one of those calls is silently dropped: found
+    while verifying that a discovered drop-in provider actually shows up in
+    the startup log.
+    """
+
+    def test_a_plain_stdlib_logger_reaches_stdout_as_json(self, capsys):
+        import logging
+
+        configure_logging(level="INFO")
+        logging.getLogger("price_tracker.core.registry").info("Registered thing: %s", "widget")
+        out = capsys.readouterr().out.strip().splitlines()
+        assert out, "no log output captured from the stdlib logger"
+        rec = json.loads(out[-1])
+        assert rec["event"] == "Registered thing: widget"
+        assert rec["level"] == "info"
+        assert "timestamp" in rec
+
+    def test_a_stdlib_logger_is_also_filtered_by_level(self, capsys):
+        import logging
+
+        configure_logging(level="WARNING")
+        logger = logging.getLogger("price_tracker.core.registry")
+        logger.info("ignored")
+        logger.warning("kept")
+        out = capsys.readouterr().out.strip().splitlines()
+        events = [json.loads(line)["event"] for line in out]
+        assert "ignored" not in events
+        assert "kept" in events

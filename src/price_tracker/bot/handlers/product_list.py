@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import contextlib
 import logging
+from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING, Any
 
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
@@ -45,11 +46,13 @@ from price_tracker.bot.keyboards import (
 from price_tracker.bot.labels import product_label
 from price_tracker.bot.messages import _
 from price_tracker.bot.navigation import push_nav
+from price_tracker.core.price_stats import readings_from_records, time_weighted_average
 from price_tracker.core.textlimits import SAFE_LIMIT, truncate_visible
 from price_tracker.core.url_utils import extract_amazon_asin
 
 if TYPE_CHECKING:
-    from collections.abc import Sequence
+    from collections.abc import Mapping, Sequence
+    from decimal import Decimal
 
     from telegram.ext import ContextTypes
 
@@ -80,7 +83,7 @@ INDEX_NAME_BUDGET = 46
 PICKER_NAME_BUDGET = 30
 
 
-def _product_card(product: dict[str, Any]) -> list[str]:
+def _product_card(product: dict[str, Any], average: Decimal | None = None) -> list[str]:
     """The full detail block for the product currently being shown."""
     from price_tracker.core.scraper_base import detect_currency  # noqa: PLC0415
 
@@ -123,8 +126,19 @@ def _product_card(product: dict[str, Any]) -> list[str]:
                 ).format(initial=initial, increase=abs(diff))
             )
 
-    if lowest and current and lowest < current:
-        lines.append(_("📉 Min: €{price:.2f}").format(price=lowest))
+    if lowest:
+        # Shown even when it equals the current price — "you are looking at the
+        # cheapest it has ever been" is the single most useful thing this card
+        # can say, and hiding the line exactly then said nothing at all.
+        at_floor = current is not None and lowest >= current
+        label = _("📉 Min: {price} — cheapest ever") if at_floor else _("📉 Min: {price}")
+        lines.append(label.format(price=_convert_display(lowest, currency)))
+    if average is not None:
+        lines.append(
+            _("📊 Average ({days}d): {price}").format(
+                days=AVERAGE_WINDOW_DAYS, price=_convert_display(average, currency)
+            )
+        )
 
     threshold = _format_threshold(
         product.get("threshold_type", "percentage"),
@@ -156,6 +170,16 @@ def _product_card(product: dict[str, Any]) -> list[str]:
     return lines
 
 
+def _page_ids(products: Sequence[dict[str, Any]], position: int) -> list[int]:
+    """The ids on the page `position` lands on — the only ones about to render."""
+    if not products:
+        return []
+    current = max(0, min(position, len(products) - 1))
+    page = current // INDEX_PAGE_SIZE
+    shown = list(products)[page * INDEX_PAGE_SIZE : (page + 1) * INDEX_PAGE_SIZE]
+    return [int(p["id"]) for p in shown]
+
+
 def page_count(total: int, size: int = PAGE_SIZE) -> int:
     """How many pages `total` products fill, never fewer than one."""
     return max(1, (total + size - 1) // size)
@@ -168,6 +192,7 @@ def build_index_view(
     context: ContextTypes.DEFAULT_TYPE | None = None,
     message_id: int | None = None,
     extra_rows: Sequence[list[InlineKeyboardButton]] = (),
+    averages: Mapping[int, Decimal] | None = None,
 ) -> tuple[str, InlineKeyboardMarkup]:
     """The written index, and a grid of numbers that open what it lists.
 
@@ -209,11 +234,16 @@ def build_index_view(
         # A blank line between entries, not just between lines: a name long
         # enough to wrap runs into the next product otherwise, and every line
         # starts with a number, so there is nothing else to tell them apart.
-        entries = [
-            f"<b>#{product['id']}</b> "
-            f"{_escape_html(product_label(product, budget))}{_price_tag(product)}"
-            for product in shown
-        ]
+        entries = []
+        for product in shown:
+            name = _escape_html(product_label(product, budget))
+            entry = f"<b>#{product['id']}</b> {name}"
+            # The numbers go on their own line: three of them appended to a
+            # shop title long enough to wrap already is how the entry stops
+            # being readable at a glance.
+            stats = _stats_line(product, (averages or {}).get(int(product["id"])))
+            entry += f"\n{stats}" if stats else _price_tag(product)
+            entries.append(entry)
         return "\n".join(head) + "\n\n" + "\n\n".join(entries)
 
     text = render(None)
@@ -258,6 +288,71 @@ def _page_row(current: int, pages: int, *, prefix: str) -> list[InlineKeyboardBu
 def _price_tag(product: dict[str, Any]) -> str:
     price = _safe_dec(product.get("current_price"))
     return f" — €{price:.2f}" if price else ""
+
+
+# "Recently" for the average shown beside a price. Long enough to survive a
+# single promotion week, short enough that a year-old price cannot drag it.
+AVERAGE_WINDOW_DAYS = 30
+
+
+async def recent_averages(
+    db: Any, product_ids: Sequence[int], *, days: int = AVERAGE_WINDOW_DAYS
+) -> dict[int, Decimal]:
+    """The time-weighted average price of each product over the last `days`.
+
+    One query for the whole page, not one per product: the listing renders six
+    at a time and six round trips to draw one screen is how a listing gets
+    slow. Reuses `get_price_change_points`, which already collapses unchanged
+    runs in SQL — a month of checks every 30 minutes is ~1400 rows and maybe
+    three actual prices.
+
+    Never raises: an average is a nicety on a screen whose job is showing
+    products, and a failure to compute one must not cost the listing itself.
+    """
+    if not product_ids:
+        return {}
+    until = datetime.now(UTC)
+    since = (until - timedelta(days=days)).strftime("%Y-%m-%d %H:%M:%S")
+    averages: dict[int, Decimal] = {}
+    try:
+        histories = await db.get_price_change_points(list(product_ids), since=since)
+        for product_id, records in histories.items():
+            average = time_weighted_average(readings_from_records(records), until=until)
+            if average is not None:
+                averages[int(product_id)] = average
+    except Exception:  # noqa: BLE001 — the listing matters, the average does not
+        # The whole computation, not just the query: a repository handing back
+        # a shape this did not expect would otherwise take the listing down
+        # with it, which is precisely what "never raises" is supposed to mean.
+        logger.exception("Could not compute the %d-day average", days)
+        return {}
+    return averages
+
+
+def _stats_line(product: dict[str, Any], average: Decimal | None) -> str | None:
+    """Current price, the floor it has ever hit, and the recent average.
+
+    Returns None when there is no current price to anchor the others to — a
+    product whose first check has not landed yet has nothing to compare.
+    """
+    from price_tracker.core.scraper_base import detect_currency  # noqa: PLC0415
+
+    current = _safe_dec(product.get("current_price"))
+    if not current:
+        return None
+    currency = product.get("currency", "") or detect_currency(product.get("url", "")) or "EUR"
+
+    parts = [_("💰 {price}").format(price=_convert_display(current, currency))]
+    lowest = _safe_dec(product.get("lowest_price"))
+    if lowest:
+        parts.append(_("📉 min {price}").format(price=_convert_display(lowest, currency)))
+    if average is not None:
+        parts.append(
+            _("📊 {days}d avg {price}").format(
+                days=AVERAGE_WINDOW_DAYS, price=_convert_display(average, currency)
+            )
+        )
+    return " · ".join(parts)
 
 
 def build_picker_view(
@@ -315,6 +410,7 @@ def build_product_view(
     *,
     context: ContextTypes.DEFAULT_TYPE | None = None,
     message_id: int | None = None,
+    average: Decimal | None = None,
 ) -> tuple[str, InlineKeyboardMarkup]:
     """One product: its card, and actions that can only mean the product above them."""
     exits = (nav_row(context, message_id) if context is not None else [close_button()]) or [
@@ -343,7 +439,7 @@ def build_product_view(
         ],
         exits,
     ]
-    return "\n".join(_product_card(product)), InlineKeyboardMarkup(rows)
+    return "\n".join(_product_card(product, average)), InlineKeyboardMarkup(rows)
 
 
 @with_locale
@@ -358,7 +454,9 @@ async def cmd_list(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     db = _db(context)
     await _close_open_listing(update, context)
     products = await db.get_active_products(update.effective_user.id)
-    text, keyboard = build_index_view(products, 0)
+    text, keyboard = build_index_view(
+        products, 0, averages=await recent_averages(db, _page_ids(products, 0))
+    )
     message = await update.message.reply_text(
         text,
         parse_mode=ParseMode.HTML,

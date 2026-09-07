@@ -21,12 +21,15 @@ from telegram import InlineKeyboardButton
 from telegram.constants import ParseMode
 from telegram.error import BadRequest
 
+from price_tracker.bot.decorators import _db
 from price_tracker.bot.handlers._helpers import _get_user_product, _parse_id
 from price_tracker.bot.handlers.product_list import (
     INDEX_PAGE_SIZE,
     LIST_MESSAGE_KEY,
+    _page_ids,
     build_index_view,
     build_product_view,
+    recent_averages,
 )
 from price_tracker.bot.keyboards import (
     LIST_CURSOR_PREFIX,
@@ -100,6 +103,7 @@ async def handle_list_navigation(
         context=context,
         message_id=message_id,
         extra_rows=await _extra_rows(db, user_id),
+        averages=await recent_averages(db, _page_ids(products, cursor)),
     )
     await _render(query, text, keyboard)
 
@@ -125,7 +129,13 @@ async def _open_product(
         return True
 
     message_id = getattr(getattr(query, "message", None), "message_id", None)
-    text, keyboard = build_product_view(product, context=context, message_id=message_id)
+    averages = await recent_averages(_db(context), [product_id])
+    text, keyboard = build_product_view(
+        product,
+        context=context,
+        message_id=message_id,
+        average=averages.get(product_id),
+    )
     await _render(query, text, keyboard)
     return True
 

@@ -13,6 +13,7 @@ The product's own screen is where the actions live, under the name they apply to
 
 from __future__ import annotations
 
+from decimal import Decimal
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock
 
@@ -68,7 +69,50 @@ def test_the_page_is_written_out_with_shops_and_prices() -> None:
     text, _markup = build_index_view([_product(i) for i in range(1, 4)], 0)
 
     for pid in (1, 2, 3):
-        assert f"#{pid}</b> Widget {pid} · mediamarkt.es — €259.00" in text
+        assert f"#{pid}</b> Widget {pid} · mediamarkt.es" in text
+        assert "💰 €259.00" in text
+
+
+def test_the_numbers_go_on_their_own_line_under_the_name() -> None:
+    """Three figures appended to a shop title long enough to wrap is how the
+    entry stops being readable at a glance."""
+    text, _markup = build_index_view([_product(1)], 0)
+
+    name_line, stats_line = text.split("\n\n")[1].split("\n")
+    assert "Widget 1" in name_line
+    assert stats_line.startswith("💰")
+
+
+def test_the_entry_shows_current_lowest_and_the_recent_average() -> None:
+    product = {**_product(1), "lowest_price": "199.00"}
+
+    text, _markup = build_index_view([product], 0, averages={1: Decimal("233.50")})
+
+    assert "💰 €259.00" in text
+    assert "📉 min €199.00" in text
+    assert "📊 30d avg €233.50" in text
+
+
+def test_an_entry_without_an_average_still_shows_the_rest() -> None:
+    """A product with too little history to average is not a blank line."""
+    product = {**_product(1), "lowest_price": "199.00"}
+
+    text, _markup = build_index_view([product], 0, averages={})
+
+    assert "💰 €259.00" in text
+    assert "📉 min €199.00" in text
+    assert "avg" not in text
+
+
+def test_an_entry_with_no_current_price_falls_back_to_the_old_tag() -> None:
+    """Nothing to anchor min and average against — better a bare name than a
+    line of dashes."""
+    product = {**_product(1), "current_price": None}
+
+    text, _markup = build_index_view([product], 0)
+
+    assert "Widget 1" in text
+    assert "💰" not in text
 
 
 def test_the_entries_are_separated_by_a_blank_line() -> None:
@@ -239,6 +283,38 @@ def test_a_non_amazon_product_offers_no_keepa_button() -> None:
     _text, markup = build_product_view(_product(3))
 
     assert "keepa_3" not in _button_data(markup)
+
+
+def test_the_product_screen_shows_the_recent_average() -> None:
+    text, _markup = build_product_view(_product(3), average=Decimal("233.50"))
+
+    assert "📊 Average (30d): €233.50" in text
+
+
+def test_the_product_screen_without_an_average_omits_the_line() -> None:
+    text, _markup = build_product_view(_product(3))
+
+    assert "Average" not in text
+
+
+def test_the_floor_is_shown_even_when_it_is_todays_price() -> None:
+    """It used to be hidden exactly when `lowest == current` — the one moment
+    the reader most wants to be told."""
+    at_floor = {**_product(3), "current_price": "199.00", "lowest_price": "199.00"}
+
+    text, _markup = build_product_view(at_floor)
+
+    assert "📉 Min: €199.00" in text
+    assert "cheapest ever" in text
+
+
+def test_a_floor_below_todays_price_is_stated_plainly() -> None:
+    above = {**_product(3), "current_price": "259.00", "lowest_price": "199.00"}
+
+    text, _markup = build_product_view(above)
+
+    assert "📉 Min: €199.00" in text
+    assert "cheapest ever" not in text
 
 
 def test_the_product_screen_shows_the_card_not_a_summary() -> None:

@@ -64,7 +64,9 @@ async def _back_to_index(
     from price_tracker.bot.handlers.callbacks._list import _extra_rows  # noqa: PLC0415 — cycle
     from price_tracker.bot.handlers.product_list import (  # noqa: PLC0415 — cycle
         LIST_MESSAGE_KEY,
+        _page_ids,
         build_index_view,
+        recent_averages,
     )
     from price_tracker.bot.keyboards import LIST_GOTO_PREFIX  # noqa: PLC0415 — cycle
     from price_tracker.bot.navigation import push_nav  # noqa: PLC0415 — cycle
@@ -79,6 +81,7 @@ async def _back_to_index(
         context=context,
         message_id=message_id,
         extra_rows=await _extra_rows(db, user_id),
+        averages=await recent_averages(db, _page_ids(products, 0)),
     )
     await query.edit_message_text(
         f"{notice}\n\n{text}",

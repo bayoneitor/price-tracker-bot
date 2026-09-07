@@ -206,6 +206,7 @@ async def _try_list_jump(update: Update, context: ContextTypes.DEFAULT_TYPE, tex
     from price_tracker.bot.handlers.product_list import (  # noqa: PLC0415
         LIST_MESSAGE_KEY,
         build_product_view,
+        recent_averages,
     )
 
     message_id = context.user_data.get(LIST_MESSAGE_KEY)
@@ -217,7 +218,8 @@ async def _try_list_jump(update: Update, context: ContextTypes.DEFAULT_TYPE, tex
         await update.message.reply_text(_("❌ No product #{pid} in your list.").format(pid=text))
         return True
 
-    view_text, keyboard = build_product_view(product)
+    averages = await recent_averages(_db(context), [int(text)])
+    view_text, keyboard = build_product_view(product, average=averages.get(int(text)))
     try:
         await context.bot.edit_message_text(
             chat_id=update.effective_chat.id,

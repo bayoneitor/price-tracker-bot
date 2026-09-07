@@ -6,11 +6,11 @@ action buttons — but the buttons acted on whichever product the index had
 marked with a `▸`, so a screen of seven button rows never said what any of them
 would touch.
 
-Two screens instead. The index is a written list — ten products to a page, each
-with its shop and its price, and the one under the cursor marked — and the
-buttons move rather than act: one row steps the cursor product by product, a
-second jumps a page at a time, and a third opens whatever the cursor is on. The
-product's own screen is where the actions live, under the name they apply to.
+Two screens instead. The index is a written list — nine products to a page, each
+with its shop and its price — under a 3x3 grid of the numbers those lines carry.
+Tapping a number opens that product; the grid replaced a cursor you had to step
+product by product, which cost six taps to reach the seventh. The product's own
+screen is where the actions live, under the name they apply to.
 
 Rendering is a pure function of its inputs, so the command and the callbacks
 build the same screens and the tests assert on them without a Telegram round
@@ -36,7 +36,6 @@ from price_tracker.bot.handlers._helpers import (
     _safe_dec,
 )
 from price_tracker.bot.keyboards import (
-    LIST_CURSOR_PREFIX,
     LIST_GOTO_PREFIX,
     PICKER_PREFIX,
     PRODUCT_PREFIX,
@@ -59,8 +58,13 @@ logger = logging.getLogger(__name__)
 # in the chat can jump the listing instead of being ignored.
 LIST_MESSAGE_KEY = "list_message_id"
 
-# One page of the index. Ten buttons is a screen you can read; the rest are a tap
-# away, which is cheaper than a wall.
+# The index pages nine at a time because nine is a 3x3 grid of numbers, and a
+# number you can tap is the shortest route to a product: stepping a cursor to the
+# seventh product took six taps to do what one now does.
+INDEX_PAGE_SIZE = 9
+
+# A picker still pages ten. Its buttons carry a name rather than a number, so
+# they stack in a column and the grid's geometry does not apply.
 PAGE_SIZE = 10
 
 # Names are written out whole. Ten of them come nowhere near Telegram's 4096
@@ -150,88 +154,86 @@ def _product_card(product: dict[str, Any]) -> list[str]:
     return lines
 
 
-def page_count(total: int) -> int:
+def page_count(total: int, size: int = PAGE_SIZE) -> int:
     """How many pages `total` products fill, never fewer than one."""
-    return max(1, (total + PAGE_SIZE - 1) // PAGE_SIZE)
+    return max(1, (total + size - 1) // size)
 
 
 def build_index_view(
     products: Sequence[dict[str, Any]],
-    cursor: int = 0,
+    position: int = 0,
     *,
     context: ContextTypes.DEFAULT_TYPE | None = None,
     message_id: int | None = None,
     extra_rows: Sequence[list[InlineKeyboardButton]] = (),
 ) -> tuple[str, InlineKeyboardMarkup]:
-    """The written index, with `cursor` marking the product the buttons act on.
+    """The written index, and a grid of numbers that open what it lists.
 
-    `cursor` is an absolute position in `products` and the page follows from it,
-    so there is one piece of state travelling in the callback data rather than
-    two that could disagree. It is clamped, so a stale button from an index whose
-    products have since been deleted lands on one that exists.
+    `position` is an absolute index into `products`; the page follows from it, so
+    one number travels in the callback data rather than two that could disagree.
+    It is clamped, so a stale button from an index whose products have since been
+    deleted lands on a page that exists.
+
+    The numbers on the buttons are the numbers on the lines — product ids, the
+    same thing typing `7` into the chat opens. Nothing here has to be inferred
+    from a position on screen.
 
     `context`/`message_id` are only needed for the exit row: an index reached from
-    the menu offers ◀️ Back, one opened by /list has nowhere to go back to.
+    the menu offers Back, one opened by /list has nowhere to go back to.
     """
-    exits = (nav_row(context, message_id) if context is not None else [close_button()]) or [
-        close_button()
+    exits = nav_row(context, message_id, close=False) if context is not None else []
+    exits = [
+        *exits,
+        InlineKeyboardButton(_("\u2795 Add"), callback_data="menu_add"),
+        close_button(),
     ]
 
     if not products:
         return (
-            _("📭 You have no tracked products.\nPaste me a link to get started!"),
+            _("\U0001f4ed You have no tracked products.\nPaste me a link to get started!"),
             InlineKeyboardMarkup([*extra_rows, exits]),
         )
 
     total = len(products)
-    current = max(0, min(cursor, total - 1))
-    pages = page_count(total)
-    page = current // PAGE_SIZE
-    shown = list(enumerate(products))[page * PAGE_SIZE : (page + 1) * PAGE_SIZE]
+    current = max(0, min(position, total - 1))
+    pages = page_count(total, INDEX_PAGE_SIZE)
+    page = current // INDEX_PAGE_SIZE
+    shown = list(products)[page * INDEX_PAGE_SIZE : (page + 1) * INDEX_PAGE_SIZE]
 
     def render(budget: int | None) -> str:
-        lines = [_("<b>📦 Your products ({count})</b>").format(count=total)]
+        lines = [_("<b>\U0001f4e6 Your products ({count})</b>").format(count=total)]
         if pages > 1:
             lines.append(_("Page {page} of {pages}").format(page=page + 1, pages=pages))
         lines.append("")
-        for position, product in shown:
+        for product in shown:
             row = f"{_escape_html(product_label(product, budget))}{_price_tag(product)}"
-            lines.append(
-                f"<b>▸ #{product['id']} {row}</b>"
-                if position == current
-                else f"   #{product['id']} {row}"
-            )
+            lines.append(f"<b>#{product['id']}</b> {row}")
         return "\n".join(lines)
 
     text = render(None)
     if len(text) > SAFE_LIMIT:
         text = render(INDEX_NAME_BUDGET)
 
-    selected = products[current]
-    rows = [
-        # Step: one product at a time. Wraps, so the row keeps its shape at both
-        # ends — an arrow that vanishes moves everything beside it.
-        [
-            InlineKeyboardButton("◀", callback_data=f"{LIST_CURSOR_PREFIX}{(current - 1) % total}"),
-            InlineKeyboardButton(
-                f"{current + 1}/{total}", callback_data=f"{LIST_CURSOR_PREFIX}{current}"
-            ),
-            InlineKeyboardButton("▶", callback_data=f"{LIST_CURSOR_PREFIX}{(current + 1) % total}"),
-        ],
-        # Open: named, so nothing has to be inferred from the ▸ above.
-        [
-            InlineKeyboardButton(
-                _("✅ Open #{pid}").format(pid=selected["id"]),
-                callback_data=f"{PRODUCT_PREFIX}{selected['id']}",
-            )
-        ],
-    ]
+    rows = _number_grid(shown)
     if pages > 1:
-        # Jump: a page at a time, and labelled as pages so the two rows cannot be
-        # read as the same control.
+        # Its own row, and labelled as pages: the grid above moves nowhere, so the
+        # two controls can never be read as the same one.
         rows.append(_page_row(page, pages, prefix=LIST_GOTO_PREFIX))
-
     return text, InlineKeyboardMarkup([*rows, *extra_rows, exits])
+
+
+def _number_grid(shown: Sequence[dict[str, Any]]) -> list[list[InlineKeyboardButton]]:
+    """The page's products as a 3x3 grid of their own numbers.
+
+    Three to a row: wider and Telegram shrinks the labels, narrower and the grid
+    is a column again. A short label is the point — the name is on the line above,
+    where it has the room to be read.
+    """
+    buttons = [
+        InlineKeyboardButton(f"#{product['id']}", callback_data=f"{PRODUCT_PREFIX}{product['id']}")
+        for product in shown
+    ]
+    return [buttons[i : i + 3] for i in range(0, len(buttons), 3)]
 
 
 def _page_row(current: int, pages: int, *, prefix: str) -> list[InlineKeyboardButton]:

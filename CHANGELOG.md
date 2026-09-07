@@ -24,6 +24,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `/products/<slug>` path is claimed by the Shopify scraper, which fetches it. A crafted
   file was enough to make the bot request an internal address.
 
+### Changed
+
+- The product index is a 3x3 grid of numbers. It paged ten at a time under a cursor
+  you stepped one product at a time — six taps to reach the seventh product, on a
+  screen whose whole purpose is picking one. Nine to a page now, and every one of them
+  is a button carrying its own number: the number on the line, the product id, the same
+  thing typing `7` into the chat opens. The page row keeps its own row below the grid,
+  and the screen ends in one row of three — Back, ➕ Add, ✖ Close — with ⏸ N paused
+  above it when there are any. The stepping row is gone; panels already in a chat that
+  still carry its buttons keep working.
+
 ### Fixed
 
 - ◀️ Back after deleting a product no longer answers "❌ Product not found." The

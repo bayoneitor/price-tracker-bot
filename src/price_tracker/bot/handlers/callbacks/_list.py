@@ -23,8 +23,8 @@ from telegram.error import BadRequest
 
 from price_tracker.bot.handlers._helpers import _get_user_product, _parse_id
 from price_tracker.bot.handlers.product_list import (
+    INDEX_PAGE_SIZE,
     LIST_MESSAGE_KEY,
-    PAGE_SIZE,
     build_index_view,
     build_product_view,
 )
@@ -42,21 +42,24 @@ logger = logging.getLogger(__name__)
 
 
 async def _extra_rows(db: Any, user_id: int) -> list[list[InlineKeyboardButton]]:
-    """What sits between the product's own buttons and the way out.
+    """What sits between the numbers and the way out.
 
-    Adding a product has no other affordance — the listing only ever hinted at it
-    when it was empty — and paused products are invisible here, the listing being
-    the active ones.
+    Only the paused products, and only when there are any: they are invisible in
+    the index, which lists the active ones, and were reachable through nothing
+    else once the menu's own "paused" screen was removed. Adding a product is a
+    permanent button on the exit row, since an empty listing is the only place
+    that ever hinted at it and you stop seeing that the moment you have products.
     """
-    row = [InlineKeyboardButton(_("➕ Add product"), callback_data="menu_add")]
     paused = [p for p in await db.get_all_products(user_id) if not p.get("is_active")]
-    if paused:
-        row.append(
+    if not paused:
+        return []
+    return [
+        [
             InlineKeyboardButton(
                 _("⏸ {count} paused").format(count=len(paused)), callback_data="menu_paused"
             )
-        )
-    return [row]
+        ]
+    ]
 
 
 async def handle_list_navigation(
@@ -72,11 +75,14 @@ async def handle_list_navigation(
         return await _open_product(query, context, user_id, data)
 
     if data.startswith(LIST_CURSOR_PREFIX):
+        # The stepping row is gone — the grid opens a product in one tap instead —
+        # but a panel sent before that still carries these, and an absolute
+        # position is all the page needs.
         cursor = _parse_id(data.removeprefix(LIST_CURSOR_PREFIX))
     elif data.startswith(LIST_GOTO_PREFIX):
         page = _parse_id(data.removeprefix(LIST_GOTO_PREFIX))
-        # A page lands on its first product, which is where a reader looks.
-        cursor = None if page is None else page * PAGE_SIZE
+        # A page is addressed by its first product, which is where a reader looks.
+        cursor = None if page is None else page * INDEX_PAGE_SIZE
     else:
         return False
 

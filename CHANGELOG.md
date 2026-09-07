@@ -26,6 +26,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- A product's **✏️ Edit** panel can set its alias. The button existed only in the
+  moment right after adding a product (`setalias_<id>`, wired since the alias
+  feature landed) — miss that screen and there was no way back to it. It is a
+  button in Edit now, alongside threshold, target and refresh.
+
 - "Last check" no longer renders as `-522min ago` when the stored timestamp is slightly
   ahead of the clock reading it.
 

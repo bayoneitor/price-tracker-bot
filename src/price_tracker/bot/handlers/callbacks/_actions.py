@@ -69,6 +69,9 @@ async def handle_edit_button(
         # The only per-product setting that had no button anywhere: the picker it
         # opens already existed, nothing ever led to it.
         [InlineKeyboardButton(_("⏱ How often to check"), callback_data=f"setrefresh_{product_id}")],
+        # Reachable right after adding a product too, but that moment is easy to
+        # miss and there was no way back to it afterwards.
+        [InlineKeyboardButton(_("🏷 Alias"), callback_data=f"setalias_{product_id}")],
     ]
     if initial and current and initial != current:
         edit_buttons.append(

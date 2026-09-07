@@ -383,12 +383,28 @@ scrapers.
   `playwright_fallback.py`, for the same reason). Pushed to
   `bayoneitor/price-tracker-plugins`.
 
-- [ ] **11.** **Keepa scraper.** `can_handle` Amazon + extractable ASIN. Playwright opens
+- [x] **11.** **Keepa scraper.** `can_handle` Amazon + extractable ASIN. Playwright opens
   `https://keepa.com/#!product/{domain}-{ASIN}`, intercepts `/ajax/` JSON,
   decodes `csv[0]` (fallback `csv[1]`): pairs `[keepaMinutes, cents]`, drop
   `-1`, UTC seconds = `(keepaMinutes + 21564000) * 60`,
   `Decimal(cents) / 100`. Soft-import Playwright. Private tests against a
   recorded XHR fixture.
+
+  Genuine gap in "recorded": this sandbox has no live network/browser access
+  to actually capture real Keepa traffic, so the fixture is built from
+  Keepa's own documented `products[0].csv` layout rather than a live
+  capture — noted in the test file's own docstring, and step 13 (live host
+  verification) is where a real fixture would replace it if the documented
+  shape has drifted. 17 tests: decoding (the fixture, the New-series
+  fallback, the `-1` drop, malformed payloads, an odd-length series),
+  `can_handle`, and `fetch()`'s own miss/error paths with
+  `_browser.capture_response` monkeypatched.
+
+  Also found and fixed (public repo, `47876a7`): `import _browser` from
+  `keepa.py` raised `ModuleNotFoundError` — `discover_dropin_plugins` never
+  put `plugin_dir` on `sys.path`, so the documented "share a `_helper.py`
+  between plugin files" pattern was broken for every plugin, not just this
+  one.
 
 - [ ] **12.** **PrecioReal scraper.** `can_handle` the ES-store allowlist only (never
   every URL). Playwright opens PrecioReal, lets the SPA bootstrap the

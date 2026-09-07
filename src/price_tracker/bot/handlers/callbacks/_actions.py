@@ -250,7 +250,17 @@ def _refresh_prompt(product: dict[str, Any]) -> str:
 
 
 def _alias_prompt(product: dict[str, Any]) -> str:
-    listed = _escape_html((product.get("name") or _("Unknown"))[:70])
+    # In a <code> span so a tap copies it: the usual edit is a tweak to a name
+    # already close to right, not typing one from nothing.
+    alias = product.get("alias")
+    if alias:
+        current = f"<code>{_escape_html(str(alias)[:70])}</code>"
+        return _(
+            "✏️ <b>Name this product</b>\n"
+            "🏷 Currently called: {current}\n\n"
+            "Type what you want to call it, or <code>-</code> to go back to the shop's name:"
+        ).format(current=current)
+    listed = f"<code>{_escape_html((product.get('name') or _('Unknown'))[:70])}</code>"
     return _(
         "✏️ <b>Name this product</b>\n"
         "🏬 The shop calls it: {listed}\n\n"

@@ -30,6 +30,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   moment right after adding a product (`setalias_<id>`, wired since the alias
   feature landed) — miss that screen and there was no way back to it. It is a
   button in Edit now, alongside threshold, target and refresh.
+- The alias prompt shows the current name in a `<code>` span, so tapping it
+  copies the text instead of retyping it from scratch — the usual edit is a
+  tweak to a name already close to right.
 
 - "Last check" no longer renders as `-522min ago` when the stored timestamp is slightly
   ahead of the clock reading it.

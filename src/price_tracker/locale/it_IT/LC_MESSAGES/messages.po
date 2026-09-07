@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-09-07 03:32+0200\n"
+"POT-Creation-Date: 2026-09-07 03:37+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: it_IT\n"
@@ -263,7 +263,6 @@ msgstr "◀️ Menu"
 #: src/price_tracker/bot/handlers/callbacks/_actions.py:231
 #: src/price_tracker/bot/handlers/callbacks/_actions.py:242
 #: src/price_tracker/bot/handlers/callbacks/_actions.py:249
-#: src/price_tracker/bot/handlers/callbacks/_actions.py:253
 #: src/price_tracker/bot/handlers/callbacks/_product.py:67
 #: src/price_tracker/bot/handlers/callbacks/_product.py:258
 #: src/price_tracker/bot/handlers/callbacks/_product.py:280
@@ -1934,7 +1933,20 @@ msgstr ""
 "\n"
 "Scrivi l'intervallo in minuti (es. <code>30</code>, <code>720</code> per 12h):"
 
-#: src/price_tracker/bot/handlers/callbacks/_actions.py:255
+#: src/price_tracker/bot/handlers/callbacks/_actions.py:259
+#, python-brace-format
+msgid ""
+"✏️ <b>Name this product</b>\n"
+"🏷 Currently called: {current}\n"
+"\n"
+"Type what you want to call it, or <code>-</code> to go back to the shop's name:"
+msgstr ""
+"✏️ <b>Dai un nome a questo prodotto</b>\n"
+"🏷 Attualmente si chiama: {current}\n"
+"\n"
+"Scrivi come vuoi chiamarlo, oppure <code>-</code> per tornare al nome del negozio:"
+
+#: src/price_tracker/bot/handlers/callbacks/_actions.py:265
 #, python-brace-format
 msgid ""
 "✏️ <b>Name this product</b>\n"

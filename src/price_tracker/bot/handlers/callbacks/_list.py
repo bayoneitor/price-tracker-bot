@@ -29,6 +29,7 @@ from price_tracker.bot.handlers.product_list import (
     _page_ids,
     build_index_view,
     build_product_view,
+    price_summary,
     recent_averages,
 )
 from price_tracker.bot.keyboards import (
@@ -129,12 +130,11 @@ async def _open_product(
         return True
 
     message_id = getattr(getattr(query, "message", None), "message_id", None)
-    averages = await recent_averages(_db(context), [product_id])
     text, keyboard = build_product_view(
         product,
         context=context,
         message_id=message_id,
-        average=averages.get(product_id),
+        summary=await price_summary(_db(context), product),
     )
     await _render(query, text, keyboard)
     return True

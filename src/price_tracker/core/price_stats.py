@@ -21,6 +21,7 @@ def time_weighted_average(
     readings: Sequence[tuple[datetime, Decimal]],
     *,
     until: datetime,
+    since: datetime | None = None,
 ) -> Decimal | None:
     """The average price *over time*, not the average of the prices.
 
@@ -35,9 +36,15 @@ def time_weighted_average(
     difference is systematic, always downward, and lands precisely on the
     number a reader would use to judge a discount.
 
+    `since` bounds the window on the left. A reading older than it still
+    counts — it is the price in effect when the window opens — but only for
+    the part of its life that falls inside. Without that, a product whose
+    price last changed four months ago would have no 30-day average at all,
+    when in fact it has held one price for the whole month.
+
     `readings` must be sorted oldest-first. Returns None when there is nothing
-    to average, or when every reading sits at or after `until` — a window with
-    no duration in it has no average, and saying so beats inventing one.
+    to average, or when the window has no duration in it — saying so beats
+    inventing a number.
     """
     if not readings:
         return None
@@ -48,16 +55,45 @@ def time_weighted_average(
         if observed_at >= until:
             break
         next_at = readings[index + 1][0] if index + 1 < len(readings) else until
-        held = min(next_at, until)
-        seconds = Decimal(str((held - observed_at).total_seconds()))
-        if seconds <= 0:
+        start = max(observed_at, since) if since is not None else observed_at
+        end = min(next_at, until)
+        if end <= start:
             continue
+        seconds = Decimal(str((end - start).total_seconds()))
         weighted += price * seconds
         total_seconds += seconds
 
     if total_seconds <= 0:
         return None
     return (weighted / total_seconds).quantize(CENTS, rounding=ROUND_HALF_UP)
+
+
+# The windows a product's own screen reports. 30 is "lately", 90 is roughly a
+# sales quarter — three numbers side by side say whether a price is drifting
+# or just dipped, which one number never can.
+AVERAGE_WINDOWS: tuple[int, ...] = (30, 60, 90)
+
+
+def averages_over_windows(
+    readings: Sequence[tuple[datetime, Decimal]],
+    *,
+    until: datetime,
+    windows: Sequence[int] = AVERAGE_WINDOWS,
+) -> dict[int, Decimal]:
+    """One time-weighted average per window, keyed by its length in days.
+
+    A window with nothing in it is absent from the result rather than present
+    and zero: a product tracked for a week has no 90-day average, and drawing
+    one would be a claim about months nobody watched.
+    """
+    from datetime import timedelta  # noqa: PLC0415 — TYPE_CHECKING-only above
+
+    averages: dict[int, Decimal] = {}
+    for days in windows:
+        average = time_weighted_average(readings, until=until, since=until - timedelta(days=days))
+        if average is not None:
+            averages[days] = average
+    return averages
 
 
 def readings_from_records(records: Sequence[Any]) -> list[tuple[datetime, Decimal]]:

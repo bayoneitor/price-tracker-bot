@@ -626,6 +626,34 @@ class Repository:
             for r in rows
         ]
 
+    async def lowest_price_point(self, product_id: int) -> PriceHistoryRecord | None:
+        """The cheapest reading on record, and when it happened.
+
+        `products.lowest_price` already carries the number; it carries no date,
+        and "€215.10" is a different statement from "€215.10, back in
+        February". Ordered by price then by time, so a price hit twice reports
+        the first time it was seen rather than an arbitrary one.
+
+        CAST to REAL for the comparison: prices are stored as TEXT, where
+        '9.99' sorts after '10.00'.
+        """
+        cursor = await self._conn.execute(
+            "SELECT id, product_id, price, checked_at, source FROM price_history "
+            "WHERE product_id = ? AND CAST(price AS REAL) > 0 "
+            "ORDER BY CAST(price AS REAL) ASC, checked_at ASC LIMIT 1",
+            (product_id,),
+        )
+        row = await cursor.fetchone()
+        if not row:
+            return None
+        return PriceHistoryRecord(
+            id=row[0],
+            product_id=row[1],
+            price=_dec(row[2]) or Decimal("0"),
+            checked_at=row[3],
+            source=row[4],
+        )
+
     async def delete_old_price_history(self, *, days: int) -> int:
         cursor = await self._conn.execute(
             "DELETE FROM price_history WHERE checked_at < datetime('now', ? || ' days')",

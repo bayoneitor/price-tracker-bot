@@ -25,11 +25,9 @@ from telegram import InlineKeyboardMarkup, InputFile
 from telegram.constants import ParseMode
 
 from price_tracker.bot.charts import generate_chart
-from price_tracker.bot.decorators import _convert_display
 from price_tracker.bot.handlers._helpers import _escape_html
 from price_tracker.bot.keyboards import close_button
 from price_tracker.bot.labels import product_label
-from price_tracker.bot.messages import _
 from price_tracker.core.currency import convert_to_eur
 
 if TYPE_CHECKING:
@@ -194,7 +192,6 @@ async def send_backfill_chart(
     product_id: int,
     *,
     currency: str,
-    average_price: Decimal,
 ) -> None:
     """Attach the full imported+live chart to the confirmation. Never raises.
 
@@ -209,17 +206,18 @@ async def send_backfill_chart(
         chart_buf = await generate_chart(db, product_id, product)
         if chart_buf is None:
             return
-        lowest = product.get("lowest_price")
-        highest = product.get("highest_price")
+        from price_tracker.bot.handlers.product_list import (  # noqa: PLC0415 — cycle
+            price_summary,
+            summary_lines,
+        )
+
         caption = f"📊 <b>#{product_id}</b> {_escape_html(product_label(product))}"
-        extras: list[str] = []
-        if lowest is not None:
-            extras.append(_("📉 Min: {price}").format(price=_convert_display(lowest, currency)))
-        extras.append(_("📊 Avg: {price}").format(price=_convert_display(average_price, currency)))
-        if highest is not None:
-            extras.append(_("📈 Max: {price}").format(price=_convert_display(highest, currency)))
-        if extras:
-            caption += "\n" + " · ".join(extras)
+        # The same lines the product screen and the price chart show, from the
+        # same function: three captions describing one product differently is
+        # how a reader stops trusting any of them.
+        stats = summary_lines(await price_summary(db, product), currency)
+        if stats:
+            caption += "\n" + "\n".join(stats)
         await message.reply_photo(
             photo=InputFile(chart_buf, filename=f"chart_{product_id}.png"),
             caption=caption,

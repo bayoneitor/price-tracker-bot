@@ -271,8 +271,18 @@ async def handle_chart_button(
         )
         return True
 
-    # The image itself carries only "#id · shop"; the caption has room for the name.
+    # The image itself carries only "#id · shop"; the caption has room for the
+    # name and for the numbers the picture cannot state exactly — the floor,
+    # the day it happened, and what it has averaged over each window.
+    from price_tracker.bot.handlers.product_list import (  # noqa: PLC0415 — cycle
+        price_summary,
+        summary_lines,
+    )
+
     caption = f"📊 <b>#{product_id}</b> {_escape_html(product_label(product))}"
+    stats = summary_lines(await price_summary(db, product), product.get("currency", "") or "EUR")
+    if stats:
+        caption += "\n" + "\n".join(stats)
 
     # Built against the panel's trail, which the photo is about to inherit.
     keyboard = result_keyboard(context, origin_id)

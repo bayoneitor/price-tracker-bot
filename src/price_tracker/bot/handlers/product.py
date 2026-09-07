@@ -473,13 +473,7 @@ async def _add_product(
         reply_markup=keyboard,
     )
     if backfill is not None:
-        await send_backfill_chart(
-            msg,
-            db,
-            product_id,
-            currency=currency,
-            average_price=backfill.average_price,
-        )
+        await send_backfill_chart(msg, db, product_id, currency=currency)
 
 
 def register(app: Application) -> None:

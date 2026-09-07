@@ -389,13 +389,15 @@ async def test_send_backfill_chart_posts_a_photo(monkeypatch: Any) -> None:
     monkeypatch.setattr("price_tracker.bot.handlers._history_backfill.generate_chart", fake_chart)
     message = AsyncMock()
 
-    await send_backfill_chart(message, db, 12, currency="EUR", average_price=Decimal("40.00"))
+    await send_backfill_chart(message, db, 12, currency="EUR")
 
     message.reply_photo.assert_awaited()
     caption = message.reply_photo.await_args.kwargs["caption"]
-    assert "Min" in caption
-    assert "Avg" in caption
-    assert "Max" in caption
+    # Rendered by `summary_lines`, the same function the product screen and
+    # the price chart use — three captions describing one product differently
+    # is how a reader stops trusting any of them.
+    assert "#12" in caption
+    assert "Lowest ever: €35.00" in caption
 
 
 async def test_send_backfill_chart_swallows_a_renderer_failure() -> None:
@@ -403,6 +405,6 @@ async def test_send_backfill_chart_swallows_a_renderer_failure() -> None:
     db.get_product = AsyncMock(side_effect=RuntimeError("db down"))
     message = AsyncMock()
 
-    await send_backfill_chart(message, db, 12, currency="EUR", average_price=Decimal("40.00"))
+    await send_backfill_chart(message, db, 12, currency="EUR")
 
     message.reply_photo.assert_not_called()

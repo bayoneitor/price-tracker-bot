@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import contextlib
 import logging
+from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING, Any
 
@@ -46,7 +47,12 @@ from price_tracker.bot.keyboards import (
 from price_tracker.bot.labels import product_label
 from price_tracker.bot.messages import _
 from price_tracker.bot.navigation import push_nav
-from price_tracker.core.price_stats import readings_from_records, time_weighted_average
+from price_tracker.core.price_stats import (
+    AVERAGE_WINDOWS,
+    averages_over_windows,
+    readings_from_records,
+    time_weighted_average,
+)
 from price_tracker.core.textlimits import SAFE_LIMIT, truncate_visible
 from price_tracker.core.url_utils import extract_amazon_asin
 
@@ -83,7 +89,7 @@ INDEX_NAME_BUDGET = 46
 PICKER_NAME_BUDGET = 30
 
 
-def _product_card(product: dict[str, Any], average: Decimal | None = None) -> list[str]:
+def _product_card(product: dict[str, Any], summary: PriceSummary | None = None) -> list[str]:
     """The full detail block for the product currently being shown."""
     from price_tracker.core.scraper_base import detect_currency  # noqa: PLC0415
 
@@ -126,19 +132,16 @@ def _product_card(product: dict[str, Any], average: Decimal | None = None) -> li
                 ).format(initial=initial, increase=abs(diff))
             )
 
-    if lowest:
-        # Shown even when it equals the current price — "you are looking at the
-        # cheapest it has ever been" is the single most useful thing this card
-        # can say, and hiding the line exactly then said nothing at all.
-        at_floor = current is not None and lowest >= current
-        label = _("📉 Min: {price} — cheapest ever") if at_floor else _("📉 Min: {price}")
-        lines.append(label.format(price=_convert_display(lowest, currency)))
-    if average is not None:
-        lines.append(
-            _("📊 Average ({days}d): {price}").format(
-                days=AVERAGE_WINDOW_DAYS, price=_convert_display(average, currency)
-            )
-        )
+    # The summary carries the dated floor and every window's average; without
+    # one (a caller that has no db to ask) the card still states the floor it
+    # already holds on the product row.
+    if summary is not None and not summary.is_empty():
+        lines.extend(summary_lines(summary, currency))
+        floor = summary.lowest
+        if floor is not None and current is not None and floor >= current:
+            lines.append(_("✨ This is the cheapest it has ever been."))
+    elif lowest:
+        lines.append(_("📉 Lowest ever: {price}").format(price=_convert_display(lowest, currency)))
 
     threshold = _format_threshold(
         product.get("threshold_type", "percentage"),
@@ -329,6 +332,93 @@ async def recent_averages(
     return averages
 
 
+@dataclass(frozen=True, slots=True)
+class PriceSummary:
+    """What a product's history says, for the card and every chart caption.
+
+    One object rendered by one function, so the product screen, the price
+    chart and the backfill chart cannot drift into saying different things
+    about the same product.
+    """
+
+    lowest: Decimal | None = None
+    lowest_at: datetime | None = None
+    averages: Mapping[int, Decimal] = field(default_factory=dict)
+
+    def is_empty(self) -> bool:
+        return self.lowest is None and not self.averages
+
+
+async def price_summary(db: Any, product: dict[str, Any]) -> PriceSummary:
+    """The floor with its date, and one average per window. Never raises.
+
+    Two queries: the change points of the longest window (which serves every
+    shorter one — the 30-day average is computed from the same rows, clamped)
+    and the single cheapest row ever recorded, which can be far older than any
+    window and so cannot come from the same fetch.
+
+    Falls back to `products.lowest_price` when history holds no rows yet: a
+    product added minutes ago knows its floor without having recorded one.
+    """
+    product_id = int(product["id"])
+    until = datetime.now(UTC)
+    longest = max(AVERAGE_WINDOWS)
+    lowest = _safe_dec(product.get("lowest_price"))
+    lowest_at: datetime | None = None
+    averages: Mapping[int, Decimal] = {}
+
+    try:
+        since = (until - timedelta(days=longest)).strftime("%Y-%m-%d %H:%M:%S")
+        histories = await db.get_price_change_points([product_id], since=since)
+        readings = readings_from_records(histories.get(product_id, ()))
+        averages = averages_over_windows(readings, until=until)
+
+        floor = await db.lowest_price_point(product_id)
+        # The recorded floor wins over the products column only when it is at
+        # least as low: the column can be seeded from initial_price at add
+        # time, before any row exists to date it.
+        if floor is not None and (lowest is None or floor.price <= lowest):
+            lowest = floor.price
+            lowest_at = _parse_history_ts(floor.checked_at)
+    except Exception:  # noqa: BLE001 — a summary is a nicety, the screen is not
+        logger.exception("Could not summarise history for product %s", product_id)
+        return PriceSummary(lowest=lowest)
+
+    return PriceSummary(lowest=lowest, lowest_at=lowest_at, averages=averages)
+
+
+def _parse_history_ts(value: str | None) -> datetime | None:
+    if not value:
+        return None
+    try:
+        parsed = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    return parsed if parsed.tzinfo else parsed.replace(tzinfo=UTC)
+
+
+def summary_lines(summary: PriceSummary, currency: str) -> list[str]:
+    """The floor and the averages, as the card and every caption render them."""
+    lines: list[str] = []
+    if summary.lowest is not None:
+        price = _convert_display(summary.lowest, currency)
+        if summary.lowest_at is not None:
+            lines.append(
+                _("📉 Lowest ever: {price} ({date})").format(
+                    price=price, date=summary.lowest_at.strftime("%Y-%m-%d")
+                )
+            )
+        else:
+            lines.append(_("📉 Lowest ever: {price}").format(price=price))
+    if summary.averages:
+        parts = [
+            _("{days}d {price}").format(days=days, price=_convert_display(value, currency))
+            for days, value in sorted(summary.averages.items())
+        ]
+        lines.append(_("📊 Average: {windows}").format(windows=" · ".join(parts)))
+    return lines
+
+
 def _stats_line(product: dict[str, Any], average: Decimal | None) -> str | None:
     """Current price, the floor it has ever hit, and the recent average.
 
@@ -410,7 +500,7 @@ def build_product_view(
     *,
     context: ContextTypes.DEFAULT_TYPE | None = None,
     message_id: int | None = None,
-    average: Decimal | None = None,
+    summary: PriceSummary | None = None,
 ) -> tuple[str, InlineKeyboardMarkup]:
     """One product: its card, and actions that can only mean the product above them."""
     exits = (nav_row(context, message_id) if context is not None else [close_button()]) or [
@@ -439,7 +529,7 @@ def build_product_view(
         ],
         exits,
     ]
-    return "\n".join(_product_card(product, average)), InlineKeyboardMarkup(rows)
+    return "\n".join(_product_card(product, summary)), InlineKeyboardMarkup(rows)
 
 
 @with_locale

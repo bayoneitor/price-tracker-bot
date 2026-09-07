@@ -13,6 +13,7 @@ The product's own screen is where the actions live, under the name they apply to
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock
@@ -25,6 +26,7 @@ from price_tracker.bot.handlers.callbacks._list import handle_list_navigation
 from price_tracker.bot.handlers.callbacks._nav import handle_close
 from price_tracker.bot.handlers.product_list import (
     INDEX_PAGE_SIZE,
+    PriceSummary,
     build_index_view,
     build_product_view,
     cmd_list,
@@ -285,36 +287,77 @@ def test_a_non_amazon_product_offers_no_keepa_button() -> None:
     assert "keepa_3" not in _button_data(markup)
 
 
-def test_the_product_screen_shows_the_recent_average() -> None:
-    text, _markup = build_product_view(_product(3), average=Decimal("233.50"))
-
-    assert "📊 Average (30d): €233.50" in text
+def _summary(**kwargs: Any) -> PriceSummary:
+    return PriceSummary(**kwargs)
 
 
-def test_the_product_screen_without_an_average_omits_the_line() -> None:
-    text, _markup = build_product_view(_product(3))
+def test_the_product_screen_shows_every_window_average() -> None:
+    summary = _summary(
+        lowest=Decimal("199.00"),
+        lowest_at=datetime(2026, 2, 17, tzinfo=UTC),
+        averages={30: Decimal("233.50"), 60: Decimal("245.00"), 90: Decimal("251.20")},
+    )
 
+    text, _markup = build_product_view(_product(3), summary=summary)
+
+    assert "📊 Average: 30d €233.50 · 60d €245.00 · 90d €251.20" in text
+
+
+def test_the_product_screen_dates_the_lowest_price() -> None:
+    """ "€199" and "€199, back in February" are different statements."""
+    summary = _summary(lowest=Decimal("199.00"), lowest_at=datetime(2026, 2, 17, tzinfo=UTC))
+
+    text, _markup = build_product_view(_product(3), summary=summary)
+
+    assert "📉 Lowest ever: €199.00 (2026-02-17)" in text
+
+
+def test_a_floor_with_no_recorded_date_is_still_shown() -> None:
+    """A product added minutes ago knows its floor without having dated one."""
+    text, _markup = build_product_view(_product(3), summary=_summary(lowest=Decimal("199.00")))
+
+    assert "📉 Lowest ever: €199.00" in text
+    assert "(" not in text.split("Lowest ever")[1].split("\n")[0]
+
+
+def test_only_the_windows_with_history_are_reported() -> None:
+    """A product tracked for a week has no 90-day average, and drawing one
+    would be a claim about months nobody watched."""
+    summary = _summary(lowest=Decimal("199.00"), averages={30: Decimal("233.50")})
+
+    text, _markup = build_product_view(_product(3), summary=summary)
+
+    assert "30d €233.50" in text
+    assert "90d" not in text
+
+
+def test_being_at_the_floor_is_said_outright() -> None:
+    """The single most useful thing this card can say."""
+    at_floor = {**_product(3), "current_price": "199.00"}
+    summary = _summary(lowest=Decimal("199.00"), lowest_at=datetime(2026, 2, 17, tzinfo=UTC))
+
+    text, _markup = build_product_view(at_floor, summary=summary)
+
+    assert "cheapest it has ever been" in text
+
+
+def test_a_price_above_the_floor_says_no_such_thing() -> None:
+    above = {**_product(3), "current_price": "259.00"}
+    summary = _summary(lowest=Decimal("199.00"))
+
+    text, _markup = build_product_view(above, summary=summary)
+
+    assert "cheapest it has ever been" not in text
+
+
+def test_without_a_summary_the_card_still_states_the_floor_it_has() -> None:
+    """A caller with no database to ask still renders a usable card."""
+    product = {**_product(3), "lowest_price": "199.00"}
+
+    text, _markup = build_product_view(product)
+
+    assert "📉 Lowest ever: €199.00" in text
     assert "Average" not in text
-
-
-def test_the_floor_is_shown_even_when_it_is_todays_price() -> None:
-    """It used to be hidden exactly when `lowest == current` — the one moment
-    the reader most wants to be told."""
-    at_floor = {**_product(3), "current_price": "199.00", "lowest_price": "199.00"}
-
-    text, _markup = build_product_view(at_floor)
-
-    assert "📉 Min: €199.00" in text
-    assert "cheapest ever" in text
-
-
-def test_a_floor_below_todays_price_is_stated_plainly() -> None:
-    above = {**_product(3), "current_price": "259.00", "lowest_price": "199.00"}
-
-    text, _markup = build_product_view(above)
-
-    assert "📉 Min: €199.00" in text
-    assert "cheapest ever" not in text
 
 
 def test_the_product_screen_shows_the_card_not_a_summary() -> None:

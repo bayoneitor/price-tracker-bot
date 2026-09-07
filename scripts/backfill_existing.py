@@ -116,13 +116,7 @@ async def main() -> None:
                     message = await bot.send_message(
                         chat_id=user.user_id, text=text, parse_mode=ParseMode.HTML
                     )
-                    await send_backfill_chart(
-                        message,
-                        repo,
-                        product.id,
-                        currency=currency,
-                        average_price=outcome.average_price,
-                    )
+                    await send_backfill_chart(message, repo, product.id, currency=currency)
             finally:
                 reset_locale(token)
 

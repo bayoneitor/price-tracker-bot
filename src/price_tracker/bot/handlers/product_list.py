@@ -46,6 +46,7 @@ from price_tracker.bot.labels import product_label
 from price_tracker.bot.messages import _
 from price_tracker.bot.navigation import push_nav
 from price_tracker.core.textlimits import SAFE_LIMIT, truncate_visible
+from price_tracker.core.url_utils import extract_amazon_asin
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -329,8 +330,12 @@ def build_product_view(
     if url:
         first_row.insert(0, InlineKeyboardButton(_("🔗 Open"), url=url))
 
-    rows = [
-        first_row,
+    rows = [first_row]
+    # Amazon only, and only when the URL actually carries an ASIN — a search
+    # results page or a cart link tracked by mistake has neither.
+    if extract_amazon_asin(url):
+        rows.append([InlineKeyboardButton(_("📈 Keepa graph"), callback_data=f"keepa_{pid}")])
+    rows += [
         [
             InlineKeyboardButton(_("⏸ Pause"), callback_data=f"pause_{pid}"),
             InlineKeyboardButton(_("🗑 Delete"), callback_data=f"remove_{pid}"),

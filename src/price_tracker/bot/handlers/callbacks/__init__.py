@@ -24,6 +24,7 @@ from price_tracker.bot.handlers.callbacks import (
     _admin,
     _delivery,
     _groups,
+    _keepa,
     _list,
     _menu,
     _nav,
@@ -56,6 +57,7 @@ async def _dispatch(
         or await _product.handle_delete_flow(query, context, db, user_id, data)
         or await _product.handle_check_button(query, context, db, user_id, data)
         or await _product.handle_chart_button(query, context, db, user_id, data)
+        or await _keepa.handle_keepa_button(query, context, db, user_id, data)
         or await _product.handle_amazon_pref(query, context, db, user_id, data)
         or await _product.handle_track_choice(query, context, db, user_id, data)
         or await _actions.handle_edit_button(query, context, db, user_id, data)

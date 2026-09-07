@@ -307,7 +307,12 @@ scrapers.
   whatever locale happened to be active rather than the reader's; moved
   inside, with a test pinning it (`test_the_all_time_low_alert_speaks_the_readers_language`).
 
-- [ ] **6.** **Keepa PNG button** and the public ASIN helper.
+- [x] **6.** **Keepa PNG button** and the public ASIN helper.
+
+  `extract_amazon_asin` / `keepa_domain_code` in `core/url_utils.py`, both
+  usable by the private Keepa plugin later. `handle_keepa_button` went into a
+  new `callbacks/_keepa.py` rather than `_product.py` — that file was about
+  to cross its 500-LOC budget.
 
 - [ ] **7.** **i18n + public docs.**
 

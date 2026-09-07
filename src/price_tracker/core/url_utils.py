@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import ipaddress
+import re
 import socket
 from urllib.parse import urlparse
 
@@ -102,3 +103,52 @@ def store_label(*, url: str = "", domain: str = "") -> str:
     if not candidate:
         candidate = extract_etld_plus_one(url)
     return candidate.removeprefix("www.")
+
+
+_ASIN_RE = re.compile(r"/(?:dp|gp/product|product)/([A-Z0-9]{10})(?:[/?]|$)")
+
+# Keepa addresses each Amazon storefront by a small integer, not by TLD — its
+# own public API and the free `graph.keepa.com` PNG endpoint both take this
+# id. Shared here rather than duplicated between the public Keepa-graph button
+# and the private Keepa history plugin (docs/history-providers.md), which
+# needs the same id to open the right storefront's product page.
+KEEPA_DOMAIN_CODES: dict[str, int] = {
+    "com": 1,
+    "co.uk": 2,
+    "de": 3,
+    "fr": 4,
+    "co.jp": 5,
+    "ca": 6,
+    "cn": 7,
+    "it": 8,
+    "es": 9,
+    "in": 10,
+    "com.mx": 11,
+    "com.br": 12,
+}
+
+
+def extract_amazon_asin(url: str) -> str | None:
+    """Pull the ASIN out of an Amazon product URL, or None if there isn't one.
+
+    Matches `/dp/`, `/gp/product/` and `/product/` — the three paths Amazon
+    actually links a product page from — each followed by exactly ten
+    alphanumerics. A URL carrying no ASIN in one of those shapes (a search
+    results page, a cart link) yields None rather than a wrong guess.
+    """
+    if not url:
+        return None
+    match = _ASIN_RE.search(url)
+    return match.group(1) if match else None
+
+
+def keepa_domain_code(url: str) -> int | None:
+    """Keepa's numeric domain id for an Amazon URL's storefront, or None if unmapped.
+
+    Derived from the eTLD+1's suffix (`extract_etld_plus_one`), so
+    `www.amazon.co.uk/...` and `amazon.co.uk/...` resolve the same way.
+    """
+    parts = _extractor(url)
+    if not parts.suffix:
+        return None
+    return KEEPA_DOMAIN_CODES.get(parts.suffix)

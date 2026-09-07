@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-09-07 13:46+0200\n"
+"POT-Creation-Date: 2026-09-07 13:52+0200\n"
 "PO-Revision-Date: 2026-09-04 11:53+0200\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: es_ES\n"
@@ -456,7 +456,7 @@ msgstr "❌ Producto no encontrado."
 
 #: src/price_tracker/bot/handlers/_helpers.py:193
 #: src/price_tracker/bot/handlers/product.py:87
-#: src/price_tracker/bot/handlers/product_list.py:284
+#: src/price_tracker/bot/handlers/product_list.py:285
 msgid "📭 You have no tracked products."
 msgstr "📭 No tienes productos en seguimiento."
 
@@ -541,7 +541,7 @@ msgstr "<b>👥 Usuarios autorizados</b>\n"
 #: src/price_tracker/bot/handlers/history.py:102
 #: src/price_tracker/bot/handlers/monitoring.py:170
 #: src/price_tracker/bot/handlers/monitoring.py:218
-#: src/price_tracker/bot/handlers/product_list.py:93
+#: src/price_tracker/bot/handlers/product_list.py:94
 msgid "N/A"
 msgstr "N/D"
 
@@ -1393,56 +1393,56 @@ msgstr "❌ Errores: {count}"
 msgid "✂️ Stopped at {limit} rows — send the rest in another file."
 msgstr "✂️ Parado en {limit} filas — envía el resto en otro archivo."
 
-#: src/price_tracker/bot/handlers/product_list.py:105
+#: src/price_tracker/bot/handlers/product_list.py:106
 #, python-brace-format
 msgid "🏬 Listed as: {name}"
 msgstr "🏬 En la tienda: {name}"
 
-#: src/price_tracker/bot/handlers/product_list.py:114
+#: src/price_tracker/bot/handlers/product_list.py:115
 #, python-brace-format, python-format
 msgid "📌 Initial price: €{initial:.2f} (<i>-{diff:.1f}% since tracking</i>)"
 msgstr "📌 Precio inicial: €{initial:.2f} (<i>-{diff:.1f}% desde el seguimiento</i>)"
 
-#: src/price_tracker/bot/handlers/product_list.py:121
+#: src/price_tracker/bot/handlers/product_list.py:122
 #, python-brace-format, python-format
 msgid "📈 Initial price: €{initial:.2f} (<i>+{increase:.1f}% since tracking</i>)"
 msgstr "📈 Precio inicial: €{initial:.2f} (<i>+{increase:.1f}% desde el seguimiento</i>)"
 
-#: src/price_tracker/bot/handlers/product_list.py:126
+#: src/price_tracker/bot/handlers/product_list.py:127
 #, python-brace-format
 msgid "📉 Min: €{price:.2f}"
 msgstr "📉 Mín: €{price:.2f}"
 
-#: src/price_tracker/bot/handlers/product_list.py:132
+#: src/price_tracker/bot/handlers/product_list.py:133
 #, python-brace-format
 msgid "🎯 Threshold: {threshold}"
 msgstr "🎯 Umbral: {threshold}"
 
-#: src/price_tracker/bot/handlers/product_list.py:134
+#: src/price_tracker/bot/handlers/product_list.py:135
 #, python-brace-format
 msgid "🏁 Target: €{price:.2f}"
 msgstr "🏁 Objetivo: €{price:.2f}"
 
-#: src/price_tracker/bot/handlers/product_list.py:143
+#: src/price_tracker/bot/handlers/product_list.py:144
 #, python-brace-format
 msgid "🔄 Check: every {interval}"
 msgstr "🔄 Comprobación: cada {interval}"
 
-#: src/price_tracker/bot/handlers/product_list.py:147
+#: src/price_tracker/bot/handlers/product_list.py:148
 #, python-brace-format
 msgid "🕐 Last check: {ago}"
 msgstr "🕐 Última comprobación: {ago}"
 
-#: src/price_tracker/bot/handlers/product_list.py:152
+#: src/price_tracker/bot/handlers/product_list.py:153
 #, python-brace-format
 msgid "⚠️ {count} failed reads recently — details with /errors"
 msgstr "⚠️ {count} lecturas fallidas hace poco — detalles con /errors"
 
-#: src/price_tracker/bot/handlers/product_list.py:188
+#: src/price_tracker/bot/handlers/product_list.py:189
 msgid "➕ Add"
 msgstr "➕ Añadir"
 
-#: src/price_tracker/bot/handlers/product_list.py:194
+#: src/price_tracker/bot/handlers/product_list.py:195
 msgid ""
 "📭 You have no tracked products.\n"
 "Paste me a link to get started!"
@@ -1450,44 +1450,48 @@ msgstr ""
 "📭 No tienes productos en seguimiento.\n"
 "¡Pégame un enlace para empezar!"
 
-#: src/price_tracker/bot/handlers/product_list.py:205
+#: src/price_tracker/bot/handlers/product_list.py:206
 #, python-brace-format
 msgid "<b>📦 Your products ({count})</b>"
 msgstr "<b>📦 Tus productos ({count})</b>"
 
-#: src/price_tracker/bot/handlers/product_list.py:207
-#: src/price_tracker/bot/handlers/product_list.py:308
+#: src/price_tracker/bot/handlers/product_list.py:208
+#: src/price_tracker/bot/handlers/product_list.py:309
 #, python-brace-format
 msgid "Page {page} of {pages}"
 msgstr "Página {page} de {pages}"
 
-#: src/price_tracker/bot/handlers/product_list.py:250
+#: src/price_tracker/bot/handlers/product_list.py:251
 #, python-brace-format
 msgid "Page {page}/{pages}"
 msgstr "Página {page}/{pages}"
 
-#: src/price_tracker/bot/handlers/product_list.py:325
+#: src/price_tracker/bot/handlers/product_list.py:326
 msgid "🔍 Check"
 msgstr "🔍 Comprobar"
 
 #: src/price_tracker/bot/handlers/callbacks/_product.py:238
-#: src/price_tracker/bot/handlers/product_list.py:326
+#: src/price_tracker/bot/handlers/product_list.py:327
 msgid "📊 Price history"
 msgstr "📊 Histórico de precios"
 
-#: src/price_tracker/bot/handlers/product_list.py:330
+#: src/price_tracker/bot/handlers/product_list.py:331
 msgid "🔗 Open"
 msgstr "🔗 Abrir"
 
-#: src/price_tracker/bot/handlers/product_list.py:335
+#: src/price_tracker/bot/handlers/product_list.py:337
+msgid "📈 Keepa graph"
+msgstr "📈 Gráfico de Keepa"
+
+#: src/price_tracker/bot/handlers/product_list.py:340
 msgid "⏸ Pause"
 msgstr "⏸ Pausar"
 
-#: src/price_tracker/bot/handlers/product_list.py:336
+#: src/price_tracker/bot/handlers/product_list.py:341
 msgid "🗑 Delete"
 msgstr "🗑 Eliminar"
 
-#: src/price_tracker/bot/handlers/product_list.py:337
+#: src/price_tracker/bot/handlers/product_list.py:342
 msgid "✏️ Edit"
 msgstr "✏️ Editar"
 
@@ -2348,6 +2352,21 @@ msgstr ""
 "🏷 <b>Grupos de #{pid}</b>\n"
 "\n"
 "Toca para añadir o quitar."
+
+#: src/price_tracker/bot/handlers/callbacks/_keepa.py:53
+msgid "❌ No Amazon ASIN found for this product."
+msgstr "❌ No se encontró un ASIN de Amazon para este producto."
+
+#: src/price_tracker/bot/handlers/callbacks/_keepa.py:60
+#, python-brace-format
+msgid ""
+"📈 <b>#{pid}</b> {name}\n"
+"\n"
+"Graph by Keepa (keepa.com), 365 days."
+msgstr ""
+"📈 <b>#{pid}</b> {name}\n"
+"\n"
+"Gráfico de Keepa (keepa.com), 365 días."
 
 #: src/price_tracker/bot/handlers/callbacks/_list.py:59
 #, python-brace-format

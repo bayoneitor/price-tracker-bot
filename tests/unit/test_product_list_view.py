@@ -227,6 +227,20 @@ def test_the_product_screen_names_what_the_buttons_will_touch() -> None:
         assert action in _button_data(markup)
 
 
+def test_an_amazon_product_offers_the_keepa_button() -> None:
+    amazon = {**_product(3), "url": "https://www.amazon.es/dp/B0CX23V2ZK"}
+
+    _text, markup = build_product_view(amazon)
+
+    assert "keepa_3" in _button_data(markup)
+
+
+def test_a_non_amazon_product_offers_no_keepa_button() -> None:
+    _text, markup = build_product_view(_product(3))
+
+    assert "keepa_3" not in _button_data(markup)
+
+
 def test_the_product_screen_shows_the_card_not_a_summary() -> None:
     text, _markup = build_product_view(_product(3))
 

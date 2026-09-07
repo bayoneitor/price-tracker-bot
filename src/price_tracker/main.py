@@ -21,9 +21,10 @@ from price_tracker.core.backup import take_snapshot
 from price_tracker.core.health import HealthManager
 from price_tracker.core.http_client import build_client
 from price_tracker.core.registry import (
+    HistoryRegistry,
     ScraperRegistry,
     discover_builtin_scrapers,
-    discover_dropin_scrapers,
+    discover_dropin_plugins,
 )
 from price_tracker.core.scheduler import Scheduler, SchedulerDeps
 from price_tracker.db import apply_runtime_pragmas
@@ -220,8 +221,10 @@ async def amain() -> None:
 
     registry = ScraperRegistry()
     discover_builtin_scrapers(registry)
-    discover_dropin_scrapers(registry, PLUGIN_DIR_DEFAULT)
+    history_registry = HistoryRegistry()
+    discover_dropin_plugins(registry, history_registry, PLUGIN_DIR_DEFAULT)
     application.bot_data["registry"] = registry
+    application.bot_data["history_registry"] = history_registry
 
     register_handlers(application)
 

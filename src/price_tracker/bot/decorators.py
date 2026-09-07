@@ -137,6 +137,17 @@ def _scraper(ctx: ContextTypes.DEFAULT_TYPE) -> Any:
     return ctx.bot_data["scraper"]
 
 
+def _history_registry(ctx: ContextTypes.DEFAULT_TYPE) -> Any:
+    """Return the `HistoryRegistry` of installed backfill providers, if any.
+
+    Never missing — `main.py` always publishes one, empty when no plugin
+    registered — but handler tests build a bare `bot_data` dict, so `.get`
+    keeps a provider-less test from raising `KeyError` over a feature it is
+    not exercising.
+    """
+    return ctx.bot_data.get("history_registry")
+
+
 def _client(ctx: ContextTypes.DEFAULT_TYPE) -> httpx.AsyncClient:
     """Return the shared async HTTP client."""
     return ctx.bot_data["http_client"]

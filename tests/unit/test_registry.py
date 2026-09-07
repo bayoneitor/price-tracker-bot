@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-from price_tracker.core.registry import ScraperRegistry
+from price_tracker.core.registry import HistoryRegistry, ScraperRegistry
 from price_tracker.core.scraper_base import AbstractScraper, ProductInfo
 
 if TYPE_CHECKING:
@@ -119,19 +119,20 @@ def test_discover_builtin_scrapers_skips_duplicates_silently():
     assert len(r) == initial_count
 
 
-def test_discover_dropin_scrapers_no_dir_returns_silently(tmp_path):
+def test_discover_dropin_plugins_no_dir_returns_silently(tmp_path):
     """When plugin_dir doesn't exist, discover returns without error."""
-    from price_tracker.core.registry import discover_dropin_scrapers
+    from price_tracker.core.registry import discover_dropin_plugins
 
-    r = ScraperRegistry()
+    r, h = ScraperRegistry(), HistoryRegistry()
     missing = tmp_path / "does-not-exist"
-    discover_dropin_scrapers(r, missing)
+    discover_dropin_plugins(r, h, missing)
     assert len(r) == 0
+    assert len(h) == 0
 
 
-def test_discover_dropin_scrapers_loads_py_file(tmp_path):
+def test_discover_dropin_plugins_loads_a_scraper(tmp_path):
     """Drop-in: a *.py file with a Scraper subclass gets registered."""
-    from price_tracker.core.registry import discover_dropin_scrapers
+    from price_tracker.core.registry import discover_dropin_plugins
 
     plugin_file = tmp_path / "myplugin.py"
     plugin_file.write_text(
@@ -149,15 +150,39 @@ def test_discover_dropin_scrapers_loads_py_file(tmp_path):
         "        return ProductInfo(price=Decimal('9.99'))\n"
     )
 
-    r = ScraperRegistry()
-    discover_dropin_scrapers(r, tmp_path)
+    r, h = ScraperRegistry(), HistoryRegistry()
+    discover_dropin_plugins(r, h, tmp_path)
     names = {s.name for s in r}
     assert "mydropin" in names
+    assert len(h) == 0
 
 
-def test_discover_dropin_scrapers_skips_underscore_files(tmp_path):
+def test_discover_dropin_plugins_loads_a_history_provider(tmp_path):
+    """One pass registers both kinds a plugin file may define."""
+    from price_tracker.core.registry import discover_dropin_plugins
+
+    plugin_file = tmp_path / "myhistory.py"
+    plugin_file.write_text(
+        "from price_tracker.core.history_base import AbstractHistoryProvider, HistoryResult\n"
+        "\n"
+        "class MyHistory(AbstractHistoryProvider):\n"
+        "    name = 'myhistory'\n"
+        "    priority = 50\n"
+        "    def can_handle(self, url):\n"
+        "        return True\n"
+        "    async def fetch(self, url, client):\n"
+        "        return HistoryResult()\n"
+    )
+
+    r, h = ScraperRegistry(), HistoryRegistry()
+    discover_dropin_plugins(r, h, tmp_path)
+    assert len(r) == 0
+    assert {p.name for p in h} == {"myhistory"}
+
+
+def test_discover_dropin_plugins_skips_underscore_files(tmp_path):
     """Files starting with _ (e.g. _helpers.py) are ignored."""
-    from price_tracker.core.registry import discover_dropin_scrapers
+    from price_tracker.core.registry import discover_dropin_plugins
 
     (tmp_path / "_helper.py").write_text(
         "from price_tracker.core.scraper_base import AbstractScraper\n"
@@ -171,19 +196,21 @@ def test_discover_dropin_scrapers_skips_underscore_files(tmp_path):
         "        from price_tracker.core.scraper_base import ProductInfo\n"
         "        return ProductInfo()\n"
     )
-    r = ScraperRegistry()
-    discover_dropin_scrapers(r, tmp_path)
+    r, h = ScraperRegistry(), HistoryRegistry()
+    discover_dropin_plugins(r, h, tmp_path)
     assert len(r) == 0
+    assert len(h) == 0
 
 
-def test_discover_dropin_scrapers_swallows_duplicate(tmp_path):
-    """Drop-in twice → ValueError branch swallows (lines 98-99)."""
-    from price_tracker.core.registry import discover_dropin_scrapers
+def test_discover_dropin_plugins_swallows_a_duplicate_of_either_kind(tmp_path):
+    """Drop-in twice → each registry's ValueError branch swallows."""
+    from price_tracker.core.registry import discover_dropin_plugins
 
     plugin_file = tmp_path / "dup.py"
     plugin_file.write_text(
         "from decimal import Decimal\n"
         "from price_tracker.core.scraper_base import AbstractScraper, ProductInfo\n"
+        "from price_tracker.core.history_base import AbstractHistoryProvider, HistoryResult\n"
         "\n"
         "class DupOne(AbstractScraper):\n"
         "    name = 'dupone'\n"
@@ -193,11 +220,45 @@ def test_discover_dropin_scrapers_swallows_duplicate(tmp_path):
         "        return False\n"
         "    async def scrape(self, url, client):\n"
         "        return ProductInfo(price=Decimal('1'))\n"
+        "\n"
+        "class DupHistory(AbstractHistoryProvider):\n"
+        "    name = 'duphistory'\n"
+        "    priority = 1\n"
+        "    def can_handle(self, url):\n"
+        "        return False\n"
+        "    async def fetch(self, url, client):\n"
+        "        return HistoryResult()\n"
     )
 
-    r = ScraperRegistry()
-    discover_dropin_scrapers(r, tmp_path)
+    r, h = ScraperRegistry(), HistoryRegistry()
+    discover_dropin_plugins(r, h, tmp_path)
     assert len(r) == 1
-    # Second call: same class definition reloaded → duplicate name → swallowed
-    discover_dropin_scrapers(r, tmp_path)
+    assert len(h) == 1
+    # Second call: same class definitions reloaded → duplicate names → swallowed
+    discover_dropin_plugins(r, h, tmp_path)
     assert len(r) == 1
+    assert len(h) == 1
+
+
+def test_discover_dropin_plugins_skips_a_broken_file_and_keeps_going(tmp_path):
+    """A syntax error in one plugin must not stop the bot from starting."""
+    from price_tracker.core.registry import discover_dropin_plugins
+
+    (tmp_path / "broken.py").write_text("this is not python (\n")
+    plugin_file = tmp_path / "good.py"
+    plugin_file.write_text(
+        "from price_tracker.core.scraper_base import AbstractScraper, ProductInfo\n"
+        "\n"
+        "class Good(AbstractScraper):\n"
+        "    name = 'good'\n"
+        "    priority = 1\n"
+        "    domain_patterns = []\n"
+        "    def can_handle(self, url):\n"
+        "        return False\n"
+        "    async def scrape(self, url, client):\n"
+        "        return ProductInfo()\n"
+    )
+
+    r, h = ScraperRegistry(), HistoryRegistry()
+    discover_dropin_plugins(r, h, tmp_path)
+    assert {s.name for s in r} == {"good"}

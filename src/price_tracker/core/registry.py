@@ -1,4 +1,4 @@
-"""Plugin discovery and registry for scrapers."""
+"""Plugin discovery and registry for scrapers and history providers."""
 
 from __future__ import annotations
 
@@ -8,6 +8,7 @@ import logging
 import pkgutil
 from typing import TYPE_CHECKING
 
+from price_tracker.core.history_base import AbstractHistoryProvider
 from price_tracker.core.scraper_base import AbstractScraper
 
 if TYPE_CHECKING:
@@ -73,8 +74,67 @@ def discover_builtin_scrapers(registry: ScraperRegistry) -> None:
                     pass
 
 
-def discover_dropin_scrapers(registry: ScraperRegistry, plugin_dir: Path) -> None:
-    """Load any *.py file in `plugin_dir` and register Scraper subclasses found."""
+class HistoryRegistry:
+    """Holds registered history-provider instances and resolves a URL to all of them.
+
+    Unlike `ScraperRegistry.resolve`, which stops at the first match because
+    exactly one scraper reads the current price, more than one provider can
+    plausibly hold history for the same URL — `resolve_all` returns every
+    match in priority order and the caller (`_add_product`'s backfill step)
+    keeps walking until one returns points or all have been asked.
+    """
+
+    def __init__(self) -> None:
+        self._providers: list[AbstractHistoryProvider] = []
+        self._names: set[str] = set()
+
+    def register(self, provider: AbstractHistoryProvider) -> None:
+        """Register a provider instance. Raises if the name is already taken."""
+        if provider.name in self._names:
+            raise ValueError(f"History provider '{provider.name}' already registered")
+        self._providers.append(provider)
+        self._names.add(provider.name)
+        self._providers.sort(key=lambda p: p.priority, reverse=True)
+
+    def list_providers(self) -> list[AbstractHistoryProvider]:
+        """Return providers in priority order (highest first).
+
+        Not named `list`, unlike `ScraperRegistry`'s twin: mypy (strict,
+        3.12) misresolves `list[AbstractHistoryProvider]` in *this* class's
+        own return annotation to the method being defined rather than the
+        builtin once a second class in the module defines a same-named
+        method — reproduced in isolation, not a design choice.
+        """
+        return list(self._providers)
+
+    def resolve_all(self, url: str) -> list[AbstractHistoryProvider]:
+        """Every provider willing to try `url`, in priority order."""
+        return [p for p in self._providers if p.can_handle(url)]
+
+    def __iter__(self) -> Iterator[AbstractHistoryProvider]:
+        return iter(self._providers)
+
+    def __len__(self) -> int:
+        return len(self._providers)
+
+
+def discover_dropin_plugins(
+    scraper_registry: ScraperRegistry,
+    history_registry: HistoryRegistry,
+    plugin_dir: Path,
+) -> None:
+    """Load any *.py file in `plugin_dir` once, registering both kinds it may define.
+
+    One pass rather than one per plugin type: a plugin file is executed to be
+    scanned, and executing it twice would run whatever top-level code it
+    carries twice too. `plugins/precioreal.py` defines only a history
+    provider today; a future drop-in scraper works the same way it always
+    has, registered in the same pass.
+
+    An import error in one file is logged and skipped rather than raised — the
+    plugin directory is operator content, edited on the running host outside
+    a review, and a typo in one file must not stop the bot from starting.
+    """
     if not plugin_dir.is_dir():
         return
     for file in plugin_dir.glob("*.py"):
@@ -84,16 +144,26 @@ def discover_dropin_scrapers(registry: ScraperRegistry, plugin_dir: Path) -> Non
         if spec is None or spec.loader is None:
             continue
         module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(module)
+        try:
+            spec.loader.exec_module(module)
+        except Exception:
+            logger.exception("Failed to load plugin %s — skipped", file)
+            continue
         for attr_name in dir(module):
             attr = getattr(module, attr_name)
-            if (
-                isinstance(attr, type)
-                and issubclass(attr, AbstractScraper)
-                and attr is not AbstractScraper
-            ):
+            if not isinstance(attr, type):
+                continue
+            if issubclass(attr, AbstractScraper) and attr is not AbstractScraper:
                 try:
-                    registry.register(attr())
+                    scraper_registry.register(attr())
                     logger.info("Registered drop-in scraper: %s (from %s)", attr.name, file)
+                except ValueError:
+                    pass
+            elif issubclass(attr, AbstractHistoryProvider) and attr is not AbstractHistoryProvider:
+                try:
+                    history_registry.register(attr())
+                    logger.info(
+                        "Registered drop-in history provider: %s (from %s)", attr.name, file
+                    )
                 except ValueError:
                     pass

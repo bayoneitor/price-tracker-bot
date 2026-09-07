@@ -406,12 +406,25 @@ scrapers.
   between plugin files" pattern was broken for every plugin, not just this
   one.
 
-- [ ] **12.** **PrecioReal scraper.** `can_handle` the ES-store allowlist only (never
+- [x] **12.** **PrecioReal scraper.** `can_handle` the ES-store allowlist only (never
   every URL). Playwright opens PrecioReal, lets the SPA bootstrap the
   session, intercepts
   `GET /api/proxy?endpoint=get_offer&country=es&url=...`, maps the history
   array to `HistoryPoint`. Soft-import Playwright. Private tests against a
   recorded `get_offer` fixture.
+
+  A bigger confidence gap than Keepa's, honestly documented at the top of
+  `precioreal.py` itself: the plan specifies the intercepted *endpoint*
+  precisely (matched exactly — `capture_response` filters on
+  `"endpoint=get_offer" in r.url`) but not the frontend URL that makes the
+  SPA fire it, nor the response's JSON field names, the way Keepa's
+  `csv`/`keepaMinutes` shape is a stable, publicly documented constant this
+  session could implement with confidence. `PRODUCT_PAGE_URL_TEMPLATE` and
+  the field-name guess (tried against several plausible keys, in order) are
+  this plugin's own best effort, not a verified fact — flagged in the file's
+  own module docstring, and exactly what step 13's live host and the
+  operator README's "Updating the fixtures" section are for. A wrong guess
+  costs one `HistoryResult(error=...)`, never a broken add. 39 tests.
 
 - [ ] **13.** **Verify the scrapers on this host.** Restart compose. Add an `amazon.es`
   product (Keepa should hit; card shows imported count; `/history` draws grey

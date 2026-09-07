@@ -1,7 +1,14 @@
 # Plan — Price history backfill from private plugins
 
 - Date: 2026-09-07
-- Status: **in progress.** Checklist below tracks each step as it lands.
+- Status: **12/13 done, 1 partial.** Every public-repo step (1-8) and every
+  private-repo step (9-12) shipped and verified — code, tests, docs, i18n,
+  deployed to this host. Step 13 (live host verification) is split: what
+  this session could check itself (clean startup, both providers
+  registering, a broken plugin file not stopping the bot) is done; what
+  needs a real Telegram session — adding an actual product, reading an
+  actual chart, tapping an actual button — is the operator's own next
+  step, detailed in that entry.
 - Repo: fork `bayoneitor/price-tracker-bot`, branch `integration`
 
 Prose in English, like the rest of `docs/`. Written so an executor who reads only
@@ -426,12 +433,44 @@ scrapers.
   operator README's "Updating the fixtures" section are for. A wrong guess
   costs one `HistoryResult(error=...)`, never a broken add. 39 tests.
 
-- [ ] **13.** **Verify the scrapers on this host.** Restart compose. Add an `amazon.es`
+- [~] **13.** **Verify the scrapers on this host.** Restart compose. Add an `amazon.es`
   product (Keepa should hit; card shows imported count; `/history` draws grey
   then orange with the tracking-start line). Add a PcComponentes product
   (Keepa skips, PrecioReal hits or silent miss). `all_time_low`: set
   `lowest_price` by hand, force a read below it, fires once. Keepa PNG
   button on a real ASIN. Broken plugin file: bot still starts.
+
+  Split by what this session can actually do from here. Done: restarted
+  compose (built with everything from this plan); both `keepa` and
+  `precioreal` register on real startup; a deliberately broken third
+  `plugins/*.py` file was added, confirmed logged-and-skipped (`SyntaxError`,
+  `'(' was never closed`) with both real providers still registering and the
+  bot still starting, then removed.
+
+  Not done here, and cannot be from here: this session has no Telegram
+  client and no live network path to Keepa or PrecioReal — everything that
+  needs an actual product added through the bot, an actual chart image
+  looked at, or an actual button tapped needs the operator, on this host, in
+  Telegram. Given the confidence gap noted in step 12, PrecioReal in
+  particular should be expected to need a fixture-recording pass (the
+  operator README's own "Updating the fixtures" section) before it reliably
+  hits — Keepa's constants are well-documented and stable, but even that one
+  has never run against live traffic. What to check, in Telegram, once
+  ready:
+
+  1. `/add` an `amazon.es` product with real price history. Keepa should
+     hit; the confirmation card should show an imported count and a
+     "🎯 Alert at its lowest ever" button; `/history` should draw grey
+     (imported) fading into orange (live) with a dashed line where tracking
+     started.
+  2. `/add` a PcComponentes product. Keepa should skip (not an Amazon URL);
+     PrecioReal should hit or miss silently — a miss looks identical to
+     never having installed a provider at all, by design.
+  3. On a tracked product, set `all_time_low` as its threshold (Edit → 🏆
+     All-time low), lower `lowest_price` by hand in the database, force a
+     check that reads below it, confirm exactly one alert with the
+     "cheapest it has ever been" wording.
+  4. The 📈 Keepa graph button on a real Amazon product's own screen.
 
 ---
 

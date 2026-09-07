@@ -166,7 +166,14 @@ async def handle_remove_button(
         InlineKeyboardButton(_("⏸ Just pause"), callback_data=f"pause_{product_id}"),
     ]
     await query.edit_message_text(
-        _("❓ What do you want to do with <b>{name}</b>?").format(name=_escape_html(name)),
+        # The two buttons differ in what happens to the history, and only one of
+        # them can be undone — so the screen says which, rather than leaving the
+        # reader to find out afterwards.
+        _(
+            "❓ What do you want to do with <b>{name}</b>?\n\n"
+            "🗑 Deleting also erases its whole price history, for good.\n"
+            "⏸ Pausing stops the checks and keeps everything."
+        ).format(name=_escape_html(name)),
         parse_mode=ParseMode.HTML,
         # The old "❌ Cancel" here dropped the user on a dead "Operation cancelled"
         # screen; ◀️ Back puts them where they were.

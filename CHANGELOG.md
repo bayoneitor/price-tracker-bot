@@ -26,6 +26,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Deleting a product lands back on the listing instead of on a screen that only says
+  what happened. Deleting is rarely the last thing you do — you are tidying a list —
+  so the list is both where the reader was going and the proof that it worked. The
+  same for deleting everything, which lands on the empty listing.
+- The delete confirmation says what deleting costs: the price history goes with the
+  product, for good, while pausing keeps everything. The two buttons always differed
+  in that, and only one of them can be undone.
+
 - The product index is a 3x3 grid of numbers. It paged ten at a time under a cursor
   you stepped one product at a time — six taps to reach the seventh product, on a
   screen whose whole purpose is picking one. Nine to a page now, and every one of them

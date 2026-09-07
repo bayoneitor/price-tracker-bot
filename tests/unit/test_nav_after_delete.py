@@ -127,7 +127,8 @@ async def test_back_after_a_deletion_leads_to_the_listing() -> None:
 @pytest.mark.asyncio
 async def test_deleting_everything_clears_every_products_trail() -> None:
     db = AsyncMock()
-    db.get_active_products = AsyncMock(return_value=[{"id": 4}, {"id": 5}])
+    db.get_active_products = AsyncMock(side_effect=[[{"id": 4}, {"id": 5}], []])
+    db.get_all_products = AsyncMock(return_value=[])
     db.delete_product = AsyncMock(return_value=True)
     context = MagicMock()
     context.user_data = {NAV_KEY: {10: ["menu_main", "prod_4", "prod_5"]}}
@@ -135,7 +136,103 @@ async def test_deleting_everything_clears_every_products_trail() -> None:
 
     await handle_delete_flow(query, context, db, 1, "confirmdeleteall")
 
-    assert context.user_data[NAV_KEY][10] == ["menu_main"]
+    # The product screens are gone and the listing this message now shows is on
+    # top, so ◀️ Back leads to the menu rather than to a deleted product.
+    assert context.user_data[NAV_KEY][10] == ["menu_main", "list_go_0"]
+
+
+# ── Where a deletion leaves the reader ───────────────────────────────────
+
+
+def _index_context(remaining: list[dict[str, Any]]) -> tuple[Any, Any, Any]:
+    db = AsyncMock()
+    db.delete_product = AsyncMock(return_value=True)
+    db.is_user_admin = AsyncMock(return_value=False)
+    db.get_product_for_user = AsyncMock(return_value={"id": 5, "name": "Widget"})
+    db.get_active_products = AsyncMock(return_value=remaining)
+    db.get_all_products = AsyncMock(return_value=remaining)
+
+    context = MagicMock()
+    context.user_data = {NAV_KEY: {10: ["menu_main", "list_go_0", "prod_5", "remove_5"]}}
+    context.bot_data = {"db": db}
+    query = MagicMock(message=MagicMock(message_id=10), edit_message_text=AsyncMock())
+    return query, context, db
+
+
+def _listed(item: dict[str, Any] | None = None) -> list[dict[str, Any]]:
+    return [
+        {
+            "id": 4,
+            "name": "Still here",
+            "domain": "amazon.es",
+            "url": "https://amazon.es/p/4",
+            "current_price": "10.00",
+            "currency": "EUR",
+        }
+    ] + ([item] if item else [])
+
+
+@pytest.mark.asyncio
+async def test_deleting_lands_back_on_the_listing() -> None:
+    """Deleting is tidying a list, so the list is where the reader wants to be."""
+    query, context, db = _index_context(_listed())
+
+    await handle_delete_flow(query, context, db, 1, "confirm_delete_5")
+
+    text = query.edit_message_text.await_args.args[0]
+    assert "Your products" in text
+    assert "#4" in text
+
+
+@pytest.mark.asyncio
+async def test_the_listing_still_says_what_was_deleted() -> None:
+    query, context, db = _index_context(_listed())
+
+    await handle_delete_flow(query, context, db, 1, "confirm_delete_5")
+
+    assert "Widget" in query.edit_message_text.await_args.args[0]
+
+
+@pytest.mark.asyncio
+async def test_the_deleted_product_is_not_in_the_listing_it_lands_on() -> None:
+    """The listing is the proof, not just the destination."""
+    query, context, db = _index_context(_listed())
+
+    await handle_delete_flow(query, context, db, 1, "confirm_delete_5")
+
+    markup = query.edit_message_text.await_args.kwargs["reply_markup"]
+    assert "prod_5" not in [
+        b.callback_data for row in markup.inline_keyboard for b in row if b.callback_data
+    ]
+
+
+@pytest.mark.asyncio
+async def test_back_from_there_leaves_the_listing_not_the_product() -> None:
+    query, context, db = _index_context(_listed())
+
+    await handle_delete_flow(query, context, db, 1, "confirm_delete_5")
+
+    assert context.user_data[NAV_KEY][10] == ["menu_main", "list_go_0"]
+
+
+@pytest.mark.asyncio
+async def test_a_typed_number_steers_the_listing_it_lands_on() -> None:
+    from price_tracker.bot.handlers.product_list import LIST_MESSAGE_KEY
+
+    query, context, db = _index_context(_listed())
+
+    await handle_delete_flow(query, context, db, 1, "confirm_delete_5")
+
+    assert context.user_data[LIST_MESSAGE_KEY] == 10
+
+
+@pytest.mark.asyncio
+async def test_deleting_the_last_product_lands_on_the_empty_listing() -> None:
+    query, context, db = _index_context([])
+
+    await handle_delete_flow(query, context, db, 1, "confirm_delete_5")
+
+    assert "no tracked products" in query.edit_message_text.await_args.args[0]
 
 
 # ── The self-healing path ────────────────────────────────────────────────

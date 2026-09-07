@@ -51,6 +51,48 @@ def _message_id(query: Any) -> int | None:
     return getattr(getattr(query, "message", None), "message_id", None)
 
 
+async def _back_to_index(
+    query: Any, context: ContextTypes.DEFAULT_TYPE, db: Any, user_id: int, notice: str
+) -> None:
+    """Report a deletion and land back on the listing, in the same message.
+
+    Deleting used to end on a screen saying only what had happened, whose one way
+    onward was ◀️ Back. But deleting is rarely the last thing you do — you are
+    tidying a list — so the listing is where the reader already wanted to be, and
+    it is also the proof: the product is not in it any more.
+    """
+    from price_tracker.bot.handlers.callbacks._list import _extra_rows  # noqa: PLC0415 — cycle
+    from price_tracker.bot.handlers.product_list import (  # noqa: PLC0415 — cycle
+        LIST_MESSAGE_KEY,
+        build_index_view,
+    )
+    from price_tracker.bot.keyboards import LIST_GOTO_PREFIX  # noqa: PLC0415 — cycle
+    from price_tracker.bot.navigation import push_nav  # noqa: PLC0415 — cycle
+
+    message_id = _message_id(query)
+    products = await db.get_active_products(user_id)
+    # From the first page: the one the reader was on may not exist any more, and
+    # after deleting the last product on a page nor would the page.
+    text, keyboard = build_index_view(
+        products,
+        0,
+        context=context,
+        message_id=message_id,
+        extra_rows=await _extra_rows(db, user_id),
+    )
+    await query.edit_message_text(
+        f"{notice}\n\n{text}",
+        parse_mode=ParseMode.HTML,
+        disable_web_page_preview=True,
+        reply_markup=keyboard,
+    )
+    if context.user_data is not None and message_id is not None:
+        # This message is the listing now: a typed number steers it, and the
+        # trail has to say so or ◀️ Back would return to the product's own screen.
+        context.user_data[LIST_MESSAGE_KEY] = message_id
+        push_nav(context, message_id, f"{LIST_GOTO_PREFIX}0")
+
+
 async def handle_delete_flow(
     query: Any, context: ContextTypes.DEFAULT_TYPE, db: Any, user_id: int, data: str
 ) -> bool:
@@ -66,13 +108,15 @@ async def handle_delete_flow(
         if product:
             name = product.get("name") or _("Unknown")
             await db.delete_product(product_id, user_id=user_id)
-            # Before the confirmation renders: its own ◀️ Back reads the trail,
-            # which still holds the screens of the product just deleted.
+            # Before anything renders: the trail still holds the screens of the
+            # product just deleted, and the index about to draw itself reads it.
             forget_product(context, product_id)
-            await query.edit_message_text(
+            await _back_to_index(
+                query,
+                context,
+                db,
+                user_id,
                 _("🗑 Permanently deleted: <b>{name}</b>").format(name=_escape_html(name[:80])),
-                parse_mode=ParseMode.HTML,
-                reply_markup=result_keyboard(context, _message_id(query)),
             )
         else:
             await query.edit_message_text(
@@ -125,10 +169,12 @@ async def handle_delete_flow(
             await db.delete_product(p["id"], user_id=user_id)
             forget_product(context, p["id"])
             count += 1
-        await query.edit_message_text(
+        await _back_to_index(
+            query,
+            context,
+            db,
+            user_id,
             _("🗑 <b>Deleted {count} products</b> and all their history.").format(count=count),
-            parse_mode=ParseMode.HTML,
-            reply_markup=result_keyboard(context, _message_id(query)),
         )
         return True
 

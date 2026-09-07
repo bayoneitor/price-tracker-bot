@@ -24,9 +24,11 @@ async def test_chart_renders_off_the_event_loop(monkeypatch) -> None:
     captured: dict[str, int] = {}
     real_render = charts._render_chart
 
-    def spy(dates: list[datetime], prices: list[float], target: object, name: str) -> io.BytesIO:
+    def spy(
+        dates: list[datetime], prices: list[float], target: object, name: str, **kwargs: Any
+    ) -> io.BytesIO:
         captured["thread"] = threading.get_ident()
-        return real_render(dates, prices, target, name)
+        return real_render(dates, prices, target, name, **kwargs)
 
     monkeypatch.setattr(charts, "_render_chart", spy)
 

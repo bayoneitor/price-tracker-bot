@@ -70,6 +70,18 @@ SERIES_ALIASES = "ABCDEFGH"
 # history held several distinct prices.
 CHART_WINDOW_DAYS = 90
 
+# A backfilled product's memory can run far past 90 days — that is the whole
+# point of importing it — so a chart with imported history opens the window
+# this wide instead. Read only when `products.history_source` is set; a
+# product with no backfill never asks for more than the default.
+CHART_MAX_WINDOW_DAYS = 730
+
+# `get_price_change_points` defaults to 500 change-points per product, plenty
+# for 90 days of live checks. A wider window can hold more distinct changes
+# without holding more *rows* proportionally — a change-point query already
+# collapses unchanged runs — but the cap still wants raising to match.
+CHART_MAX_ROWS = 1000
+
 
 def _style_axes(fig: Any, ax: Any, title: str) -> None:
     """The shared chart furniture: dark surface, recessive axes, muted grid."""
@@ -94,9 +106,22 @@ def _to_png(fig: Any) -> io.BytesIO:
 
 
 def _render_chart(
-    dates: list[datetime], prices: list[float], target: object, name: str
+    dates: list[datetime],
+    prices: list[float],
+    target: object,
+    name: str,
+    *,
+    sources: list[str | None] | None = None,
+    tracking_started_at: datetime | None = None,
 ) -> io.BytesIO:
-    """Render one product's price history to a PNG buffer (pure CPU — via to_thread)."""
+    """Render one product's price history to a PNG buffer (pure CPU — via to_thread).
+
+    `sources` is parallel to `dates`/`prices`, one entry per point: None for a
+    reading the bot took itself, a provider's name for one it imported.
+    Imported points always sort before live ones — a backfill only ever
+    covers what came *before* tracking started — so the split is one index,
+    not an interleaved pattern.
+    """
     import matplotlib  # noqa: PLC0415 — heavy import deferred
 
     matplotlib.use("Agg")
@@ -107,16 +132,54 @@ def _render_chart(
     ax = fig.subplots()
     _style_axes(fig, ax, name)
 
+    boundary = 0
+    if sources is not None:
+        while boundary < len(sources) and sources[boundary] is not None:
+            boundary += 1
+
     # Steps, not a diagonal: a price holds until the next change, and drawing the
     # straight line between two readings invents a slow slide that never happened.
-    ax.plot(
-        dates,
-        prices,
-        color=SINGLE_SERIES,
-        linewidth=2.2,
-        antialiased=True,
-        drawstyle="steps-post",
-    )
+    if 0 < boundary < len(dates):
+        # One point of overlap so the step line at the boundary is unbroken —
+        # without it the two segments would leave a visible gap where the
+        # colour changes.
+        ax.plot(
+            dates[: boundary + 1],
+            prices[: boundary + 1],
+            color=INK_MUTED,
+            linewidth=2.2,
+            antialiased=True,
+            drawstyle="steps-post",
+        )
+        ax.plot(
+            dates[boundary:],
+            prices[boundary:],
+            color=SINGLE_SERIES,
+            linewidth=2.2,
+            antialiased=True,
+            drawstyle="steps-post",
+        )
+    else:
+        # Either no imported points, or nothing but imported points (added
+        # moments ago, before the first live check) — one colour either way.
+        colour = INK_MUTED if boundary == len(dates) and boundary > 0 else SINGLE_SERIES
+        ax.plot(
+            dates,
+            prices,
+            color=colour,
+            linewidth=2.2,
+            antialiased=True,
+            drawstyle="steps-post",
+        )
+
+    if tracking_started_at is not None:
+        ax.axvline(
+            x=tracking_started_at,
+            color=INK_MUTED,
+            linestyle="--",
+            linewidth=1,
+            alpha=0.6,
+        )
 
     if target:
         try:
@@ -204,15 +267,36 @@ def _render_comparison(
     return _to_png(fig)
 
 
-def chart_window() -> str:
+def chart_window(days: int = CHART_WINDOW_DAYS) -> str:
     """The lower bound of a chart, as the repository spells timestamps."""
-    return (datetime.now(UTC) - timedelta(days=CHART_WINDOW_DAYS)).strftime("%Y-%m-%d %H:%M:%S")
+    return (datetime.now(UTC) - timedelta(days=days)).strftime("%Y-%m-%d %H:%M:%S")
+
+
+def _parse_db_ts(value: str | None) -> datetime | None:
+    """Parse a `products` timestamp for the axis. Same convention repository._parse_ts uses."""
+    if not value:
+        return None
+    try:
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    return parsed if parsed.tzinfo else parsed.replace(tzinfo=UTC)
 
 
 async def generate_chart(db: Any, product_id: int, product: dict[str, Any]) -> io.BytesIO | None:
-    """One product's price history as a PNG. None when the data is too sparse."""
-    histories = await db.get_price_change_points([product_id], since=chart_window())
-    dates, prices = _points(histories.get(product_id, ()))
+    """One product's price history as a PNG. None when the data is too sparse.
+
+    A backfilled product opens a wider window (`CHART_MAX_WINDOW_DAYS`) and a
+    higher row cap than a live-only one — its memory can run past 90 days,
+    which is the whole point of importing it.
+    """
+    backfilled = bool(product.get("history_source"))
+    days = CHART_MAX_WINDOW_DAYS if backfilled else CHART_WINDOW_DAYS
+    limit = CHART_MAX_ROWS if backfilled else 500
+    histories = await db.get_price_change_points(
+        [product_id], since=chart_window(days), limit_per_product=limit
+    )
+    dates, prices, sources = _points(histories.get(product_id, ()))
     if len(dates) < 2:
         return None
 
@@ -222,6 +306,8 @@ async def generate_chart(db: Any, product_id: int, product: dict[str, Any]) -> i
         prices,
         product.get("target_price"),
         chart_title(product),
+        sources=sources,
+        tracking_started_at=_parse_db_ts(product.get("created_at")) if backfilled else None,
     )
 
 
@@ -249,7 +335,9 @@ async def generate_comparison_chart(
     drawn: list[tuple[str, dict[str, Any]]] = []
     for product_id in ids:
         product = by_id[product_id]
-        dates, prices = _points(histories.get(product_id, ()), product.get("currency", "EUR"))
+        dates, prices, _sources = _points(
+            histories.get(product_id, ()), product.get("currency", "EUR")
+        )
         if len(dates) < 2:
             # Aliases are assigned to what is actually drawn, so the caption can
             # never name a letter the reader cannot find on the chart.
@@ -264,13 +352,21 @@ async def generate_comparison_chart(
     return png, drawn
 
 
-def _points(history: Sequence[Any], currency: str = "EUR") -> tuple[list[datetime], list[float]]:
-    """Readings as parallel (date, euro price) lists, oldest first, bad rows dropped."""
+def _points(
+    history: Sequence[Any], currency: str = "EUR"
+) -> tuple[list[datetime], list[float], list[str | None]]:
+    """Readings as parallel (date, euro price, source) lists, oldest first, bad rows dropped.
+
+    `source` is `record["source"]` verbatim — None for the bot's own check, a
+    provider's name for an imported point. Ignored by the comparison chart,
+    which draws each product in one categorical colour regardless.
+    """
     from price_tracker.bot.decorators import _get_conversion_rate  # noqa: PLC0415
 
     rate = Decimal(1) if currency in ("", "EUR") else (_get_conversion_rate(currency) or Decimal(1))
     dates: list[datetime] = []
     prices: list[float] = []
+    sources: list[str | None] = []
     for record in history:
         try:
             when = datetime.fromisoformat(str(record["checked_at"]).replace("Z", "+00:00"))
@@ -283,8 +379,17 @@ def _points(history: Sequence[Any], currency: str = "EUR") -> tuple[list[datetim
             continue
         dates.append(when)
         prices.append(price)
+        try:
+            source = record["source"]
+        except (KeyError, TypeError):
+            source = None
+        sources.append(str(source) if source is not None else None)
 
     # The single-product query returns newest first; the multi-product one oldest
     # first. Sorting here means neither caller has to care.
-    ordered = sorted(zip(dates, prices, strict=True), key=lambda point: point[0])
-    return [d for d, _p in ordered], [p for _d, p in ordered]
+    ordered = sorted(zip(dates, prices, sources, strict=True), key=lambda point: point[0])
+    return (
+        [d for d, _p, _s in ordered],
+        [p for _d, p, _s in ordered],
+        [s for _d, _p, s in ordered],
+    )

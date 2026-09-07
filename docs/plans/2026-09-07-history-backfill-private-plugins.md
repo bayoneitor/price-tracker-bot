@@ -279,8 +279,17 @@ scrapers.
   European shop) — a provider reporting anything else, converting to
   anything but EUR, is a clean miss rather than a wrong number on the chart.
 
-- [ ] **4.** **Chart.** Two segments, tracking-start line, 730-day window when imported,
+- [x] **4.** **Chart.** Two segments, tracking-start line, 730-day window when imported,
    row-cap fix. Extend `tests/unit/test_chart_window.py`.
+
+  New file `test_chart_backfill.py` instead of extending the existing one —
+  the existing file is about the time-window fix (#32), this is a different
+  concern. Scoped to the single-product chart only; the comparison chart's
+  categorical per-product colours already do a different job and mixing in
+  imported/live shading would fight them. `_points` now returns `source` as a
+  third parallel list always (comparison chart discards it) rather than a
+  second function, since the two only differ by what the caller does with one
+  extra column already in the row.
 
 - [ ] **5.** **`all_time_low` + confirmation-card buttons.** Pin "evaluate before
    `update_price`".

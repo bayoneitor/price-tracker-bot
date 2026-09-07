@@ -43,7 +43,7 @@ async def _series(db: Any) -> Any:
     """Render a chart and hand back the points it was asked to draw."""
     captured: dict[str, Any] = {}
 
-    def spy(dates: list[Any], prices: list[float], target: Any, name: str) -> Any:
+    def spy(dates: list[Any], prices: list[float], target: Any, name: str, **kwargs: Any) -> Any:
         captured["points"] = list(zip(dates, prices, strict=True))
         return charts._to_png(_blank_figure())
 

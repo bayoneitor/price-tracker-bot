@@ -48,6 +48,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   so the list is both where the reader was going and the proof that it worked. The
   same for deleting everything, which lands on the empty listing.
 
+- The product index puts a blank line between entries. A name long enough to wrap ran
+  into the next product, and every line starts with a number, so there was nothing else
+  telling them apart.
 - The product index is a 3x3 grid of numbers. It paged ten at a time under a cursor
   you stepped one product at a time — six taps to reach the seventh product, on a
   screen whose whole purpose is picking one. Nine to a page now, and every one of them

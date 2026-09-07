@@ -71,6 +71,16 @@ def test_the_page_is_written_out_with_shops_and_prices() -> None:
         assert f"#{pid}</b> Widget {pid} · mediamarkt.es — €259.00" in text
 
 
+def test_the_entries_are_separated_by_a_blank_line() -> None:
+    """A name long enough to wrap runs into the next product otherwise, and
+    every line starts with a number, so nothing else tells them apart."""
+    text, _markup = build_index_view([_product(i) for i in range(1, 4)], 0)
+
+    body = text.split("\n\n", 1)[1]
+    assert body.count("\n\n") == 2
+    assert "\n<b>#" not in body.replace("\n\n<b>#", "")
+
+
 def test_every_product_on_the_page_is_a_button_of_its_own_number() -> None:
     """The number on the button is the number on the line, and the product id."""
     _text, markup = build_index_view([_product(i) for i in range(1, 4)], 0)

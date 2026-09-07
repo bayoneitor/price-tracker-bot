@@ -201,14 +201,18 @@ def build_index_view(
     shown = list(products)[page * INDEX_PAGE_SIZE : (page + 1) * INDEX_PAGE_SIZE]
 
     def render(budget: int | None) -> str:
-        lines = [_("<b>\U0001f4e6 Your products ({count})</b>").format(count=total)]
+        head = [_("<b>\U0001f4e6 Your products ({count})</b>").format(count=total)]
         if pages > 1:
-            lines.append(_("Page {page} of {pages}").format(page=page + 1, pages=pages))
-        lines.append("")
-        for product in shown:
-            row = f"{_escape_html(product_label(product, budget))}{_price_tag(product)}"
-            lines.append(f"<b>#{product['id']}</b> {row}")
-        return "\n".join(lines)
+            head.append(_("Page {page} of {pages}").format(page=page + 1, pages=pages))
+        # A blank line between entries, not just between lines: a name long
+        # enough to wrap runs into the next product otherwise, and every line
+        # starts with a number, so there is nothing else to tell them apart.
+        entries = [
+            f"<b>#{product['id']}</b> "
+            f"{_escape_html(product_label(product, budget))}{_price_tag(product)}"
+            for product in shown
+        ]
+        return "\n".join(head) + "\n\n" + "\n\n".join(entries)
 
     text = render(None)
     if len(text) > SAFE_LIMIT:

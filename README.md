@@ -283,7 +283,7 @@ src/price_tracker/
 └── locale/         # gettext catalogs (en, it_IT, es_ES)
 plugins/            # extension point for custom scrapers
 docs/               # user + contributor documentation
-tests/              # pytest suite (1152 tests, 80% coverage, gate ≥75%)
+tests/              # pytest suite, 80% coverage, gate ≥75% (pyproject.toml)
 ```
 
 ## Stability

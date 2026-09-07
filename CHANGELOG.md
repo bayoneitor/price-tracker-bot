@@ -64,6 +64,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- A drop-in plugin can `import` a same-directory `_helper.py`. Loading a plugin
+  file with `spec_from_file_location` does not put that file's own directory on
+  `sys.path` the way running a script from within it would, so a bare `import`
+  of a sibling module raised `ModuleNotFoundError` — exactly the pattern both
+  docs recommend for a plugin that needs a shared helper. `discover_dropin_plugins`
+  now adds `plugin_dir` to `sys.path` once, before loading anything from it.
+
 - Standard-library `logging` calls reach the logs. `configure_logging` only ever
   configured `structlog`; anything using plain `logging.getLogger(__name__)` — plugin
   discovery in `core.registry`, every built-in scraper, several third-party

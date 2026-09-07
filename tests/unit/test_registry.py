@@ -262,3 +262,46 @@ def test_discover_dropin_plugins_skips_a_broken_file_and_keeps_going(tmp_path):
     r, h = ScraperRegistry(), HistoryRegistry()
     discover_dropin_plugins(r, h, tmp_path)
     assert {s.name for s in r} == {"good"}
+
+
+def test_a_plugin_can_import_a_same_directory_helper(tmp_path):
+    """`spec_from_file_location` loads one file; it does not put that file's
+    own directory on the import search path the way running a script from
+    within it would — a bare `import _helper` in a sibling plugin file
+    raised `ModuleNotFoundError` until `discover_dropin_plugins` put
+    `plugin_dir` on `sys.path` itself."""
+    from price_tracker.core.registry import HistoryRegistry, discover_dropin_plugins
+
+    (tmp_path / "_helper.py").write_text("GREETING = 'hi'\n")
+    (tmp_path / "user.py").write_text(
+        "from price_tracker.core.scraper_base import AbstractScraper, ProductInfo\n"
+        "import _helper\n"
+        "\n"
+        "class UsesHelper(AbstractScraper):\n"
+        "    name = 'useshelper'\n"
+        "    priority = 1\n"
+        "    domain_patterns = []\n"
+        "    def can_handle(self, url):\n"
+        "        return _helper.GREETING == 'hi'\n"
+        "    async def scrape(self, url, client):\n"
+        "        return ProductInfo()\n"
+    )
+
+    r, h = ScraperRegistry(), HistoryRegistry()
+    discover_dropin_plugins(r, h, tmp_path)
+
+    assert {s.name for s in r} == {"useshelper"}
+
+
+def test_the_plugin_dir_is_not_added_to_sys_path_twice(tmp_path):
+    """Discovering from the same directory more than once (a second sweep, a
+    test suite running several cases) must not grow `sys.path` unboundedly."""
+    import sys
+
+    from price_tracker.core.registry import HistoryRegistry, discover_dropin_plugins
+
+    r, h = ScraperRegistry(), HistoryRegistry()
+    discover_dropin_plugins(r, h, tmp_path)
+    discover_dropin_plugins(r, h, tmp_path)
+
+    assert sys.path.count(str(tmp_path.resolve())) == 1

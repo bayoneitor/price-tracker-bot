@@ -6,6 +6,7 @@ import importlib
 import importlib.util
 import logging
 import pkgutil
+import sys
 from typing import TYPE_CHECKING
 
 from price_tracker.core.history_base import AbstractHistoryProvider
@@ -134,9 +135,20 @@ def discover_dropin_plugins(
     An import error in one file is logged and skipped rather than raised — the
     plugin directory is operator content, edited on the running host outside
     a review, and a typo in one file must not stop the bot from starting.
+
+    `plugin_dir` is added to `sys.path` first (once, and only if it is not
+    already there) so a plugin file can `import _helper` for one it shares
+    the directory with — `_*.py` is exactly the shape the docs recommend for
+    that, and without this a bare `import` of a same-directory module raises
+    `ModuleNotFoundError`: `spec_from_file_location` loads a single file, it
+    does not put that file's own directory on the search path the way
+    running a script from within it would.
     """
     if not plugin_dir.is_dir():
         return
+    plugin_dir_str = str(plugin_dir.resolve())
+    if plugin_dir_str not in sys.path:
+        sys.path.insert(0, plugin_dir_str)
     for file in plugin_dir.glob("*.py"):
         if file.name.startswith("_"):
             continue

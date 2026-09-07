@@ -67,6 +67,11 @@ packages = ["src/price_tracker"]
 line-length = 100
 target-version = "py311"
 src = ["src", "tests"]
+# The drop-in extension directory: gitignored, but ruff treats a nested `.git`
+# (the private plugins clone this repo's own docs tell an operator to put
+# there) as its own boundary and does not reliably inherit this repo's
+# .gitignore across it. Excluded explicitly rather than relying on that.
+extend-exclude = ["plugins"]
 
 [tool.ruff.lint]
 select = [

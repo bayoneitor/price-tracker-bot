@@ -195,29 +195,27 @@ async def _drop_typed_answer(update: Update) -> None:
 
 
 async def _try_list_jump(update: Update, context: ContextTypes.DEFAULT_TYPE, text: str) -> bool:
-    """Jump an open /list to the index the user typed. Returns True if handled."""
+    """Open the product whose id was typed, in the index already on screen.
+
+    The id, not a position: the index shows `#3` on every button, so `3` is what
+    the screen invites you to type. It used to mean "the third product", a number
+    nothing on screen carried once the index became buttons.
+    """
     from price_tracker.bot.handlers.product_list import (  # noqa: PLC0415
         LIST_MESSAGE_KEY,
-        build_list_view,
+        build_product_view,
     )
 
     message_id = context.user_data.get(LIST_MESSAGE_KEY)
     if message_id is None or not text.isdigit():
         return False
 
-    products = await _db(context).get_active_products(update.effective_user.id)
-    if not products:
-        return False
-
-    # Users type the 1-based number they see in the index.
-    position = int(text) - 1
-    if not 0 <= position < len(products):
-        await update.message.reply_text(
-            _("❌ No product {n} — the list has {count}.").format(n=text, count=len(products))
-        )
+    product = await _get_user_product(context, int(text), update.effective_user.id)
+    if not product:
+        await update.message.reply_text(_("❌ No product #{pid} in your list.").format(pid=text))
         return True
 
-    view_text, keyboard = build_list_view(products, position)
+    view_text, keyboard = build_product_view(product)
     try:
         await context.bot.edit_message_text(
             chat_id=update.effective_chat.id,
@@ -228,9 +226,9 @@ async def _try_list_jump(update: Update, context: ContextTypes.DEFAULT_TYPE, tex
             reply_markup=keyboard,
         )
     except BadRequest as exc:
-        # The listing was deleted or is too old to edit — drop the stale
-        # reference so later numbers are not silently swallowed.
-        logger.debug("Could not steer the open listing: %s", exc)
+        # The index was deleted or is too old to edit — drop the stale reference
+        # so later numbers are not silently swallowed.
+        logger.debug("Could not steer the open index: %s", exc)
         context.user_data.pop(LIST_MESSAGE_KEY, None)
         return False
     return True

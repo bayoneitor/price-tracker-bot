@@ -36,6 +36,10 @@ def _format_relative_time(iso_ts: str | None, *, now: datetime | None = None) ->
         checked = checked.replace(tzinfo=UTC)
     reference = now or datetime.now(UTC)
     seconds = (reference - checked).total_seconds()
+    if seconds < 60:
+        # Includes the future: a clock a little ahead of ours, or a row written
+        # by a host in another timezone, rendered as "-522min ago".
+        return _("just now")
     if seconds < 3600:
         return _("{n}min ago").format(n=int(seconds / 60))
     if seconds < 86400:

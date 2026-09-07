@@ -21,12 +21,13 @@ from telegram import InlineKeyboardButton
 from telegram.constants import ParseMode
 from telegram.error import BadRequest
 
-from price_tracker.bot.handlers._helpers import _parse_id
+from price_tracker.bot.handlers._helpers import _get_user_product, _parse_id
 from price_tracker.bot.handlers.product_list import (
     LIST_MESSAGE_KEY,
-    build_list_view,
+    build_index_view,
+    build_product_view,
 )
-from price_tracker.bot.keyboards import LIST_GOTO_PREFIX
+from price_tracker.bot.keyboards import LIST_GOTO_PREFIX, PRODUCT_PREFIX
 from price_tracker.bot.messages import _
 
 if TYPE_CHECKING:
@@ -56,26 +57,59 @@ async def _extra_rows(db: Any, user_id: int) -> list[list[InlineKeyboardButton]]
 async def handle_list_navigation(
     query: Any, context: ContextTypes.DEFAULT_TYPE, db: Any, user_id: int, data: str
 ) -> bool:
-    """Handle `list_go_<n>`. True when handled."""
+    """Handle `list_go_<page>` and `prod_<id>`. True when handled."""
+    if data.startswith(PRODUCT_PREFIX):
+        return await _open_product(query, context, user_id, data)
     if not data.startswith(LIST_GOTO_PREFIX):
         return False
 
-    index = _parse_id(data.removeprefix(LIST_GOTO_PREFIX))
-    if index is None or index < 0:
-        # Tampered callback data: re-render from the start rather than fail.
-        index = 0
+    page = _parse_id(data.removeprefix(LIST_GOTO_PREFIX))
+    if page is None or page < 0:
+        # Tampered callback data: start from the first page rather than fail.
+        page = 0
 
-    # Re-read: the listing may be minutes old and products deleted since.
-    # build_list_view clamps the index, so a stale button lands somewhere valid.
+    # Re-read: the index may be minutes old and products deleted since.
+    # build_index_view clamps the page, so a stale button lands on one that exists.
     products = await db.get_active_products(user_id)
     message_id = getattr(getattr(query, "message", None), "message_id", None)
-    text, keyboard = build_list_view(
+    text, keyboard = build_index_view(
         products,
-        index,
+        page,
         context=context,
         message_id=message_id,
         extra_rows=await _extra_rows(db, user_id),
     )
+    await _render(query, text, keyboard)
+
+    # Whichever message is showing the index is the one a typed id opens. Only
+    # /list used to record this, so an index opened from the menu ignored the
+    # very numbers its buttons put on screen.
+    if context.user_data is not None and message_id is not None:
+        context.user_data[LIST_MESSAGE_KEY] = message_id
+    return True
+
+
+async def _open_product(
+    query: Any, context: ContextTypes.DEFAULT_TYPE, user_id: int, data: str
+) -> bool:
+    """Open one product's own screen, where the buttons can only mean it."""
+    product_id = _parse_id(data.removeprefix(PRODUCT_PREFIX))
+    if product_id is None:
+        await query.edit_message_text(_("❌ Invalid ID."))
+        return True
+    product = await _get_user_product(context, product_id, user_id)
+    if not product:
+        await query.edit_message_text(_("❌ Product not found."))
+        return True
+
+    message_id = getattr(getattr(query, "message", None), "message_id", None)
+    text, keyboard = build_product_view(product, context=context, message_id=message_id)
+    await _render(query, text, keyboard)
+    return True
+
+
+async def _render(query: Any, text: str, keyboard: Any) -> None:
+    """Draw a screen, tolerating a re-render of what is already on it."""
     try:
         await query.edit_message_text(
             text,
@@ -88,10 +122,3 @@ async def handle_list_navigation(
         # Telegram rejects. Nothing is wrong and the user sees what they asked.
         if "message is not modified" not in str(exc).lower():
             raise
-
-    # Whichever message is showing the listing is the one a typed number steers.
-    # Only /list used to record this, so a listing opened from the menu ignored
-    # the very numbers its index invites you to type.
-    if context.user_data is not None and message_id is not None:
-        context.user_data[LIST_MESSAGE_KEY] = message_id
-    return True

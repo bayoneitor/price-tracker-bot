@@ -35,6 +35,9 @@ CANCEL_CALLBACK = "cancel_action"
 # import a handler that already imports it.
 LIST_GOTO_PREFIX = "list_go_"
 
+# One product's own screen, opened from the index.
+PRODUCT_PREFIX = "prod_"
+
 
 def close_button() -> InlineKeyboardButton:
     """The '✖ Close' button, built under the caller's locale."""

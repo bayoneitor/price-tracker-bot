@@ -26,6 +26,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- "Last check" no longer renders as `-522min ago` when the stored timestamp is slightly
+  ahead of the clock reading it.
+
 - A product's own check interval is honoured. `/refresh` wrote it, the listing card
   rendered it, and the sweep read it nowhere — every product was checked on the global
   cadence whatever it said. The interval is a minimum gap between checks, so a value
@@ -107,6 +110,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The main menu is built once. `/menu` sent one menu and the ◀️ Menu button rendered
   another — two columns against one, a different label on all but one entry, a different
   heading — so going back to the menu rearranged it under the reader.
+- `/list` is two screens instead of one. It held a text index, one selected product's
+  card and its action buttons all at once — and the buttons acted on whichever product
+  the index had marked with a `▸`, so seven rows of buttons never said what any of them
+  would touch. The index is now one button per product, ten to a page and each carrying
+  its current price; tapping one opens that product, where the actions can only mean the
+  product named above them. Typing a number opens that product by id, which is what its
+  button shows, rather than by a position nothing on screen carried.
 - The menu is organised around the product rather than the verb. It held four separate
   "pick a product" screens — Products, Prices, Price history, Notifications — each capped
   at eight or ten products and none able to page, jump or close, while the listing that

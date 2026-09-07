@@ -1,14 +1,18 @@
-"""`/lista` handler — one paginated, closable view of the user's products.
+"""`/list` — an index of products, and one screen per product.
 
-Replaces the message-per-product listing, which buried the chat: a dozen
-products meant a dozen messages that could not be collapsed or dismissed. The
-whole listing is now a single message that is edited in place — an index of
-every product on top, the selected product's full card below, and buttons to
-page through them, jump straight to one, or close the whole thing.
+It began as one message per product, which buried the chat. The reply to that
+was a single message holding an index, one selected product's card and its
+action buttons — but the buttons acted on whichever product the index had
+marked with a `▸`, so a screen of seven button rows never said what any of them
+would touch.
 
-Rendering is a pure function of `(products, index)`, so the command and the
-pagination callback build the exact same view and the tests can assert on it
-without a Telegram round trip.
+Two screens instead. The index is one button per product, ten to a page, each
+carrying its price. Tapping one opens that product: its card, and actions that
+can only mean the product named above them.
+
+Rendering is a pure function of its inputs, so the command and the callbacks
+build the same screens and the tests assert on them without a Telegram round
+trip.
 """
 
 from __future__ import annotations
@@ -29,11 +33,15 @@ from price_tracker.bot.handlers._helpers import (
     _format_threshold,
     _safe_dec,
 )
-from price_tracker.bot.keyboards import LIST_GOTO_PREFIX, close_button, nav_row
+from price_tracker.bot.keyboards import (
+    LIST_GOTO_PREFIX,
+    PRODUCT_PREFIX,
+    close_button,
+    nav_row,
+)
 from price_tracker.bot.labels import product_label
 from price_tracker.bot.messages import _
 from price_tracker.bot.navigation import push_nav
-from price_tracker.core.textlimits import SAFE_LIMIT
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -46,32 +54,13 @@ logger = logging.getLogger(__name__)
 # in the chat can jump the listing instead of being ignored.
 LIST_MESSAGE_KEY = "list_message_id"
 
-# Names are shown whole. Telegram's hard cap is 4096 characters for the whole
-# message, which twenty ordinary names come nowhere near — but a listing of
-# Amazon titles can, so `_fits` re-renders the index under this budget rather
-# than letting the send fail. Long lists are elided rather than truncating the
-# card.
-INDEX_NAME_BUDGET = 38
-MAX_INDEX_ROWS = 20
-# Direct-jump buttons, 5 per row. Beyond this a window around the current
-# product is shown instead — 100 buttons is unusable and Telegram caps rows.
-JUMP_BUTTONS_PER_ROW = 5
-MAX_JUMP_BUTTONS = 10
+# One page of the index. Ten buttons is a screen you can read; the rest are a tap
+# away, which is cheaper than a wall.
+PAGE_SIZE = 10
 
-
-def _index_block(
-    products: Sequence[dict[str, Any]], current: int, *, budget: int | None = None
-) -> list[str]:
-    """The 'all your products' index, with the selected row marked."""
-    lines: list[str] = []
-    shown = products[:MAX_INDEX_ROWS]
-    for position, product in enumerate(shown):
-        row = f"{position + 1}. {_escape_html(product_label(product, budget))}"
-        lines.append(f"<b>▸ {row}</b>" if position == current else f"   {row}")
-    hidden = len(products) - len(shown)
-    if hidden > 0:
-        lines.append(_("   … and {count} more").format(count=hidden))
-    return lines
+# The index is a list, so a name is budgeted to keep each row scannable. The
+# product's own screen shows it whole.
+BUTTON_NAME_BUDGET = 32
 
 
 def _product_card(product: dict[str, Any]) -> list[str]:
@@ -141,37 +130,26 @@ def _product_card(product: dict[str, Any]) -> list[str]:
     return lines
 
 
-def _jump_window(total: int, current: int) -> range:
-    """Which product numbers get a direct-jump button.
-
-    All of them while they fit; otherwise a window centred on the current one,
-    clamped to the ends so the row keeps its width.
-    """
-    if total <= MAX_JUMP_BUTTONS:
-        return range(total)
-    start = max(0, min(current - MAX_JUMP_BUTTONS // 2, total - MAX_JUMP_BUTTONS))
-    return range(start, start + MAX_JUMP_BUTTONS)
+def page_count(total: int) -> int:
+    """How many pages `total` products fill, never fewer than one."""
+    return max(1, (total + PAGE_SIZE - 1) // PAGE_SIZE)
 
 
-def build_list_view(
+def build_index_view(
     products: Sequence[dict[str, Any]],
-    index: int,
+    page: int = 0,
     *,
     context: ContextTypes.DEFAULT_TYPE | None = None,
     message_id: int | None = None,
     extra_rows: Sequence[list[InlineKeyboardButton]] = (),
 ) -> tuple[str, InlineKeyboardMarkup]:
-    """Render the whole listing for `products` with `index` selected.
+    """One page of the index: a button per product, carrying its price.
 
-    `index` is clamped, so a stale button from a listing whose products have
-    since been deleted lands on a valid product instead of raising.
+    `page` is clamped, so a stale button from a listing whose products have since
+    been deleted lands on a page that exists.
 
-    `context`/`message_id` are only needed for the exit row: a listing reached
-    from the menu offers ◀️ Back, one opened by /list has nowhere to go back to.
-
-    `extra_rows` go above the exits — "add a product", "N paused". They are passed
-    in rather than worked out here so this stays a pure function of the products
-    it is given.
+    `context`/`message_id` are only needed for the exit row: an index reached from
+    the menu offers ◀️ Back, one opened by /list has nowhere to go back to.
     """
     exits = (nav_row(context, message_id) if context is not None else [close_button()]) or [
         close_button()
@@ -183,73 +161,87 @@ def build_list_view(
             InlineKeyboardMarkup([*extra_rows, exits]),
         )
 
-    current = max(0, min(index, len(products) - 1))
-    product = products[current]
+    pages = page_count(len(products))
+    current = max(0, min(page, pages - 1))
+    shown = products[current * PAGE_SIZE : (current + 1) * PAGE_SIZE]
 
-    def render(budget: int | None) -> str:
-        return "\n".join(
-            [
-                _("<b>📦 Your products ({count})</b>").format(count=len(products)),
-                "",
-                *_index_block(products, current, budget=budget),
-                "",
-                "───────────────",
-                *_product_card(product),
-            ]
-        )
-
-    # Whole names unless they would cost the send: a message over the limit is
-    # rejected outright, which is worse than an abbreviated index.
-    text = render(None)
-    if len(text) > SAFE_LIMIT:
-        text = render(INDEX_NAME_BUDGET)
-
-    pid = product["id"]
-    rows: list[list[InlineKeyboardButton]] = []
-
-    if len(products) > 1:
-        previous_index = (current - 1) % len(products)
-        next_index = (current + 1) % len(products)
-        rows.append(
-            [
-                InlineKeyboardButton("◀", callback_data=f"{LIST_GOTO_PREFIX}{previous_index}"),
-                InlineKeyboardButton(
-                    f"{current + 1}/{len(products)}",
-                    callback_data=f"{LIST_GOTO_PREFIX}{current}",
-                ),
-                InlineKeyboardButton("▶", callback_data=f"{LIST_GOTO_PREFIX}{next_index}"),
-            ]
-        )
-
-        jump: list[InlineKeyboardButton] = [
-            InlineKeyboardButton(
-                f"·{position + 1}·" if position == current else str(position + 1),
-                callback_data=f"{LIST_GOTO_PREFIX}{position}",
-            )
-            for position in _jump_window(len(products), current)
-        ]
-        for start in range(0, len(jump), JUMP_BUTTONS_PER_ROW):
-            rows.append(jump[start : start + JUMP_BUTTONS_PER_ROW])
-
-    rows.append(
+    rows = [
         [
-            InlineKeyboardButton(_("🔍 Check"), callback_data=f"check_{pid}"),
-            InlineKeyboardButton(_("📊 Price history"), callback_data=f"chart_{pid}"),
+            InlineKeyboardButton(
+                _index_label(product), callback_data=f"{PRODUCT_PREFIX}{product['id']}"
+            )
         ]
-    )
-    action_row = [
-        InlineKeyboardButton(_("⏸ Pause"), callback_data=f"pause_{pid}"),
-        InlineKeyboardButton(_("🗑 Delete"), callback_data=f"remove_{pid}"),
-        InlineKeyboardButton(_("✏️ Edit"), callback_data=f"edit_{pid}"),
+        for product in shown
+    ]
+
+    if pages > 1:
+        # Only the arrows that lead somewhere. A greyed-out one still looks
+        # tappable, and tapping it does nothing — which reads as a broken button
+        # rather than as the end of the list.
+        pager = []
+        if current > 0:
+            pager.append(
+                InlineKeyboardButton("◀", callback_data=f"{LIST_GOTO_PREFIX}{current - 1}")
+            )
+        pager.append(
+            InlineKeyboardButton(
+                f"{current + 1}/{pages}", callback_data=f"{LIST_GOTO_PREFIX}{current}"
+            )
+        )
+        if current < pages - 1:
+            pager.append(
+                InlineKeyboardButton("▶", callback_data=f"{LIST_GOTO_PREFIX}{current + 1}")
+            )
+        rows.append(pager)
+
+    text = _("<b>📦 Your products ({count})</b>").format(count=len(products))
+    if pages > 1:
+        text += _("\n\nPage {page} of {pages} — tap a product to open it.").format(
+            page=current + 1, pages=pages
+        )
+    else:
+        text += _("\n\nTap a product to open it.")
+
+    return text, InlineKeyboardMarkup([*rows, *extra_rows, exits])
+
+
+def _index_label(product: dict[str, Any]) -> str:
+    """`#3 Name · shop — €429.00`, sized to stay one readable row."""
+    price = _safe_dec(product.get("current_price"))
+    tail = f" — €{price:.2f}" if price else ""
+    return f"#{product['id']} {product_label(product, BUTTON_NAME_BUDGET)}{tail}"
+
+
+def build_product_view(
+    product: dict[str, Any],
+    *,
+    context: ContextTypes.DEFAULT_TYPE | None = None,
+    message_id: int | None = None,
+) -> tuple[str, InlineKeyboardMarkup]:
+    """One product: its card, and actions that can only mean the product above them."""
+    exits = (nav_row(context, message_id) if context is not None else [close_button()]) or [
+        close_button()
+    ]
+    pid = product["id"]
+
+    first_row = [
+        InlineKeyboardButton(_("🔍 Check"), callback_data=f"check_{pid}"),
+        InlineKeyboardButton(_("📊 Price history"), callback_data=f"chart_{pid}"),
     ]
     url = product.get("url", "")
     if url:
-        action_row.insert(0, InlineKeyboardButton(_("🔗 Open"), url=url))
-    rows.append(action_row)
-    rows.extend(extra_rows)
-    rows.append(exits)
+        first_row.insert(0, InlineKeyboardButton(_("🔗 Open"), url=url))
 
-    return text, InlineKeyboardMarkup(rows)
+    rows = [
+        first_row,
+        [
+            InlineKeyboardButton(_("⏸ Pause"), callback_data=f"pause_{pid}"),
+            InlineKeyboardButton(_("🗑 Delete"), callback_data=f"remove_{pid}"),
+            InlineKeyboardButton(_("✏️ Edit"), callback_data=f"edit_{pid}"),
+        ],
+        exits,
+    ]
+    return "\n".join(_product_card(product)), InlineKeyboardMarkup(rows)
 
 
 @with_locale
@@ -264,7 +256,7 @@ async def cmd_list(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     db = _db(context)
     await _close_open_listing(update, context)
     products = await db.get_active_products(update.effective_user.id)
-    text, keyboard = build_list_view(products, 0)
+    text, keyboard = build_index_view(products, 0)
     message = await update.message.reply_text(
         text,
         parse_mode=ParseMode.HTML,

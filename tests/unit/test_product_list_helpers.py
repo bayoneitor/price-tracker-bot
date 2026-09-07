@@ -32,3 +32,18 @@ def test_relative_time_aware_timestamp_with_z():
 def test_relative_time_none_or_garbage_returns_none():
     assert _format_relative_time(None) is None
     assert _format_relative_time("not-a-date") is None
+
+
+def test_a_timestamp_in_the_future_does_not_render_as_negative() -> None:
+    """A clock a little ahead of ours rendered as "-522min ago"."""
+    from datetime import UTC, datetime, timedelta
+
+    from price_tracker.bot.handlers._helpers import _format_relative_time
+
+    now = datetime(2026, 9, 7, 12, 0, tzinfo=UTC)
+    ahead = (now + timedelta(minutes=30)).strftime("%Y-%m-%d %H:%M:%S")
+
+    rendered = _format_relative_time(ahead, now=now)
+
+    assert rendered is not None
+    assert "-" not in rendered

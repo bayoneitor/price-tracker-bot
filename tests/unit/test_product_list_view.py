@@ -1,8 +1,12 @@
-"""The paginated `/list` view.
+"""`/list`: an index of products, and one screen per product.
 
-`/list` used to send one message per product, which buried the chat and could
-not be dismissed. It is now a single edited message: index on top, one product
-card below, paged by buttons or by typing the index number, and closable.
+It began as one message per product, which buried the chat. The reply to that was
+a single message holding a text index, one selected product's card and its action
+buttons — but the buttons acted on whichever product the index had marked with a
+`▸`, so seven rows of buttons never said what any of them would touch.
+
+Two screens now: an index of ten buttons a page, each carrying its price, and a
+product's own screen where the actions can only mean the product named above them.
 """
 
 from __future__ import annotations
@@ -17,13 +21,14 @@ from telegram.error import BadRequest
 from price_tracker.bot.handlers.callbacks._list import handle_list_navigation
 from price_tracker.bot.handlers.callbacks._nav import handle_close
 from price_tracker.bot.handlers.product_list import (
-    MAX_JUMP_BUTTONS,
-    build_list_view,
+    PAGE_SIZE,
+    build_index_view,
+    build_product_view,
     cmd_list,
+    page_count,
 )
-from price_tracker.bot.keyboards import CLOSE_CALLBACK, LIST_GOTO_PREFIX
+from price_tracker.bot.keyboards import CLOSE_CALLBACK, LIST_GOTO_PREFIX, PRODUCT_PREFIX
 from price_tracker.bot.navigation import PendingInput
-from price_tracker.core.textlimits import SAFE_LIMIT
 
 
 def _product(pid: int, name: str = "Widget") -> dict[str, Any]:
@@ -45,134 +50,258 @@ def _button_data(markup: Any) -> list[str]:
     return [b.callback_data for row in markup.inline_keyboard for b in row if b.callback_data]
 
 
-def test_view_is_one_message_with_index_and_current_card() -> None:
-    products = [_product(i) for i in range(1, 4)]
-    text, markup = build_list_view(products, 1)
+def _button_text(markup: Any) -> list[str]:
+    return [b.text for row in markup.inline_keyboard for b in row]
 
-    # Index lists every product, each naming the shop it is tracked at: the same
-    # product at three shops is otherwise three identical rows.
-    for position in (1, 2, 3):
-        assert f"{position}. Widget {position} · mediamarkt.es" in text
-    # ...with the current one marked, and its card rendered below.
-    assert "<b>▸ 2. Widget 2 · mediamarkt.es</b>" in text
-    assert "<b>#2</b> Widget 2 · mediamarkt.es" in text
-    # The shop is in the name, so it is not repeated as a field of its own.
-    assert "🌐 Store:" not in text
+
+# ── The index ────────────────────────────────────────────────────────────
+
+
+def test_every_product_on_the_page_gets_its_own_button() -> None:
+    products = [_product(i) for i in range(1, 4)]
+
+    _text, markup = build_index_view(products, 0)
+
+    assert [f"{PRODUCT_PREFIX}{i}" for i in (1, 2, 3)] == [
+        d for d in _button_data(markup) if d.startswith(PRODUCT_PREFIX)
+    ]
+
+
+def test_a_button_carries_the_product_its_shop_and_its_price() -> None:
+    _text, markup = build_index_view([_product(3)], 0)
+
+    label = next(t for t in _button_text(markup) if t.startswith("#3"))
+    assert "Widget 3" in label
+    assert "mediamarkt.es" in label
+    assert "€259.00" in label
+
+
+def test_a_page_holds_ten_products_and_the_rest_wait() -> None:
+    products = [_product(i) for i in range(1, 26)]
+
+    _text, markup = build_index_view(products, 0)
+
+    assert len([d for d in _button_data(markup) if d.startswith(PRODUCT_PREFIX)]) == PAGE_SIZE
+
+
+@pytest.mark.parametrize(("total", "pages"), [(0, 1), (1, 1), (10, 1), (11, 2), (20, 2), (21, 3)])
+def test_pages_are_counted_from_the_products(total: int, pages: int) -> None:
+    assert page_count(total) == pages
+
+
+def test_the_pager_appears_only_when_there_is_a_second_page() -> None:
+    _text, one = build_index_view([_product(i) for i in range(1, 5)], 0)
+    _text, many = build_index_view([_product(i) for i in range(1, 25)], 0)
+
+    assert not [d for d in _button_data(one) if d.startswith(LIST_GOTO_PREFIX)]
+    assert f"{LIST_GOTO_PREFIX}1" in _button_data(many)
+
+
+def test_the_pager_does_not_wrap_past_the_ends() -> None:
+    """Wrapping made "next" on the last page look like it had failed."""
+    products = [_product(i) for i in range(1, 25)]
+
+    _text, first = build_index_view(products, 0)
+    _text, last = build_index_view(products, 2)
+
+    assert f"{LIST_GOTO_PREFIX}-1" not in _button_data(first)
+    assert f"{LIST_GOTO_PREFIX}3" not in _button_data(last)
+
+
+def test_a_page_past_the_end_is_clamped_not_raised() -> None:
+    """A stale button from an index whose products have since been deleted."""
+    text, markup = build_index_view([_product(1)], 99)
+
+    assert "#1" in " ".join(_button_text(markup))
+    assert text
+
+
+def test_an_empty_list_still_offers_a_way_out() -> None:
+    text, markup = build_index_view([], 0)
+
+    assert "no tracked products" in text
     assert CLOSE_CALLBACK in _button_data(markup)
 
 
-def test_paging_wraps_at_both_ends() -> None:
-    products = [_product(i) for i in range(1, 4)]
-    _text, first = build_list_view(products, 0)
-    assert f"{LIST_GOTO_PREFIX}2" in _button_data(first)  # ◀ from the first wraps to the last
-    _text, last = build_list_view(products, 2)
-    assert f"{LIST_GOTO_PREFIX}0" in _button_data(last)  # ▶ from the last wraps to the first
+def test_extra_rows_sit_above_the_way_out() -> None:
+    rows = [[InlineKeyboardButton("extra", callback_data="extra")]]
+
+    _text, markup = build_index_view([_product(1)], 0, extra_rows=rows)
+
+    data = _button_data(markup)
+    assert data.index("extra") < data.index(CLOSE_CALLBACK)
 
 
-def test_index_is_clamped_not_raised() -> None:
-    """A stale button from a listing whose products were deleted must not crash."""
-    products = [_product(1), _product(2)]
-    text, _markup = build_list_view(products, 99)
-    assert "<b>#2</b>" in text
-    text, _markup = build_list_view(products, -5)
-    assert "<b>#1</b>" in text
+# ── One product's screen ─────────────────────────────────────────────────
 
 
-def test_empty_listing_still_offers_close() -> None:
-    text, markup = build_list_view([], 0)
-    assert "no tracked products" in text
-    assert _button_data(markup) == [CLOSE_CALLBACK]
+def test_the_product_screen_names_what_the_buttons_will_touch() -> None:
+    text, markup = build_product_view(_product(3))
+
+    assert "<b>#3</b> Widget 3 · mediamarkt.es" in text
+    for action in ("check_3", "chart_3", "pause_3", "remove_3", "edit_3"):
+        assert action in _button_data(markup)
 
 
-def test_single_product_has_no_pager() -> None:
-    _text, markup = build_list_view([_product(1)], 0)
-    assert not any(d.startswith(LIST_GOTO_PREFIX) for d in _button_data(markup))
+def test_the_product_screen_shows_the_card_not_a_summary() -> None:
+    text, _markup = build_product_view(_product(3))
+
+    assert "💰" in text
+    assert "🎯" in text  # threshold
+    assert "📌" in text  # initial price and the change since
 
 
-def test_jump_buttons_window_on_long_lists() -> None:
-    """All numbers while they fit; a window centred on the current one after that."""
-    products = [_product(i) for i in range(1, 31)]
-    _text, markup = build_list_view(products, 20)
-    jumps = [d for d in _button_data(markup) if d.startswith(LIST_GOTO_PREFIX)]
-    targets = {int(d.removeprefix(LIST_GOTO_PREFIX)) for d in jumps}
-    assert 20 in targets
-    # The pager adds prev/current/next, so allow those three beyond the window.
-    assert len(targets) <= MAX_JUMP_BUTTONS + 3
+def test_a_product_with_no_url_offers_no_open_button() -> None:
+    _text, markup = build_product_view({**_product(3), "url": ""})
+
+    assert not [b for b in _button_text(markup) if "Open" in b]
 
 
-def test_long_list_elides_the_index_but_keeps_the_card() -> None:
-    """The index must not crowd out the product card in Telegram's 4096 chars."""
-    products = [_product(i, "A rather long product name to eat the budget") for i in range(1, 61)]
-    text, _markup = build_list_view(products, 0)
-    assert "and 40 more" in text
-    assert "<b>#1</b>" in text
-    assert len(text) < 4096
+# ── Navigating between them ──────────────────────────────────────────────
 
 
 @pytest.mark.asyncio
-async def test_cmd_list_sends_exactly_one_message() -> None:
-    """The whole point: no more one-message-per-product."""
-    update = MagicMock()
-    update.effective_user.id = 7
-    update.message.reply_text = AsyncMock(return_value=MagicMock(message_id=555))
-    context = MagicMock()
-    context.user_data = {}
-    context.bot_data = {
-        "db": AsyncMock(
-            get_active_products=AsyncMock(return_value=[_product(i) for i in range(1, 13)])
-        )
-    }
-    context.bot_data["db"].is_user_allowed = AsyncMock(return_value=True)
-    context.bot_data["db"].update_user_info = AsyncMock()
-
-    await cmd_list(update, context)
-
-    assert update.message.reply_text.await_count == 1
-    # The message id is remembered so a typed number can steer the listing.
-    assert context.user_data["list_message_id"] == 555
-
-
-@pytest.mark.asyncio
-async def test_navigation_edits_in_place_and_rereads_products() -> None:
-    query = MagicMock(edit_message_text=AsyncMock())
-    db = AsyncMock(get_active_products=AsyncMock(return_value=[_product(1), _product(2)]))
+async def test_tapping_a_product_opens_its_screen() -> None:
+    db = AsyncMock()
+    db.is_user_admin = AsyncMock(return_value=False)
+    db.get_product_for_user = AsyncMock(return_value=_product(3))
+    query = MagicMock(message=MagicMock(message_id=1), edit_message_text=AsyncMock())
     context = MagicMock(user_data={})
+    context.bot_data = {"db": db}
 
-    handled = await handle_list_navigation(query, context, db, 7, f"{LIST_GOTO_PREFIX}1")
+    handled = await handle_list_navigation(query, context, db, 7, f"{PRODUCT_PREFIX}3")
 
     assert handled is True
-    db.get_active_products.assert_awaited_once_with(7)
-    assert "<b>#2</b>" in query.edit_message_text.await_args.args[0]
+    assert "Widget 3" in query.edit_message_text.await_args.args[0]
+    assert "edit_3" in _button_data(query.edit_message_text.await_args.kwargs["reply_markup"])
 
 
 @pytest.mark.asyncio
-async def test_navigation_tolerates_unmodified_rerender() -> None:
-    """Tapping the current page number re-renders identical content."""
-    query = MagicMock(
-        edit_message_text=AsyncMock(side_effect=BadRequest("Message is not modified"))
-    )
-    db = AsyncMock(get_active_products=AsyncMock(return_value=[_product(1)]))
+async def test_another_users_product_is_not_opened() -> None:
+    db = AsyncMock()
+    db.is_user_admin = AsyncMock(return_value=False)
+    db.get_product_for_user = AsyncMock(return_value=None)
+    query = MagicMock(message=MagicMock(message_id=1), edit_message_text=AsyncMock())
+    context = MagicMock(user_data={})
+    context.bot_data = {"db": db}
 
-    handled = await handle_list_navigation(
+    await handle_list_navigation(query, context, db, 7, f"{PRODUCT_PREFIX}3")
+
+    assert "not found" in query.edit_message_text.await_args.args[0]
+
+
+@pytest.mark.asyncio
+async def test_paging_edits_in_place_and_rereads_the_products() -> None:
+    products = [_product(i) for i in range(1, 25)]
+    db = AsyncMock(get_active_products=AsyncMock(return_value=products))
+    db.get_all_products = AsyncMock(return_value=products)
+    query = MagicMock(message=MagicMock(message_id=1), edit_message_text=AsyncMock())
+
+    await handle_list_navigation(query, MagicMock(user_data={}), db, 7, f"{LIST_GOTO_PREFIX}1")
+
+    db.get_active_products.assert_awaited_once_with(7)
+    query.message.reply_text.assert_not_called()
+    assert "#11" in " ".join(
+        _button_text(query.edit_message_text.await_args.kwargs["reply_markup"])
+    )
+
+
+@pytest.mark.asyncio
+async def test_re_rendering_the_same_page_is_not_an_error() -> None:
+    """Tapping the page number redraws what is already there."""
+    db = AsyncMock(get_active_products=AsyncMock(return_value=[_product(1)]))
+    db.get_all_products = AsyncMock(return_value=[_product(1)])
+    query = MagicMock(
+        edit_message_text=AsyncMock(side_effect=BadRequest("Message is not modified")),
+        message=MagicMock(message_id=1),
+    )
+
+    assert await handle_list_navigation(
         query, MagicMock(user_data={}), db, 7, f"{LIST_GOTO_PREFIX}0"
     )
-    assert handled is True
 
 
 @pytest.mark.asyncio
-async def test_navigation_rejects_tampered_index() -> None:
-    query = MagicMock(edit_message_text=AsyncMock())
+async def test_a_tampered_page_falls_back_to_the_first() -> None:
     db = AsyncMock(get_active_products=AsyncMock(return_value=[_product(1), _product(2)]))
+    db.get_all_products = AsyncMock(return_value=[])
+    query = MagicMock(message=MagicMock(message_id=1), edit_message_text=AsyncMock())
 
     handled = await handle_list_navigation(
         query, MagicMock(user_data={}), db, 7, f"{LIST_GOTO_PREFIX}not-a-number"
     )
+
     assert handled is True
-    assert "<b>#1</b>" in query.edit_message_text.await_args.args[0]
+    assert "#1" in " ".join(_button_text(query.edit_message_text.await_args.kwargs["reply_markup"]))
+
+
+# ── The index the menu opens, and the extras on it ───────────────────────
 
 
 @pytest.mark.asyncio
-async def test_close_deletes_the_message_and_forgets_the_listing() -> None:
+async def test_opening_the_index_records_it_as_the_one_a_number_steers() -> None:
+    products = [_product(i) for i in range(1, 4)]
+    db = AsyncMock(get_active_products=AsyncMock(return_value=products))
+    db.get_all_products = AsyncMock(return_value=products)
+    query = MagicMock(message=MagicMock(message_id=77), edit_message_text=AsyncMock())
+    context = MagicMock(user_data={})
+
+    await handle_list_navigation(query, context, db, 7, f"{LIST_GOTO_PREFIX}0")
+
+    assert context.user_data["list_message_id"] == 77
+
+
+@pytest.mark.asyncio
+async def test_the_index_offers_a_way_to_add_a_product() -> None:
+    products = [_product(1)]
+    db = AsyncMock(get_active_products=AsyncMock(return_value=products))
+    db.get_all_products = AsyncMock(return_value=products)
+    query = MagicMock(message=MagicMock(message_id=1), edit_message_text=AsyncMock())
+
+    await handle_list_navigation(query, MagicMock(user_data={}), db, 7, f"{LIST_GOTO_PREFIX}0")
+
+    markup = query.edit_message_text.await_args.kwargs["reply_markup"]
+    assert "menu_add" in _button_data(markup)
+    assert "menu_paused" not in _button_data(markup)
+
+
+@pytest.mark.asyncio
+async def test_paused_products_are_reachable_from_the_index() -> None:
+    """The index shows the active ones, so the paused would be invisible."""
+    active = [_product(1)]
+    query = MagicMock(message=MagicMock(message_id=1), edit_message_text=AsyncMock())
+    db = AsyncMock(get_active_products=AsyncMock(return_value=active))
+    db.get_all_products = AsyncMock(
+        return_value=[*active, {**_product(2), "is_active": 0}, {**_product(3), "is_active": 0}]
+    )
+
+    await handle_list_navigation(query, MagicMock(user_data={}), db, 7, f"{LIST_GOTO_PREFIX}0")
+
+    assert "menu_paused" in _button_data(query.edit_message_text.await_args.kwargs["reply_markup"])
+
+
+@pytest.mark.asyncio
+async def test_cmd_list_sends_exactly_one_message() -> None:
+    db = AsyncMock(get_active_products=AsyncMock(return_value=[_product(1), _product(2)]))
+    db.is_user_allowed = AsyncMock(return_value=True)
+    db.update_user_info = AsyncMock()
+    update = MagicMock()
+    update.effective_user.id = 7
+    update.effective_user.language_code = "en"
+    update.message.reply_text = AsyncMock(return_value=MagicMock(message_id=5))
+    context = MagicMock(user_data={})
+    context.bot_data = {"db": db}
+
+    await cmd_list(update, context)
+
+    update.message.reply_text.assert_awaited_once()
+
+
+# ── Closing ──────────────────────────────────────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_close_deletes_the_message_and_forgets_the_index() -> None:
     query = MagicMock(message=MagicMock(message_id=555, delete=AsyncMock()))
     context = MagicMock(user_data={"list_message_id": 555})
 
@@ -184,19 +313,13 @@ async def test_close_deletes_the_message_and_forgets_the_listing() -> None:
 
 
 @pytest.mark.asyncio
-async def test_closing_another_panel_keeps_the_listing_reference() -> None:
-    """The same button closes the edit panel; that must not orphan an open listing.
-
-    Otherwise dismissing the edit panel would stop a typed index number from
-    steering the listing still on screen above it.
-    """
+async def test_closing_another_panel_keeps_the_index_reference() -> None:
+    """The same button closes other panels; forgetting would strand the index."""
     query = MagicMock(message=MagicMock(message_id=999, delete=AsyncMock()))
     context = MagicMock(user_data={"list_message_id": 555})
 
-    handled = await handle_close(query, context, CLOSE_CALLBACK)
+    await handle_close(query, context, CLOSE_CALLBACK)
 
-    assert handled is True
-    query.message.delete.assert_awaited_once()
     assert context.user_data["list_message_id"] == 555
 
 
@@ -214,21 +337,14 @@ async def test_close_collapses_when_the_message_is_too_old_to_delete() -> None:
     assert "closed" in query.edit_message_text.await_args.args[0].lower()
 
 
-@pytest.mark.asyncio
-async def test_unrelated_callback_falls_through() -> None:
-    handled = await handle_list_navigation(
-        MagicMock(), MagicMock(user_data={}), AsyncMock(), 7, "check_3"
-    )
-    assert handled is False
-
-
-# ── Jumping by typing the index number ───────────────────────────────────
+# ── Typing an id ─────────────────────────────────────────────────────────
 
 
 def _text_update(text: str) -> Any:
     update = MagicMock()
     update.effective_user.id = 7
-    update.effective_chat.id = 7
+    update.effective_user.language_code = "en"
+    update.effective_chat.id = 1
     update.message.text = text
     update.message.reply_text = AsyncMock()
     return update
@@ -238,55 +354,49 @@ def _text_context(products: list[dict[str, Any]], **user_data: Any) -> Any:
     db = AsyncMock(get_active_products=AsyncMock(return_value=products))
     db.is_user_allowed = AsyncMock(return_value=True)
     db.update_user_info = AsyncMock()
+    db.is_user_admin = AsyncMock(return_value=False)
+    db.get_product_for_user = AsyncMock(return_value=products[0] if products else None)
     context = MagicMock()
     context.user_data = dict(user_data)
-    # The refresh prompt reads the global sweep to say whether a shorter
-    # per-product interval can actually be honoured.
     context.bot_data = {"db": db, "config": MagicMock(check_interval_minutes=360)}
     context.bot.edit_message_text = AsyncMock()
     return context
 
 
 @pytest.mark.asyncio
-async def test_typing_a_number_steers_the_open_listing() -> None:
+async def test_typing_an_id_opens_that_product() -> None:
+    """The buttons say `#3`, so `3` is what the screen invites you to type."""
     from price_tracker.bot.handlers.text_input import handle_text_input
 
-    products = [_product(i) for i in range(1, 6)]
-    context = _text_context(products, list_message_id=555)
+    context = _text_context([_product(3)], list_message_id=555)
 
     await handle_text_input(_text_update("3"), context)
 
-    context.bot.edit_message_text.assert_awaited_once()
     kwargs = context.bot.edit_message_text.await_args.kwargs
     assert kwargs["message_id"] == 555
-    # Users type the 1-based number they see in the index.
     assert "<b>#3</b>" in kwargs["text"]
 
 
 @pytest.mark.asyncio
-async def test_typing_an_out_of_range_number_says_so() -> None:
+async def test_typing_an_id_you_do_not_have_says_so() -> None:
     from price_tracker.bot.handlers.text_input import handle_text_input
 
-    update = _text_update("9")
-    context = _text_context([_product(1), _product(2)], list_message_id=555)
+    update = _text_update("99")
+    context = _text_context([], list_message_id=555)
 
     await handle_text_input(update, context)
 
     context.bot.edit_message_text.assert_not_awaited()
-    assert "No product 9" in update.message.reply_text.await_args.args[0]
+    assert "No product #99" in update.message.reply_text.await_args.args[0]
 
 
 @pytest.mark.asyncio
 async def test_a_number_answering_a_prompt_still_goes_to_the_prompt() -> None:
-    """A pending picker wins: typing 30 for /refresh must not jump the listing."""
-    from price_tracker.bot.handlers.text_input import handle_text_input
-
+    """A pending picker wins: typing 30 for /refresh must not open a product."""
     context = _text_context([_product(1)], list_message_id=555)
     context.user_data["pending_action"] = PendingInput("refresh", 1)
-    context.bot_data["db"].get_product = AsyncMock(return_value=_product(1))
-    context.bot_data["db"].get_product_for_user = AsyncMock(return_value=_product(1))
-    context.bot_data["db"].is_user_admin = AsyncMock(return_value=False)
     context.bot_data["db"].set_product_interval = AsyncMock()
+    from price_tracker.bot.handlers.text_input import handle_text_input
 
     await handle_text_input(_text_update("30"), context)
 
@@ -295,11 +405,11 @@ async def test_a_number_answering_a_prompt_still_goes_to_the_prompt() -> None:
 
 
 @pytest.mark.asyncio
-async def test_a_number_without_an_open_listing_is_ignored() -> None:
+async def test_a_number_without_an_open_index_is_ignored() -> None:
     from price_tracker.bot.handlers.text_input import handle_text_input
 
     update = _text_update("3")
-    context = _text_context([_product(1), _product(2), _product(3)])
+    context = _text_context([_product(3)])
 
     await handle_text_input(update, context)
 
@@ -308,142 +418,26 @@ async def test_a_number_without_an_open_listing_is_ignored() -> None:
 
 
 @pytest.mark.asyncio
-async def test_a_stale_listing_reference_is_dropped() -> None:
-    """If the listing was deleted, forget it instead of swallowing later numbers."""
+async def test_a_stale_index_reference_is_dropped() -> None:
+    """If the index was deleted, forget it instead of swallowing later numbers."""
     from price_tracker.bot.handlers.text_input import handle_text_input
 
-    context = _text_context([_product(1), _product(2)], list_message_id=555)
+    context = _text_context([_product(3)], list_message_id=555)
     context.bot.edit_message_text = AsyncMock(side_effect=BadRequest("message to edit not found"))
 
-    await handle_text_input(_text_update("2"), context)
+    await handle_text_input(_text_update("3"), context)
 
     assert "list_message_id" not in context.user_data
 
 
-# ── The edit panel must be dismissable too ───────────────────────────────
+def test_the_pager_shows_only_arrows_that_lead_somewhere() -> None:
+    """A greyed-out arrow still looks tappable and does nothing."""
+    products = [_product(i) for i in range(1, 25)]
 
+    _t, first = build_index_view(products, 0)
+    _t, middle = build_index_view(products, 1)
+    _t, last = build_index_view(products, 2)
 
-@pytest.mark.asyncio
-async def test_edit_panel_replaces_the_listing_and_can_be_dismissed() -> None:
-    """It used to open as a *new* message, leaving the listing stranded above it.
-
-    Every product the user peeked at left another panel in the chat, and the panel
-    could only be scrolled past until a close button was bolted on. It now edits
-    the message it was opened from, so ◀️ Back returns to the listing.
-    """
-    from price_tracker.bot.handlers.callbacks._actions import handle_edit_button
-
-    query = MagicMock(message=MagicMock(message_id=42), edit_message_text=AsyncMock())
-    db = AsyncMock()
-    context = MagicMock()
-    context.bot_data = {"db": db}
-    context.user_data = {}
-    db.is_user_admin = AsyncMock(return_value=False)
-    db.get_product_for_user = AsyncMock(return_value=_product(3))
-
-    handled = await handle_edit_button(query, context, db, 7, "edit_3")
-
-    assert handled is True
-    query.message.reply_text.assert_not_called()
-    markup = query.edit_message_text.await_args.kwargs["reply_markup"]
-    assert CLOSE_CALLBACK in _button_data(markup)
-
-
-# ── Names are shown whole, unless that would cost the send ───────────────
-
-
-def _long(pid: int, name: str) -> dict[str, Any]:
-    return {**_product(pid), "name": name, "domain": "amazon.es"}
-
-
-def test_a_name_is_shown_whole() -> None:
-    full = 'LG UltraGear 27GP850-B 27" QHD 180Hz Nano IPS'
-    text, _markup = build_list_view([_long(1, full)], 0)
-
-    assert f"{full} · amazon.es" in text
-    assert "…" not in text
-
-
-def test_an_index_that_would_overflow_the_message_is_abbreviated() -> None:
-    """Telegram rejects a message over 4096 characters outright, which is worse
-    than an abbreviated index — so the whole listing is never lost to one title."""
-    titles = [_long(i, "Monitor Gaming Curvo Ultrapanorámico QHD 165Hz " * 5) for i in range(1, 21)]
-
-    text, _markup = build_list_view(titles, 0)
-
-    assert len(text) <= SAFE_LIMIT
-    assert "…" in text
-
-
-def test_the_shop_survives_the_abbreviation() -> None:
-    titles = [_long(i, "Monitor Gaming Curvo Ultrapanorámico QHD 165Hz " * 5) for i in range(1, 21)]
-
-    text, _markup = build_list_view(titles, 0)
-
-    assert text.count("· amazon.es") >= 20
-
-
-# ── The listing is what the menu's 📦 Products opens ──────────────────────
-
-
-@pytest.mark.asyncio
-async def test_opening_the_listing_records_it_as_the_one_a_number_steers() -> None:
-    """The index invites you to type a number; only /list used to listen.
-
-    A listing opened from the menu ignored them, because nothing recorded which
-    message was showing it.
-    """
-    products = [_product(i) for i in range(1, 4)]
-    db = AsyncMock(get_active_products=AsyncMock(return_value=products))
-    db.get_all_products = AsyncMock(return_value=products)
-    query = MagicMock(message=MagicMock(message_id=77), edit_message_text=AsyncMock())
-    context = MagicMock(user_data={})
-
-    await handle_list_navigation(query, context, db, 7, f"{LIST_GOTO_PREFIX}0")
-
-    assert context.user_data["list_message_id"] == 77
-
-
-@pytest.mark.asyncio
-async def test_the_listing_offers_a_way_to_add_a_product() -> None:
-    """Its only hint before was the empty state, which you never see once you
-    have products — and adding one is the whole point of the bot."""
-    products = [_product(1)]
-    db = AsyncMock(get_active_products=AsyncMock(return_value=products))
-    db.get_all_products = AsyncMock(return_value=products)
-    query = MagicMock(message=MagicMock(message_id=1), edit_message_text=AsyncMock())
-
-    await handle_list_navigation(query, MagicMock(user_data={}), db, 7, f"{LIST_GOTO_PREFIX}0")
-
-    markup = query.edit_message_text.await_args.kwargs["reply_markup"]
-    assert "menu_add" in _button_data(markup)
-    assert "menu_paused" not in _button_data(markup)
-
-
-@pytest.mark.asyncio
-async def test_paused_products_are_reachable_from_the_listing() -> None:
-    """The listing shows the active ones, so the paused would be invisible."""
-    active = [_product(1)]
-    query = MagicMock(message=MagicMock(message_id=1), edit_message_text=AsyncMock())
-    db = AsyncMock(get_active_products=AsyncMock(return_value=active))
-    db.get_all_products = AsyncMock(
-        return_value=[*active, {**_product(2), "is_active": 0}, {**_product(3), "is_active": 0}]
-    )
-
-    await handle_list_navigation(query, MagicMock(user_data={}), db, 7, f"{LIST_GOTO_PREFIX}0")
-
-    markup = query.edit_message_text.await_args.kwargs["reply_markup"]
-    assert "menu_paused" in _button_data(markup)
-    paused_button = [
-        b.text for row in markup.inline_keyboard for b in row if b.callback_data == "menu_paused"
-    ]
-    assert "2" in paused_button[0]
-
-
-def test_extra_rows_sit_above_the_way_out() -> None:
-    rows = [[InlineKeyboardButton("extra", callback_data="extra")]]
-
-    _text, markup = build_list_view([_product(1)], 0, extra_rows=rows)
-
-    data = _button_data(markup)
-    assert data.index("extra") < data.index(CLOSE_CALLBACK)
+    assert [b.text for b in first.inline_keyboard[-2]] == ["1/3", "▶"]
+    assert [b.text for b in middle.inline_keyboard[-2]] == ["◀", "2/3", "▶"]
+    assert [b.text for b in last.inline_keyboard[-2]] == ["◀", "3/3"]

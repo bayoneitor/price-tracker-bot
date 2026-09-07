@@ -631,7 +631,8 @@ class TestRuntimePragmas:
             await conn.close()
 
     @pytest.mark.asyncio
-    async def test_delete_product_cascades_price_history(self):
+    async def test_deleting_a_product_keeps_its_price_history(self):
+        """The one thing a tracker cannot recreate. Deleting archives the row."""
         conn = await aiosqlite.connect(":memory:")
         conn.row_factory = aiosqlite.Row
         try:
@@ -641,13 +642,19 @@ class TestRuntimePragmas:
             await repo.create_user(user_id=1)
             await repo.create_product(product_id=10, user_id=1, url="https://x.com/1")
             await repo.add_price_history(10, Decimal("9.99"))
+
             assert await repo.delete_product(10, user_id=1) is True
+
             cursor = await conn.execute(
                 "SELECT COUNT(*) FROM price_history WHERE product_id = ?", (10,)
             )
             row = await cursor.fetchone()
             assert row is not None
-            assert row[0] == 0
+            assert row[0] == 1
+            # Gone from the interface all the same.
+            assert await repo.get_active_products(1) == []
+            assert await repo.get_all_products(1) == []
+            assert await repo.get_product_for_user(10, 1) is None
         finally:
             await conn.close()
 

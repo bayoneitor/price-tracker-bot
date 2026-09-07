@@ -160,19 +160,19 @@ async def handle_remove_button(
     name = (product.get("name") or _("Unknown"))[:50]
     choices = [
         InlineKeyboardButton(
-            _("🗑 Yes, delete everything"),
+            _("🗑 Yes, remove it"),
             callback_data=f"confirm_delete_{product_id}",
         ),
         InlineKeyboardButton(_("⏸ Just pause"), callback_data=f"pause_{product_id}"),
     ]
     await query.edit_message_text(
-        # The two buttons differ in what happens to the history, and only one of
-        # them can be undone — so the screen says which, rather than leaving the
-        # reader to find out afterwards.
+        # Both keep the history; they differ in what the reader has to look at
+        # afterwards. Saying so is what stops "delete" being read as "destroy".
         _(
             "❓ What do you want to do with <b>{name}</b>?\n\n"
-            "🗑 Deleting also erases its whole price history, for good.\n"
-            "⏸ Pausing stops the checks and keeps everything."
+            "🗑 Removing it stops the checks and takes it out of your list. Its "
+            "price history is kept, and comes back if you add the link again.\n"
+            "⏸ Pausing stops the checks but leaves it in ⏸ Paused."
         ).format(name=_escape_html(name)),
         parse_mode=ParseMode.HTML,
         # The old "❌ Cancel" here dropped the user on a dead "Operation cancelled"

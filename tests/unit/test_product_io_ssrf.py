@@ -33,6 +33,8 @@ def _context(csv_body: str) -> tuple[MagicMock, MagicMock, AsyncMock]:
     db = AsyncMock()
     db.is_user_allowed = AsyncMock(return_value=True)
     db.get_product_by_url_for_user = AsyncMock(return_value=None)
+    # Nothing archived under this URL: adding it is a fresh scrape.
+    db.restore_archived_product = AsyncMock(return_value=None)
     scraper = MagicMock()
     scraper.resolve = MagicMock(return_value=None)
 

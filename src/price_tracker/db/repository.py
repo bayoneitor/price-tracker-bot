@@ -284,7 +284,7 @@ class Repository:
 
     async def get_product(self, product_id: int) -> ProductRecord | None:
         cursor = await self._conn.execute(
-            f"SELECT {_PRODUCT_COLS} FROM products WHERE id = ?",
+            f"SELECT {_PRODUCT_COLS} FROM products WHERE id = ? AND archived_at IS NULL",
             (product_id,),
         )
         row = await cursor.fetchone()
@@ -295,7 +295,7 @@ class Repository:
     async def list_products_for_user(
         self, *, user_id: int, only_active: bool = False
     ) -> list[ProductRecord]:
-        sql = f"SELECT {_PRODUCT_COLS} FROM products WHERE user_id = ?"
+        sql = f"SELECT {_PRODUCT_COLS} FROM products WHERE user_id = ? AND archived_at IS NULL"
         params: tuple[Any, ...] = (user_id,)
         if only_active:
             sql += " AND is_active = 1"
@@ -305,12 +305,42 @@ class Repository:
         return [_row_to_product(tuple(r)) for r in rows]
 
     async def delete_product(self, product_id: int, *, user_id: int) -> bool:
+        """Archive a product: stop checking it, hide it, keep what it knew.
+
+        A row update rather than a `DELETE`, which cascaded to `price_history`
+        and threw away every reading ever taken. That history is the one part of
+        a tracker that cannot be recreated, and re-adding the URL brings it back
+        (`restore_archived_product`).
+
+        Already-archived rows are excluded, so a stale button cannot move the
+        timestamp of a deletion that already happened.
+        """
         cursor = await self._conn.execute(
-            "DELETE FROM products WHERE id = ? AND user_id = ?",
+            "UPDATE products SET archived_at = datetime('now'), is_active = 0, "
+            "updated_at = datetime('now') "
+            "WHERE id = ? AND user_id = ? AND archived_at IS NULL",
             (product_id, user_id),
         )
         await self._conn.commit()
         return int(cursor.rowcount) > 0
+
+    async def restore_archived_product(self, url: str, user_id: int) -> ProductRecord | None:
+        """Bring a deleted product back, history and all, or None if there is none.
+
+        What makes keeping the history worth anything: adding a URL you deleted
+        last month returns the product you had, not an empty one that happens to
+        point at the same page.
+        """
+        cursor = await self._conn.execute(
+            "UPDATE products SET archived_at = NULL, is_active = 1, "
+            "consecutive_errors = 0, gone_streak = 0, updated_at = datetime('now') "
+            "WHERE url = ? AND user_id = ? AND archived_at IS NOT NULL",
+            (url, user_id),
+        )
+        await self._conn.commit()
+        if int(cursor.rowcount) == 0:
+            return None
+        return await self.get_product_by_url_for_user(url, user_id)
 
     async def update_price(self, product_id: int, price: Decimal) -> None:
         await self._conn.execute(
@@ -416,6 +446,7 @@ class Repository:
         cursor = await self._conn.execute(
             f"SELECT {_PRODUCT_COLS} FROM products "
             "WHERE user_id = ? AND is_active = 0 AND suspension_kind = 'automatic' "
+            "AND archived_at IS NULL "
             "ORDER BY id ASC",
             (user_id,),
         )
@@ -435,6 +466,7 @@ class Repository:
         cursor = await self._conn.execute(
             "SELECT id, name, url, domain, consecutive_errors, last_error, last_error_at "
             "FROM products WHERE user_id = ? AND consecutive_errors > 0 "
+            "AND archived_at IS NULL "
             "ORDER BY consecutive_errors DESC, id ASC",
             (user_id,),
         )
@@ -715,7 +747,7 @@ class Repository:
             f"SELECT {_PRODUCT_COLS_P} FROM products p"
             "  JOIN product_group_members m ON m.product_id = p.id"
             "  JOIN product_groups g ON g.id = m.group_id"
-            " WHERE g.id = ? AND g.user_id = ? AND p.user_id = ?"
+            " WHERE g.id = ? AND g.user_id = ? AND p.user_id = ? AND p.archived_at IS NULL"
             " ORDER BY p.id ASC",
             (group_id, user_id, user_id),
         )
@@ -1031,7 +1063,8 @@ class Repository:
     async def get_product_by_url_for_user(self, url: str, user_id: int) -> ProductRecord | None:
         """Look up a product by ``(url, user_id)`` — used by ``/add`` dedup."""
         cursor = await self._conn.execute(
-            f"SELECT {_PRODUCT_COLS} FROM products WHERE url = ? AND user_id = ?",
+            f"SELECT {_PRODUCT_COLS} FROM products "
+            "WHERE url = ? AND user_id = ? AND archived_at IS NULL",
             (url, user_id),
         )
         row = await cursor.fetchone()
@@ -1042,7 +1075,8 @@ class Repository:
     async def get_product_for_user(self, product_id: int, user_id: int) -> ProductRecord | None:
         """Like :meth:`get_product` but scoped to the caller (admin uses get_product)."""
         cursor = await self._conn.execute(
-            f"SELECT {_PRODUCT_COLS} FROM products WHERE id = ? AND user_id = ?",
+            f"SELECT {_PRODUCT_COLS} FROM products "
+            "WHERE id = ? AND user_id = ? AND archived_at IS NULL",
             (product_id, user_id),
         )
         row = await cursor.fetchone()
@@ -1136,7 +1170,7 @@ class Repository:
                 "SELECT "
                 "COALESCE(SUM(CASE WHEN is_active = 1 THEN 1 ELSE 0 END), 0), "
                 "COUNT(*) "
-                "FROM products"
+                "FROM products WHERE archived_at IS NULL"
             )
             row = await cur.fetchone()
             active_count = int(row[0]) if row else 0
@@ -1149,7 +1183,7 @@ class Repository:
                 "SELECT "
                 "COALESCE(SUM(CASE WHEN is_active = 1 THEN 1 ELSE 0 END), 0), "
                 "COUNT(*) "
-                "FROM products WHERE user_id = ?",
+                "FROM products WHERE user_id = ? AND archived_at IS NULL",
                 (user_id,),
             )
             row = await cur.fetchone()
@@ -1158,7 +1192,7 @@ class Repository:
             cur2 = await self._conn.execute(
                 "SELECT COUNT(*) FROM price_history ph "
                 "JOIN products p ON p.id = ph.product_id "
-                "WHERE p.user_id = ?",
+                "WHERE p.user_id = ? AND p.archived_at IS NULL",
                 (user_id,),
             )
             row2 = await cur2.fetchone()

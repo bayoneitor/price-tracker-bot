@@ -26,13 +26,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Deleting a product no longer destroys its price history. `DELETE FROM products`
+  cascaded to `price_history`, so taking a product off the list threw away every
+  reading ever taken of it — the one thing a tracker cannot recreate, since re-adding
+  the link started from zero and the months in between were simply gone. A deletion
+  is an archive now (migration 019): the product stops being checked, disappears from
+  the listing, the groups, the counts and the paused screen, and keeps its history.
+  Adding the same link again brings the product back with everything it knew, rather
+  than creating a second, emptier copy pointing at the same page.
+
+  Pausing is unchanged and still the other choice: it leaves the product visible under
+  ⏸ Paused. The confirmation now says which is which — both keep the history, and they
+  differ in what you have to look at afterwards.
+
+  Products are per user, so this changes nothing between users: two people tracking one
+  URL have always had a row each, checked independently, and one deleting never
+  affected the other.
+
 - Deleting a product lands back on the listing instead of on a screen that only says
   what happened. Deleting is rarely the last thing you do — you are tidying a list —
   so the list is both where the reader was going and the proof that it worked. The
   same for deleting everything, which lands on the empty listing.
-- The delete confirmation says what deleting costs: the price history goes with the
-  product, for good, while pausing keeps everything. The two buttons always differed
-  in that, and only one of them can be undone.
 
 - The product index is a 3x3 grid of numbers. It paged ten at a time under a cursor
   you stepped one product at a time — six taps to reach the seventh product, on a

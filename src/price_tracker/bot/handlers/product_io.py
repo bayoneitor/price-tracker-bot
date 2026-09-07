@@ -180,6 +180,12 @@ async def cmd_import(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
             skipped += 1
             continue
 
+        # A row the user deleted comes back with its history rather than being
+        # scraped into a second, emptier copy of itself.
+        if await db.restore_archived_product(url, user_id):
+            imported += 1
+            continue
+
         try:
             domain = extract_etld_plus_one(url)
             scraper_for_url = scraper.resolve(url)

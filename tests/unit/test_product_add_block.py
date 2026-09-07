@@ -16,6 +16,8 @@ from price_tracker.core.exceptions import HTTPBlockStatus
 async def test_add_product_handles_block_event_gracefully() -> None:
     db = AsyncMock()
     db.get_product_by_url_for_user = AsyncMock(return_value=None)
+    # Nothing archived under this URL: adding it is a fresh scrape.
+    db.restore_archived_product = AsyncMock(return_value=None)
 
     async def _raise(url: str, client: object) -> object:  # noqa: ARG001
         raise HTTPBlockStatus(status=429, url=url)

@@ -302,6 +302,19 @@ async def _add_product(
         )
         return
 
+    # Deleted, not gone: the row was archived rather than dropped, so the product
+    # comes back with every reading it had. This is what keeping the history is
+    # for — adding back a link you removed last month returns what you had, not
+    # an empty product that happens to point at the same page.
+    restored = await db.restore_archived_product(url, user_id)
+    if restored:
+        await update.message.reply_text(
+            _("♻️ Welcome back — #{pid} is tracked again, with its price history.").format(
+                pid=restored["id"]
+            )
+        )
+        return
+
     msg = await update.message.reply_text(_("🔍 Analysing the product..."))
     domain = extract_etld_plus_one(url)
     scraper_for_url = scraper.resolve(url)

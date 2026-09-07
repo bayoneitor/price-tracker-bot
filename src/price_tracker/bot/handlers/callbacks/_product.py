@@ -116,7 +116,9 @@ async def handle_delete_flow(
                 context,
                 db,
                 user_id,
-                _("🗑 Permanently deleted: <b>{name}</b>").format(name=_escape_html(name[:80])),
+                _("🗑 Removed: <b>{name}</b> — its history is kept.").format(
+                    name=_escape_html(name[:80])
+                ),
             )
         else:
             await query.edit_message_text(
@@ -153,9 +155,10 @@ async def handle_delete_flow(
         await query.edit_message_text(
             _(
                 "🚨 <b>Warning!</b>\n\n"
-                "You are about to <b>permanently delete {count} products</b> "
-                "and all their price history.\n\n"
-                "This action is <b>not reversible</b>."
+                "You are about to <b>remove {count} products</b> from your list "
+                "and stop tracking them.\n\n"
+                "Their price history is kept, and each one comes back if you add "
+                "its link again."
             ).format(count=count),
             parse_mode=ParseMode.HTML,
             reply_markup=keyboard,
@@ -174,7 +177,7 @@ async def handle_delete_flow(
             context,
             db,
             user_id,
-            _("🗑 <b>Deleted {count} products</b> and all their history.").format(count=count),
+            _("🗑 <b>Removed {count} products.</b> Their history is kept.").format(count=count),
         )
         return True
 

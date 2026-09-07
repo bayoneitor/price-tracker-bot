@@ -1,0 +1,18 @@
+-- Deleting a product stops tracking it and hides it, without losing what it knew.
+--
+-- `DELETE FROM products` cascaded to price_history, so removing a product from
+-- the listing threw away every reading ever taken of it. That is the one part of
+-- a tracker that cannot be recreated: re-adding the product later starts from
+-- zero and the months in between are simply gone.
+--
+-- A deletion is a row update now. The product stops being checked, stops
+-- appearing anywhere in the interface, and keeps its history -- which comes back
+-- with it if the same URL is added again.
+--
+-- Not the same as `is_active = 0`. Pausing is a visible state you can undo from
+-- the paused screen. Archiving is the reader saying "I am done with this": gone
+-- from the interface, and reachable again only by adding the URL back.
+--
+-- Nullable, and NULL means live, so every existing row is live without a
+-- backfill.
+ALTER TABLE products ADD COLUMN archived_at TEXT;

@@ -14,7 +14,6 @@ from price_tracker.db.migrator import (
     get_current_version,
     list_migrations,
 )
-from price_tracker.db.repository import Repository
 
 MIGRATIONS_DIR = Path("src/price_tracker/db/migrations")
 
@@ -330,8 +329,11 @@ async def test_migration_015_rebuilds_digest_queue_with_set_null():
         )
         assert await cursor.fetchone() == queued_row
 
-        repo = Repository(conn)
-        assert await repo.delete_product(10, user_id=1) is True
+        # A raw DELETE, not `repo.delete_product`: the repository archives now
+        # rather than deleting, so it would no longer exercise this foreign key.
+        # The key itself is what this test is about, and it still behaves so.
+        await conn.execute("DELETE FROM products WHERE id = ?", (10,))
+        await conn.commit()
         cursor = await conn.execute(
             "SELECT product_id FROM digest_queue WHERE id = ?", (queued_id,)
         )

@@ -97,8 +97,8 @@ def test_the_numbers_are_three_to_a_row() -> None:
     """Wider and Telegram shrinks the labels, narrower and the grid is a column."""
     _text, markup = build_index_view([_product(i) for i in range(1, 10)], 0)
 
-    grid = markup.inline_keyboard[:3]
-    assert [len(row) for row in grid] == [3, 3, 3]
+    grid = markup.inline_keyboard[:2]
+    assert [len(row) for row in grid] == [3, 3]
 
 
 def test_a_part_filled_grid_does_not_pad_itself() -> None:
@@ -107,19 +107,21 @@ def test_a_part_filled_grid_does_not_pad_itself() -> None:
     assert [len(row) for row in markup.inline_keyboard[:2]] == [3, 2]
 
 
-def test_a_page_holds_nine_products_and_the_rest_wait() -> None:
+def test_a_page_holds_six_products_and_the_rest_wait() -> None:
+    """Nine fit a tidier grid, but the written list alone ran past a phone's
+    screen before the grid and the exit row even entered the chat."""
     text, markup = build_index_view([_product(i) for i in range(1, 26)], 0)
 
-    assert "#9</b>" in text
-    assert "#10</b>" not in text
-    assert len([d for d in _button_data(markup) if d.startswith(PRODUCT_PREFIX)]) == 9
+    assert "#6</b>" in text
+    assert "#7</b>" not in text
+    assert len([d for d in _button_data(markup) if d.startswith(PRODUCT_PREFIX)]) == 6
 
 
 def test_the_page_follows_the_position() -> None:
     """One piece of state travels, so page and contents cannot disagree."""
     text, _markup = build_index_view([_product(i) for i in range(1, 26)], 14)
 
-    assert "#10</b>" in text
+    assert "#13</b>" in text
     assert "#18</b>" in text
     assert "#19</b>" not in text
 
@@ -129,23 +131,23 @@ def test_pages_are_counted_from_the_products(total: int, pages: int) -> None:
     assert page_count(total) == pages
 
 
-@pytest.mark.parametrize(("total", "pages"), [(0, 1), (9, 1), (10, 2), (18, 2), (19, 3)])
-def test_the_index_counts_its_own_pages_in_nines(total: int, pages: int) -> None:
+@pytest.mark.parametrize(("total", "pages"), [(0, 1), (6, 1), (7, 2), (12, 2), (13, 3)])
+def test_the_index_counts_its_own_pages_in_sixes(total: int, pages: int) -> None:
     assert page_count(total, INDEX_PAGE_SIZE) == pages
 
 
 def test_the_grid_and_the_pages_are_separate_rows() -> None:
     """Opening a product and turning a page must not read as one control."""
-    products = [_product(i) for i in range(1, 26)]
+    products = [_product(i) for i in range(1, 19)]  # 3 pages of 6
 
     _text, markup = build_index_view(products, 0)
 
-    assert [b.callback_data for b in markup.inline_keyboard[2]] == [
-        f"{PRODUCT_PREFIX}7",
-        f"{PRODUCT_PREFIX}8",
-        f"{PRODUCT_PREFIX}9",
+    assert [b.callback_data for b in markup.inline_keyboard[1]] == [
+        f"{PRODUCT_PREFIX}4",
+        f"{PRODUCT_PREFIX}5",
+        f"{PRODUCT_PREFIX}6",
     ]
-    assert [b.callback_data for b in markup.inline_keyboard[3]] == [
+    assert [b.callback_data for b in markup.inline_keyboard[2]] == [
         f"{LIST_GOTO_PREFIX}2",
         f"{LIST_GOTO_PREFIX}0",
         f"{LIST_GOTO_PREFIX}1",
@@ -154,14 +156,14 @@ def test_the_grid_and_the_pages_are_separate_rows() -> None:
 
 def test_the_page_row_keeps_its_shape_at_both_ends() -> None:
     """An arrow that vanishes moves every button beside it."""
-    products = [_product(i) for i in range(1, 26)]
+    products = [_product(i) for i in range(1, 19)]  # 3 pages of 6
 
     _t, first = build_index_view(products, 0)
-    _t, last = build_index_view(products, 20)
+    _t, last = build_index_view(products, 12)
 
-    assert len(first.inline_keyboard[3]) == len(last.inline_keyboard[3]) == 3
-    assert first.inline_keyboard[3][0].callback_data == f"{LIST_GOTO_PREFIX}2"
-    assert last.inline_keyboard[3][2].callback_data == f"{LIST_GOTO_PREFIX}0"
+    assert len(first.inline_keyboard[2]) == len(last.inline_keyboard[2]) == 3
+    assert first.inline_keyboard[2][0].callback_data == f"{LIST_GOTO_PREFIX}2"
+    assert last.inline_keyboard[2][2].callback_data == f"{LIST_GOTO_PREFIX}0"
 
 
 def test_the_way_out_is_one_row_of_three() -> None:

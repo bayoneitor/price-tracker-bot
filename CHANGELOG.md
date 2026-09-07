@@ -51,14 +51,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The product index puts a blank line between entries. A name long enough to wrap ran
   into the next product, and every line starts with a number, so there was nothing else
   telling them apart.
-- The product index is a 3x3 grid of numbers. It paged ten at a time under a cursor
-  you stepped one product at a time — six taps to reach the seventh product, on a
-  screen whose whole purpose is picking one. Nine to a page now, and every one of them
-  is a button carrying its own number: the number on the line, the product id, the same
-  thing typing `7` into the chat opens. The page row keeps its own row below the grid,
-  and the screen ends in one row of three — Back, ➕ Add, ✖ Close — with ⏸ N paused
-  above it when there are any. The stepping row is gone; panels already in a chat that
-  still carry its buttons keep working.
+- The product index is a grid of numbers. It paged ten at a time under a cursor you
+  stepped one product at a time — six taps to reach the seventh product, on a screen
+  whose whole purpose is picking one. Six to a page now, and every one of them is a
+  button carrying its own number: the number on the line, the product id, the same
+  thing typing `7` into the chat opens. Nine fit a tidier 3x3 grid, but with the blank
+  line between entries a page of nine ran past what fits without scrolling before the
+  grid and the exit row even entered the chat. The page row keeps its own row below the
+  grid, and the screen ends in one row of three — Back, ➕ Add, ✖ Close — with ⏸ N
+  paused above it when there are any. The stepping row is gone; panels already in a
+  chat that still carry its buttons keep working.
 
 ### Fixed
 

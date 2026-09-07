@@ -6,8 +6,8 @@ action buttons — but the buttons acted on whichever product the index had
 marked with a `▸`, so a screen of seven button rows never said what any of them
 would touch.
 
-Two screens instead. The index is a written list — nine products to a page, each
-with its shop and its price — under a 3x3 grid of the numbers those lines carry.
+Two screens instead. The index is a written list — six products to a page, each
+with its shop and its price — under a grid of the numbers those lines carry.
 Tapping a number opens that product; the grid replaced a cursor you had to step
 product by product, which cost six taps to reach the seventh. The product's own
 screen is where the actions live, under the name they apply to.
@@ -58,10 +58,11 @@ logger = logging.getLogger(__name__)
 # in the chat can jump the listing instead of being ignored.
 LIST_MESSAGE_KEY = "list_message_id"
 
-# The index pages nine at a time because nine is a 3x3 grid of numbers, and a
-# number you can tap is the shortest route to a product: stepping a cursor to the
-# seventh product took six taps to do what one now does.
-INDEX_PAGE_SIZE = 9
+# The index pages six at a time. Nine fit a tidier 3x3 grid, but a page of nine
+# untouched shop titles wraps to two or three lines apiece — the written list
+# alone ran past what a phone shows without scrolling, before the grid and the
+# exit row even entered the chat.
+INDEX_PAGE_SIZE = 6
 
 # A picker still pages ten. Its buttons carry a name rather than a number, so
 # they stack in a column and the grid's geometry does not apply.
@@ -227,11 +228,11 @@ def build_index_view(
 
 
 def _number_grid(shown: Sequence[dict[str, Any]]) -> list[list[InlineKeyboardButton]]:
-    """The page's products as a 3x3 grid of their own numbers.
+    """The page's products as a grid of their own numbers, three to a row.
 
-    Three to a row: wider and Telegram shrinks the labels, narrower and the grid
-    is a column again. A short label is the point — the name is on the line above,
-    where it has the room to be read.
+    Three: wider and Telegram shrinks the labels, narrower and the grid is a
+    column again. A short label is the point — the name is on the line above,
+    where it has the room to be read. A full page is two rows of it.
     """
     buttons = [
         InlineKeyboardButton(f"#{product['id']}", callback_data=f"{PRODUCT_PREFIX}{product['id']}")

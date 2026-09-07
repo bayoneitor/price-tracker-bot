@@ -4,7 +4,7 @@
 
 ## Overview
 
-`price-tracker-bot` is a self-hosted Telegram bot for multi-site product price tracking. The codebase follows a **Core + Plugin** pattern: the public repository ships every site-specific scraper, the core scheduler/alert/health/notifier, the database layer, and the observability stack. The `plugins/` directory is a runtime extension point — drop-in custom scrapers can live there without forking the repo. The public/private boundary is intentionally light: only the `.env` (secrets) and `data/pricetracker.db` (user data) stay private; everything else is open.
+`price-tracker-bot` is a self-hosted Telegram bot for multi-site product price tracking. The codebase follows a **Core + Plugin** pattern: the public repository ships every site-specific scraper, the core scheduler/alert/health/notifier, the database layer, and the observability stack. The `plugins/` directory is a runtime extension point — drop-in custom scrapers and history providers can live there without forking the repo (see [plugins.md](plugins.md) and [history-providers.md](history-providers.md)). The public/private boundary is intentionally light: only the `.env` (secrets) and `data/pricetracker.db` (user data) stay private; everything else is open.
 
 ## Layer diagram
 
@@ -18,12 +18,15 @@ src/price_tracker/
 │   └── handlers/      # auth, monitoring, settings, product, groups, history, debug, ...
 │       └── callbacks/ # per-domain button handlers + _nav (back/close/cancel)
 ├── core/            # scheduler, alert, outlier, health, currency, retry, http_client
+│   ├── history_base.py  # AbstractHistoryProvider seam — backfilling a product's past
+│   └── registry.py       # ScraperRegistry + HistoryRegistry, drop-in discovery
 ├── scrapers/        # 17 site-specific scrapers + generic chain + playwright fallback
-├── db/              # repository, models, versioned migrations (001-016)
+├── history/         # empty on purpose — no built-in history providers ship here
+├── db/              # repository, models, versioned migrations (001-020)
 ├── notifier/        # telegram delivery, preferences, digest queue
 ├── observability/   # Prometheus metrics + structured JSON logging
 └── locale/          # gettext catalogs (en, it_IT, es_ES)
-plugins/             # extension point for custom scrapers (gitignored except README.md)
+plugins/             # extension point for custom scrapers + history providers (gitignored except README.md)
 ```
 
 Each top-level package has one responsibility and exposes a clear interface to the next layer. Cross-layer calls always flow downward (`bot/` → `core/` → `db/` / `scrapers/` / `notifier/`); `core/` is the orchestrator.
@@ -87,8 +90,8 @@ SQLite database at `DATABASE_PATH` (default `/data/pricetracker.db`). 8 tables:
 | Table                | Purpose                                                    | Migration       |
 | -------------------- | ---------------------------------------------------------- | --------------- |
 | `users`              | Authorized Telegram users + admin flag + nickname          | 001/003         |
-| `products`           | Tracked products: URL, threshold, interval, state          | 001/002/006/007 |
-| `price_history`      | Price points (Decimal as TEXT) + currency + ts             | 001             |
+| `products`           | Tracked products: URL, threshold, interval, state, history provenance | 001/002/006/007/020 |
+| `price_history`      | Price points (Decimal as TEXT) + currency + ts + source      | 001/020         |
 | `bot_config`         | Singleton key/value runtime config                         | 001             |
 | `scraper_health`     | Per-domain block count + locked_until timestamp            | 008             |
 | `notification_prefs` | Per-user mute, digest, quiet hours, timezone, throttle     | 009             |
@@ -102,7 +105,7 @@ Key indices:
 - `idx_notif_prefs_user` — preference resolution per user
 - `idx_digest_pending` — digest queue scan
 
-Migrations are versioned `.sql` files in `src/price_tracker/db/migrations/` (001-010), applied at startup by `db.migrator.apply_migrations()`. The `schema_version` table records the highest applied version.
+Migrations are versioned `.sql` files in `src/price_tracker/db/migrations/` (001-020), applied at startup by `db.migrator.apply_migrations()`. The `schema_version` table records the highest applied version.
 
 ## Plugin extension point
 
@@ -118,8 +121,11 @@ Custom scrapers can be added without modifying the core repository:
 
 Both forms must subclass `AbstractScraper` (`core/scraper_base.py:172`) and implement `async def scrape(self, url: str, client: httpx.AsyncClient) -> ProductInfo`. See [plugins.md](plugins.md) for the full contract and a minimal example.
 
+A second, sibling plugin kind lives in the same `plugins/` directory and is discovered in the same pass (`core.registry.discover_dropin_plugins`): a **history provider** subclasses `AbstractHistoryProvider` (`core/history_base.py`) and backfills a product's *past* prices at add time, rather than reading its current one. See [history-providers.md](history-providers.md) for the contract.
+
 ## Cross-references
 
 - [scrapers.md](scrapers.md) — built-in scraper inventory.
+- [history-providers.md](history-providers.md) — the history-backfill plugin seam.
 - [observability.md](observability.md) — metrics catalog + dashboard panels.
 - [operations.md](operations.md) — deploy, env vars, backup, troubleshooting.

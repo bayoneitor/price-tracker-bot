@@ -314,7 +314,19 @@ scrapers.
   new `callbacks/_keepa.py` rather than `_product.py` — that file was about
   to cross its 500-LOC budget.
 
-- [ ] **7.** **i18n + public docs.**
+- [x] **7.** **i18n + public docs.**
+
+  i18n was already done per-step (extract/translate/compile after each
+  change, catalog-integrity test green throughout) — nothing left uncovered
+  here; `scripts/audit_english.sh` passes. Docs: new
+  `docs/history-providers.md`; `docs/plugins.md` cross-links it and fixes its
+  stale `discover_dropin_scrapers` mentions; `docs/architecture.md` gets the
+  seam in its layer diagram and migration count (001-020, was stuck at
+  001-010/001-016 in two different places); `docs/roadmap.md` item 1
+  ("All-time-low alerts") removed as shipped and every remaining item
+  renumbered, including its own internal cross-references to item numbers;
+  `README.md`'s roadmap teaser and plugin-extension section updated;
+  `CHANGELOG.md` entries for all three public pieces.
 
 - [ ] **8.** **Verify the public side.** `pytest --cov-fail-under=90`, `ruff check`,
    `ruff format --check`, `mypy --strict`, `bash scripts/audit_english.sh`.

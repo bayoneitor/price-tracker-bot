@@ -39,7 +39,7 @@ Self-hosted Telegram bot for multi-site price tracking with auto-quarantine, str
 - Product groups: compare a set of products side by side, chart them together, and see which has been cheapest over time
 - Prometheus exporter on `127.0.0.1:9090` + structured JSON logging via structlog
 - Grafana dashboard with 14 panels (latency, block rate, quarantine map, alerts, currency)
-- Plugin extension point at `plugins/` for custom scrapers
+- Plugin extension point at `plugins/` for custom scrapers and history-backfill providers
 - Trilingual UI (English + Italian + Spanish) with auto-detect from Telegram `language_code`
 - Hardened Docker deploy: non-root, read-only root fs, dropped capabilities, no-new-privileges, resource limits
 
@@ -264,7 +264,7 @@ Prometheus metrics exposed on `127.0.0.1:9090/metrics` (counter, gauge, histogra
 
 ## Plugin extension
 
-Drop a custom scraper file in `plugins/<name>.py` (gitignored except `README.md`) or install a pip package with the `price_tracker.scrapers` entry-point group. See [docs/plugins.md](docs/plugins.md) for the contract and a minimal example.
+Drop a custom scraper file in `plugins/<name>.py` (gitignored except `README.md`) or install a pip package with the `price_tracker.scrapers` entry-point group. See [docs/plugins.md](docs/plugins.md) for the contract and a minimal example. The same directory and discovery pass also loads history providers — plugins that backfill a product's *past* prices at add time instead of reading its current one — see [docs/history-providers.md](docs/history-providers.md).
 
 ## Localization
 
@@ -288,7 +288,7 @@ src/price_tracker/
 ├── notifier/       # delivery, preferences, digest, throttle
 ├── observability/  # metrics, structured logging
 └── locale/         # gettext catalogs (en, it_IT, es_ES)
-plugins/            # extension point for custom scrapers
+plugins/            # extension point for custom scrapers + history providers
 docs/               # user + contributor documentation
 tests/              # pytest suite, 80% coverage, gate ≥75% (pyproject.toml)
 ```
@@ -312,9 +312,12 @@ follow them, which is maintenance rather than a breaking change.
   scraper, public metadata and artwork carrying no real tracked listing
 - next — operational notices grouped per store and explaining themselves, full UI
   localisation
+- next — all-time-low alerts and a plugin-based price-history backfill on add (see
+  [docs/history-providers.md](docs/history-providers.md)); ships no history providers
+  itself — two real ones live in a private, operator-only repository
 - proposed — [docs/roadmap.md](docs/roadmap.md): candidate features with the problem each
-  solves and what it would cost, including all-time-low alerts and dedicated scrapers for
-  the Spanish retailers that currently fall to the generic chain
+  solves and what it would cost, including dedicated scrapers for the Spanish retailers
+  that currently fall to the generic chain
 
 ## Contributing
 

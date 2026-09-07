@@ -78,7 +78,7 @@ Adding a fixture for a new product layout is the recommended way to lock down a 
 | Aspect          | Built-in (this repo)                          | Plugin (drop-in)                                    |
 | --------------- | --------------------------------------------- | --------------------------------------------------- |
 | Source location | `src/price_tracker/scrapers/<name>.py`        | `plugins/<name>.py` (gitignored) or pip package      |
-| Discovery       | `core.registry.discover_builtin_scrapers`     | `core.registry.discover_dropin_scrapers` + entry-points |
+| Discovery       | `core.registry.discover_builtin_scrapers`     | `core.registry.discover_dropin_plugins` + entry-points |
 | Tests           | `tests/unit/scrapers/test_<name>.py` (required) | recommended (suite of choice)                      |
 | Maintenance     | Project maintainer (PR review, CI gates)      | Plugin author                                        |
 | Distribution    | Bundled in every release                       | Independent; managed by user                          |

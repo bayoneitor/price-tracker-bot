@@ -75,7 +75,7 @@ class MyShopScraper(AbstractScraper):
 
 ## Drop-in installation
 
-Save the file as `plugins/myshop.py` from the repository root. The registry scans this directory at startup (`core.registry.discover_dropin_scrapers`). The directory is gitignored except for `README.md`, so your file will not be accidentally committed.
+Save the file as `plugins/myshop.py` from the repository root. The registry scans this directory at startup (`core.registry.discover_dropin_plugins`) and registers any `AbstractScraper` subclass it finds — the same pass also registers `AbstractHistoryProvider` subclasses, so one file can define both kinds if it needs to (see [history-providers.md](history-providers.md)). The directory is gitignored except for `README.md`, so your file will not be accidentally committed.
 
 ```
 plugins/
@@ -104,7 +104,7 @@ Track the implementation status via the project changelog and the `core.registry
 At startup the registry assembles the scraper pool from three sources, in this order:
 
 1. **Built-in** scrapers from `src/price_tracker/scrapers/` (always loaded via `discover_builtin_scrapers`).
-2. **Drop-in** plugins from `plugins/` (loaded via `discover_dropin_scrapers` if the directory exists and contains `.py` files).
+2. **Drop-in** plugins from `plugins/` (loaded via `discover_dropin_plugins` if the directory exists and contains `.py` files — the same pass that discovers drop-in history providers — see [history-providers.md](history-providers.md)).
 
 Entry-point plugins are documented in the [Pip-installable plugin](#pip-installable-plugin) section above but are not yet wired into startup; they will become a third loading stage when implementation lands.
 
@@ -165,5 +165,6 @@ Run with `pytest tests/unit/scrapers/test_myshop.py -v`. Coverage target: ≥80%
 ## Related docs
 
 - [scrapers.md](scrapers.md) — built-in scraper inventory and the generic 9-strategy fallback chain.
+- [history-providers.md](history-providers.md) — the sibling seam for backfilling a product's *past* prices, same drop-in mechanism, different base class.
 - [architecture.md](architecture.md) — where scrapers fit in the data flow.
 - [CONTRIBUTING.md](../CONTRIBUTING.md) — coding standards, lint/type rules, PR workflow.

@@ -114,6 +114,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- A history-provider plugin seam, so adding a product can import its past prices instead of
+  starting from zero. Shape mirrors the scraper plugin it sits beside:
+  `AbstractHistoryProvider`, `can_handle` + `fetch`, registered by priority, discovered from
+  `plugins/` in the same pass as drop-in scrapers (`core.registry.discover_dropin_plugins`,
+  renamed from `discover_dropin_scrapers`, which unified what had been two separate scans of
+  the same directory). Ships no providers — see [docs/history-providers.md](docs/history-providers.md)
+  for the contract; two real ones (Keepa, a Spanish price-comparison service) live in a
+  private, operator-only repository, since both depend on reverse-engineering a third-party
+  site's internal API rather than reading a published page. Without any installed, adding a
+  product behaves exactly as it does today.
+
+  A backfilled product's chart draws the imported stretch in a muted grey and the bot's own
+  reads in the usual accent colour, with a dashed line at the moment tracking started, and
+  opens a 730-day window instead of the usual 90 — its memory can run past 90 days, which is
+  the whole point of importing it. The confirmation card gains a fact block (count, first
+  date, source, the imported floor) and a one-tap "alert at its lowest ever" button, on top
+  of the two that already existed (every drop, pick a target).
+
+- `all_time_low`, a fifth alert trigger: notified the moment a price beats the lowest ever
+  recorded for that product, evaluated against `products.lowest_price` rather than a stored
+  number. Selectable the same way as the other four, with its own message — "this has never
+  been this cheap since you started watching" is different news from an ordinary drop, and
+  sharing the wording would have buried it.
+
+- A "📈 Keepa graph" button on an Amazon product's own screen, sending Keepa's own free
+  365-day PNG (`graph.keepa.com`) as a photo, credited in the caption. No plugin, no code
+  here that talks to Keepa — an image URL Telegram fetches itself.
+
 - A product can be called what you call it. Scraped titles are written for search engines,
   so three of the same product across three shops differ only somewhere past the fortieth
   character — and the index is ten of those in a row. An alias replaces the displayed name

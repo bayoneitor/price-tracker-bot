@@ -9,6 +9,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import re
+from datetime import UTC, datetime
 from decimal import Decimal, InvalidOperation
 
 from telegram import (
@@ -27,6 +28,7 @@ from price_tracker.bot.decorators import (
     _client,
     _convert_display,
     _db,
+    _history_registry,
     _scraper,
     restricted,
     with_locale,
@@ -40,6 +42,7 @@ from price_tracker.bot.handlers._helpers import (
     _safe_dec,
     product_picker,
 )
+from price_tracker.bot.handlers._history_backfill import backfill_history
 from price_tracker.bot.keyboards import build_threshold_keyboard, close_button
 from price_tracker.bot.messages import _
 
@@ -350,6 +353,11 @@ async def _add_product(
 
     currency = result.currency or detect_currency(url) or "EUR"
 
+    # Captured before the insert rather than re-read from `products.created_at`
+    # afterwards: it only has to exclude "today" from an imported history, and
+    # a few milliseconds of skew against the DB's own clock is nowhere near
+    # that boundary.
+    added_at = datetime.now(UTC)
     product_id = await db.add_product(
         user_id=user_id,
         url=url,
@@ -359,6 +367,18 @@ async def _add_product(
         threshold_type="percentage",
         threshold_value=Decimal("10"),
         currency=currency,
+    )
+
+    # Best-effort: no installed provider, no match, or a miss all look the same
+    # to the reader — a plain confirmation card, exactly as before this existed.
+    backfill = await backfill_history(
+        db=db,
+        client=client,
+        history_registry=_history_registry(context),
+        product_id=product_id,
+        url=url,
+        currency=currency,
+        added_at=added_at,
     )
 
     name = result.name or _("Product")
@@ -371,6 +391,18 @@ async def _add_product(
         _("💰 Price: <b>{price}</b>").format(price=_convert_display(result.price, currency)),
         _("🌐 Site: {domain}").format(domain=domain),
     ]
+    if backfill is not None:
+        lines.append(
+            _(
+                "\n📈 Imported {count} historical prices since {date} (via {source}).\n"
+                "🏷 Lowest ever: <b>{low}</b>"
+            ).format(
+                count=backfill.count,
+                date=backfill.first_observed_at.strftime("%Y-%m-%d"),
+                source=backfill.source,
+                low=_convert_display(backfill.lowest_price, currency),
+            )
+        )
 
     if domain and "amazon" in domain.lower():
         # Show Amazon preferences menu first
@@ -399,6 +431,32 @@ async def _add_product(
         # Non-Amazon: show threshold menu directly
         lines.append(_("\n<b>How do you want to be notified?</b>"))
         rows = [list(row) for row in build_threshold_keyboard(product_id).inline_keyboard]
+
+    if backfill is not None:
+        # `track_any_` and `settarget_` are the buttons those flows already
+        # use elsewhere — reused here rather than duplicated. Only
+        # `bfmin_target_` is new, and it exists because the other two ask the
+        # reader to decide or type something the backfill has already answered.
+        rows.append(
+            [
+                InlineKeyboardButton(
+                    _("🎯 Alert at its lowest ever ({price})").format(
+                        price=_convert_display(backfill.lowest_price, currency)
+                    ),
+                    callback_data=f"bfmin_target_{product_id}",
+                )
+            ]
+        )
+        rows.append(
+            [
+                InlineKeyboardButton(
+                    _("🔔 Alert on every drop"), callback_data=f"track_any_{product_id}"
+                ),
+                InlineKeyboardButton(
+                    _("🏁 Pick my own target"), callback_data=f"settarget_{product_id}"
+                ),
+            ]
+        )
 
     # Offered here because this is the one moment the reader has just seen the
     # shop's title in full and knows whether they want to keep it.

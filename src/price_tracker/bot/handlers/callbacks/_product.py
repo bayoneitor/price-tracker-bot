@@ -323,7 +323,39 @@ async def handle_amazon_pref(
 async def handle_track_choice(
     query: Any, context: ContextTypes.DEFAULT_TYPE, db: Any, user_id: int, data: str
 ) -> bool:
-    """Handle tracking-mode choice buttons (`track_*`)."""
+    """Handle tracking-mode choice buttons (`track_*`, `bfmin_target_`)."""
+    if data.startswith("bfmin_target_"):
+        # Only offered right after a backfill found a floor, on the
+        # confirmation card — `product["lowest_price"]` is that floor,
+        # already folded in by `add_price_history_bulk`. Reusing
+        # `set_target_price` rather than a new setter: this is the same
+        # target-price crossing `/target`'s typed prompt sets, just with the
+        # one number already in hand.
+        resolved = await resolve_owned_product(query, context, data, "bfmin_target_", user_id)
+        if resolved is None:
+            return True
+        product_id, product = resolved
+        name = (product.get("name") or _("Unknown"))[:60]
+        low = _safe_dec(product.get("lowest_price"))
+        if low is None:
+            await query.edit_message_text(_("❌ No imported price to target."))
+            return True
+        await db.set_target_price(product_id, low)
+        currency = product.get("currency", "EUR")
+        await query.edit_message_text(
+            _(
+                "🎯 <b>Target set for #{pid}</b>\n"
+                "📦 {name}\n\n"
+                "You will be alerted when it drops to <b>{price}</b> or below — "
+                "its lowest price on record."
+            ).format(
+                pid=product_id, name=_escape_html(name), price=_convert_display(low, currency)
+            ),
+            parse_mode=ParseMode.HTML,
+            reply_markup=result_keyboard(context, _message_id(query)),
+        )
+        return True
+
     if data.startswith("track_any_"):
         resolved = await resolve_owned_product(query, context, data, "track_any_", user_id)
         if resolved is None:

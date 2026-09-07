@@ -265,8 +265,19 @@ scrapers.
   three CTEs, so the chart (step 4) can tell an imported point from a live one
   per row rather than only per product.
 
-- [ ] **3.** **Backfill on add.** Walk `resolve_all`, filter, persist, silent on miss.
+- [x] **3.** **Backfill on add.** Walk `resolve_all`, filter, persist, silent on miss.
    Tests inject a fake registry; no network.
+
+  Split into `bot/handlers/_history_backfill.py` (product.py was already near
+  its 500-LOC budget). The three confirmation-card buttons: `bfmin_target_<id>`
+  is genuinely new (reads `product["lowest_price"]`, already folded in by the
+  backfill, and calls the existing `set_target_price` — no typed prompt
+  needed since the number is already known); "every drop" and "pick my own
+  target" reuse the existing `track_any_<id>` / `settarget_<id>` callbacks
+  verbatim. Currency conversion only has a path to EUR (`convert_to_eur` is
+  the only converter this deployment has, and every scraper here reads a
+  European shop) — a provider reporting anything else, converting to
+  anything but EUR, is a clean miss rather than a wrong number on the chart.
 
 - [ ] **4.** **Chart.** Two segments, tracking-start line, 730-day window when imported,
    row-cap fix. Extend `tests/unit/test_chart_window.py`.

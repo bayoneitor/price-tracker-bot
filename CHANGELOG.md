@@ -26,6 +26,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- ◀️ Back after deleting a product no longer answers "❌ Product not found." The
+  dispatcher records every screen on a per-message trail so Back can re-render the
+  one before, but the trail outlived its subject: deleting left `prod_5`, `remove_5`
+  and `confirm_delete_5` in the trail of the very message that had just confirmed the
+  deletion, and the next Back rebuilt the confirmation for a product that was gone —
+  the bot contradicting itself one tap later. Deleting now sweeps that product out of
+  every open panel's trail, and any screen that finds its product missing sweeps it
+  too, so a deletion made from somewhere else self-heals instead of stranding the
+  reader.
+
 - Notifications are written in the language of the person receiving them. Handlers
   resolved a locale from the update they were answering, but the scheduler answers no
   update: price drops, restocks, quarantine and operational notices, and digests were

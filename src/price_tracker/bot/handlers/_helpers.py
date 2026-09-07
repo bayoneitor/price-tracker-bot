@@ -153,8 +153,15 @@ async def resolve_owned_product(
     if product_id is None:
         await query.edit_message_text(_("❌ Invalid ID."))
         return None
+    from price_tracker.bot.navigation import forget_product  # noqa: PLC0415 — cycle
+
     product = await _get_user_product(ctx, product_id, user_id)
     if not product:
+        # The trail is holding screens for something that is not there any more —
+        # deleted from another panel, or by a prefix `forget_product` does not
+        # know. Swept here so the reader's next ◀️ Back lands somewhere real
+        # instead of on this same message again.
+        forget_product(ctx, product_id)
         await query.edit_message_text(_("❌ Product not found."))
         return None
     return product_id, product

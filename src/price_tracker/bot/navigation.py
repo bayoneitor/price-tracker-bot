@@ -227,6 +227,58 @@ def transfer_nav(context: ContextTypes.DEFAULT_TYPE, from_id: int, to_id: int) -
         trails[to_id] = trail
 
 
+# Every screen that draws one product, by the token that renders it. A trail
+# outlives what it points at, so these are what has to come out when the product
+# goes — see `forget_product`. Extend this when a new per-product screen appears:
+# a prefix missing here costs one "❌ Product not found." before `resolve_owned_product`
+# purges it anyway, rather than stranding the reader.
+PRODUCT_SCREEN_PREFIXES = (
+    "prod_",
+    "edit_",
+    "remove_",
+    "confirm_delete_",
+    "pause_",
+    "check_",
+    "chart_",
+    "reset_",
+    "reactivate_",
+    "grp_of_",
+    "settarget_",
+    "setsoglia_",
+    "setrefresh_",
+    "setalias_",
+    "track_any_",
+    "track_target_",
+    "track_threshold_",
+    "track_default_",
+    "pref_new_",
+    "pref_used_",
+    "pref_amazon_",
+    "pref_anyseller_",
+    "pref_default_",
+)
+
+
+def forget_product(context: ContextTypes.DEFAULT_TYPE, product_id: int) -> None:
+    """Drop every trail entry that renders a product which no longer exists.
+
+    "Back" re-dispatches a stored token, so a trail outlives its subject.
+    Deleting a product left `prod_5`, `remove_5` and `confirm_delete_5` sitting in
+    the trail of the very message that had just confirmed the deletion, and the
+    next ◀️ Back rendered "❌ Product not found." — the bot contradicting what it
+    had told the reader one tap earlier.
+
+    Every trail is swept, not just the one in front of the reader: the same
+    product may be open in another panel further up the chat.
+    """
+    if context.user_data is None:
+        return
+    dead = {f"{prefix}{product_id}" for prefix in PRODUCT_SCREEN_PREFIXES}
+    trails: dict[int, list[str]] = context.user_data.get(NAV_KEY, {})
+    for stack in trails.values():
+        stack[:] = [token for token in stack if token not in dead]
+
+
 def forget_nav(context: ContextTypes.DEFAULT_TYPE, message_id: int) -> None:
     """Drop a closed message's trail so user_data does not grow forever."""
     if context.user_data is None:

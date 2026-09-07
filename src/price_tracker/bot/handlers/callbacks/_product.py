@@ -38,7 +38,7 @@ from price_tracker.bot.keyboards import (
 )
 from price_tracker.bot.labels import product_label
 from price_tracker.bot.messages import _
-from price_tracker.bot.navigation import set_pending, transfer_nav
+from price_tracker.bot.navigation import forget_product, set_pending, transfer_nav
 
 if TYPE_CHECKING:
     from telegram.ext import ContextTypes
@@ -66,6 +66,9 @@ async def handle_delete_flow(
         if product:
             name = product.get("name") or _("Unknown")
             await db.delete_product(product_id, user_id=user_id)
+            # Before the confirmation renders: its own ◀️ Back reads the trail,
+            # which still holds the screens of the product just deleted.
+            forget_product(context, product_id)
             await query.edit_message_text(
                 _("🗑 Permanently deleted: <b>{name}</b>").format(name=_escape_html(name[:80])),
                 parse_mode=ParseMode.HTML,
@@ -120,6 +123,7 @@ async def handle_delete_flow(
         count = 0
         for p in products:
             await db.delete_product(p["id"], user_id=user_id)
+            forget_product(context, p["id"])
             count += 1
         await query.edit_message_text(
             _("🗑 <b>Deleted {count} products</b> and all their history.").format(count=count),

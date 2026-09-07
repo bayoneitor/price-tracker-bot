@@ -372,9 +372,16 @@ scrapers.
   appear in the startup log, which had never shown a single one of them
   before.
 
-- [ ] **10.** **Shared `_browser.py`.** Headless Chromium, same UA as
+- [x] **10.** **Shared `_browser.py`.** Headless Chromium, same UA as
   `playwright_fallback.py`, `page.on("response")` collector, timeout,
   always-close.
+
+  `capture_response(url, matches=...)` — one function, not a class: navigate,
+  collect the first response a predicate accepts, always close in `finally`.
+  Own `pyproject.toml` for the private repo (ruff + mypy config, same
+  `import-not-found` override the public repo grants
+  `playwright_fallback.py`, for the same reason). Pushed to
+  `bayoneitor/price-tracker-plugins`.
 
 - [ ] **11.** **Keepa scraper.** `can_handle` Amazon + extractable ASIN. Playwright opens
   `https://keepa.com/#!product/{domain}-{ASIN}`, intercepts `/ajax/` JSON,

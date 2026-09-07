@@ -45,6 +45,7 @@ from price_tracker.bot.keyboards import (
 from price_tracker.bot.labels import product_label
 from price_tracker.bot.messages import _
 from price_tracker.bot.navigation import push_nav
+from price_tracker.core.textlimits import SAFE_LIMIT, truncate_visible
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -61,8 +62,10 @@ LIST_MESSAGE_KEY = "list_message_id"
 # away, which is cheaper than a wall.
 PAGE_SIZE = 10
 
-# The index is a list to scan, so a name is budgeted to keep every line one row
-# on a phone. The product's own screen shows it whole.
+# Names are written out whole. Ten of them come nowhere near Telegram's 4096
+# characters — but a page of untouched Amazon titles can, so the index falls back
+# to this budget rather than letting the send fail. Naming a product yourself is
+# the better answer, which is what the alias is for.
 INDEX_NAME_BUDGET = 46
 
 
@@ -84,6 +87,15 @@ def _product_card(product: dict[str, Any]) -> list[str]:
         f"<b>#{pid}</b> {_escape_html(product_label(product))}",
         f"💰 {price_str}",
     ]
+
+    # With an alias on it, the label is the user's name for the product. The
+    # shop's own goes here so a rename never hides what is actually tracked.
+    if product.get("alias") and product.get("name"):
+        lines.append(
+            _("🏬 Listed as: {name}").format(
+                name=_escape_html(truncate_visible(str(product["name"]), 70))
+            )
+        )
 
     if initial and current and initial != current and initial > 0:
         diff = (initial - current) / initial * 100
@@ -172,17 +184,23 @@ def build_index_view(
     page = current // PAGE_SIZE
     shown = list(enumerate(products))[page * PAGE_SIZE : (page + 1) * PAGE_SIZE]
 
-    lines = [_("<b>📦 Your products ({count})</b>").format(count=total)]
-    if pages > 1:
-        lines.append(_("Page {page} of {pages}").format(page=page + 1, pages=pages))
-    lines.append("")
-    for position, product in shown:
-        row = f"{_escape_html(product_label(product, INDEX_NAME_BUDGET))}{_price_tag(product)}"
-        lines.append(
-            f"<b>▸ #{product['id']} {row}</b>"
-            if position == current
-            else f"   #{product['id']} {row}"
-        )
+    def render(budget: int | None) -> str:
+        lines = [_("<b>📦 Your products ({count})</b>").format(count=total)]
+        if pages > 1:
+            lines.append(_("Page {page} of {pages}").format(page=page + 1, pages=pages))
+        lines.append("")
+        for position, product in shown:
+            row = f"{_escape_html(product_label(product, budget))}{_price_tag(product)}"
+            lines.append(
+                f"<b>▸ #{product['id']} {row}</b>"
+                if position == current
+                else f"   #{product['id']} {row}"
+            )
+        return "\n".join(lines)
+
+    text = render(None)
+    if len(text) > SAFE_LIMIT:
+        text = render(INDEX_NAME_BUDGET)
 
     selected = products[current]
     rows = [
@@ -217,7 +235,7 @@ def build_index_view(
             ]
         )
 
-    return "\n".join(lines), InlineKeyboardMarkup([*rows, *extra_rows, exits])
+    return text, InlineKeyboardMarkup([*rows, *extra_rows, exits])
 
 
 def _price_tag(product: dict[str, Any]) -> str:

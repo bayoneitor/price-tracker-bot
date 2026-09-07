@@ -62,7 +62,7 @@ _PRODUCT_COLS = (
     "currency, check_interval_minutes, last_checked_at, last_notified_at, "
     "pending_alert_price, pending_alert_at, preferred_condition, preferred_seller, "
     "pending_read_price, pending_read_count, pending_read_streak, last_error, "
-    "last_error_at, gone_streak, suspension_kind, suspension_reason"
+    "last_error_at, gone_streak, suspension_kind, suspension_reason, alias"
 )
 
 # The same list qualified, for the queries that join products to another table.
@@ -107,6 +107,7 @@ def _row_to_product(row: tuple[Any, ...]) -> ProductRecord:
         gone_streak=int(row[28] or 0),
         suspension_kind=row[29],
         suspension_reason=row[30],
+        alias=row[31],
     )
 
 
@@ -1074,6 +1075,20 @@ class Repository:
             "updated_at = datetime('now') "
             "WHERE id = ? AND current_price IS NOT NULL",
             (product_id,),
+        )
+        await self._conn.commit()
+        return int(cursor.rowcount) > 0
+
+    async def set_alias(self, product_id: int, alias: str | None, *, user_id: int) -> bool:
+        """Name a product, or clear the name back to the shop's own.
+
+        Filtered by user_id like every other per-product write: the id travels in
+        callback data, so an unfiltered update would let anyone rename anyone's.
+        """
+        cursor = await self._conn.execute(
+            "UPDATE products SET alias = ?, updated_at = datetime('now') "
+            "WHERE id = ? AND user_id = ?",
+            (alias, product_id, user_id),
         )
         await self._conn.commit()
         return int(cursor.rowcount) > 0

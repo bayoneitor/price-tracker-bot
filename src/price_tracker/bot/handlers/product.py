@@ -362,33 +362,37 @@ async def _add_product(
     if domain and "amazon" in domain.lower():
         # Show Amazon preferences menu first
         lines.append(_("\n📋 <b>Amazon preferences:</b>"))
-        keyboard = InlineKeyboardMarkup(
+        rows = [
             [
-                [
-                    InlineKeyboardButton(_("🆕 New only"), callback_data=f"pref_new_{product_id}"),
-                    InlineKeyboardButton(_("♻️ Used only"), callback_data=f"pref_used_{product_id}"),
-                ],
-                [
-                    InlineKeyboardButton(
-                        _("📦 Amazon only"), callback_data=f"pref_amazon_{product_id}"
-                    ),
-                    InlineKeyboardButton(
-                        _("🏪 Any seller"),
-                        callback_data=f"pref_anyseller_{product_id}",
-                    ),
-                ],
-                [
-                    InlineKeyboardButton(
-                        _("👍 Anything goes (default)"),
-                        callback_data=f"pref_default_{product_id}",
-                    ),
-                ],
-            ]
-        )
+                InlineKeyboardButton(_("🆕 New only"), callback_data=f"pref_new_{product_id}"),
+                InlineKeyboardButton(_("♻️ Used only"), callback_data=f"pref_used_{product_id}"),
+            ],
+            [
+                InlineKeyboardButton(
+                    _("📦 Amazon only"), callback_data=f"pref_amazon_{product_id}"
+                ),
+                InlineKeyboardButton(
+                    _("🏪 Any seller"), callback_data=f"pref_anyseller_{product_id}"
+                ),
+            ],
+            [
+                InlineKeyboardButton(
+                    _("👍 Anything goes (default)"),
+                    callback_data=f"pref_default_{product_id}",
+                ),
+            ],
+        ]
     else:
         # Non-Amazon: show threshold menu directly
         lines.append(_("\n<b>How do you want to be notified?</b>"))
-        keyboard = build_threshold_keyboard(product_id)
+        rows = [list(row) for row in build_threshold_keyboard(product_id).inline_keyboard]
+
+    # Offered here because this is the one moment the reader has just seen the
+    # shop's title in full and knows whether they want to keep it.
+    rows.append(
+        [InlineKeyboardButton(_("✏️ Give it a name"), callback_data=f"setalias_{product_id}")]
+    )
+    keyboard = InlineKeyboardMarkup(rows)
 
     await msg.edit_text(
         "\n".join(lines),

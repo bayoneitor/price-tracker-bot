@@ -48,6 +48,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- A product can be called what you call it. Scraped titles are written for search engines,
+  so three of the same product across three shops differ only somewhere past the fortieth
+  character — and the index is ten of those in a row. An alias replaces the displayed name
+  everywhere at once, offered right after adding a product and changeable later from the
+  product's own screen. The shop's own name is kept and shown there, so a rename never
+  hides what is actually being tracked.
+
 - Product groups (`/groups`): named sets of products compared against each other — a
   side-by-side table with the spread, one chart with a line per member, and a timeline of
   which product has been cheapest. The timeline is derived from the price history already

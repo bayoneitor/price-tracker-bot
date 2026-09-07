@@ -1,0 +1,11 @@
+-- A name the user gave a product, overriding the one the shop published.
+--
+-- Scraped titles are written for search engines: "LG UltraGear 27GP850-B 27"
+-- QHD 180Hz Nano IPS 1ms HDR400 G-Sync Compatible". Comparing three of those
+-- across shops means reading the same forty characters three times to find the
+-- part that differs. The alias is what the user would have called it.
+--
+-- Nullable, and the scraped name is kept: clearing the alias goes back to it,
+-- and the product's own screen shows both so a rename never hides what was
+-- actually being tracked.
+ALTER TABLE products ADD COLUMN alias TEXT;

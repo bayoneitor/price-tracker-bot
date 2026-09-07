@@ -55,8 +55,10 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 # Sentinel answers that dismiss a prompt. Superseded by /cancel and the ✖ button,
-# kept so the words people already type keep working.
-_CANCEL_WORDS = frozenset({"no", "skip", "salta", "annulla", "cancel", "cancelar", "-"})
+# kept so the words people already type keep working. A bare "-" used to be one
+# of them, undocumented; it now means "clear this" where a prompt says so, which
+# is a meaning worth more than a synonym for cancel nobody was told about.
+_CANCEL_WORDS = frozenset({"no", "skip", "salta", "annulla", "cancel", "cancelar"})
 
 
 class _Retry(Exception):  # noqa: N818 — a control-flow signal, not an error condition
@@ -510,6 +512,30 @@ async def _do_digest_interval(
     return describe_digest(enabled=True, interval=minutes)
 
 
+async def _do_alias(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE,
+    pending: PendingInput,
+    text: str,
+    product: dict[str, Any] | None,
+) -> str:
+    """Name a product, or clear the name back to the shop's own."""
+    name = text.strip()[:60]
+    db = _db(context)
+    user_id = update.effective_user.id
+
+    if name in ("-", "--"):
+        await db.set_alias(pending.target_id, None, user_id=user_id)
+        return _("🏬 Back to the shop's name: <b>{name}</b>").format(
+            name=_escape_html(str((product or {}).get("name") or _("Unknown"))[:70])
+        )
+    if not name:
+        raise _Retry(_("❌ The name cannot be empty."))
+
+    await db.set_alias(pending.target_id, name, user_id=user_id)
+    return _("✏️ Now called <b>{name}</b>.").format(name=_escape_html(name))
+
+
 async def _do_group_new(
     update: Update,
     context: ContextTypes.DEFAULT_TYPE,
@@ -589,6 +615,7 @@ _ACTIONS = {
     "timezone": _do_timezone,
     "throttle": _do_throttle,
     "digest_interval": _do_digest_interval,
+    "alias": _do_alias,
     "group_new": _do_group_new,
     "group_rename": _do_group_rename,
 }

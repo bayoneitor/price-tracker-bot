@@ -246,12 +246,22 @@ def _refresh_prompt(product: dict[str, Any]) -> str:
     ).format(name=_escape_html((product.get("name") or _("Unknown"))[:50]))
 
 
+def _alias_prompt(product: dict[str, Any]) -> str:
+    listed = _escape_html((product.get("name") or _("Unknown"))[:70])
+    return _(
+        "✏️ <b>Name this product</b>\n"
+        "🏬 The shop calls it: {listed}\n\n"
+        "Type what you want to call it, or <code>-</code> to use the shop's name:"
+    ).format(listed=listed)
+
+
 # Built per call, never at import: a module-level table would freeze whichever
 # locale happened to be active when this module was first imported.
 _PROMPTS = {
     "target": _target_prompt,
     "threshold": _threshold_prompt,
     "refresh": _refresh_prompt,
+    "alias": _alias_prompt,
 }
 
 
@@ -263,6 +273,7 @@ async def handle_picker(
         ("settarget_", "target"),
         ("setsoglia_", "threshold"),
         ("setrefresh_", "refresh"),
+        ("setalias_", "alias"),
     ):
         if not data.startswith(prefix):
             continue

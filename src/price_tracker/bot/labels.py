@@ -34,7 +34,10 @@ def product_label(product: Mapping[str, Any] | Any, budget: int | None = None) -
     Falls back to the bare name when the shop is unknown — a row written before
     the domain column existed, or a URL nothing could be derived from.
     """
-    name = str(product.get("name") or _("Unknown")).strip()
+    # The user's own name wins: a scraped title is written for search engines,
+    # and three of them across shops differ only somewhere past the fortieth
+    # character. The scraped one is kept and shown on the product's own screen.
+    name = str(product.get("alias") or product.get("name") or _("Unknown")).strip()
     shop = store_label(url=product.get("url") or "", domain=product.get("domain") or "")
     label = f"{name}{SEPARATOR}{shop}" if shop else name
     if budget is None or len(label) <= budget:

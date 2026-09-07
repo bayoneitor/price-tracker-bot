@@ -77,6 +77,8 @@ class ProductRecord(_DictCompatMixin):
     gone_streak: int = 0
     suspension_kind: str | None = None
     suspension_reason: str | None = None
+    alias: str | None = None
+    """What the user calls it. Displayed instead of `name`, which is kept."""
 
 
 @dataclass(frozen=True)

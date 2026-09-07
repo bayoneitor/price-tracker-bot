@@ -22,6 +22,7 @@ from price_tracker.bot.decorators import _db, with_locale
 from price_tracker.bot.handlers.callbacks import (
     _actions,
     _admin,
+    _chart,
     _delivery,
     _groups,
     _keepa,
@@ -40,10 +41,6 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-# Screens that manage their own trail: opening a chart replaces the panel with a
-# photo message, so the trail moves rather than growing.
-_SELF_NAVIGATING = ("chart_", "grp_chart_")
-
 
 async def _dispatch(
     query: Any, context: ContextTypes.DEFAULT_TYPE, db: Any, user_id: int, data: str
@@ -56,7 +53,8 @@ async def _dispatch(
         or await _list.handle_list_navigation(query, context, db, user_id, data)
         or await _product.handle_delete_flow(query, context, db, user_id, data)
         or await _product.handle_check_button(query, context, db, user_id, data)
-        or await _product.handle_chart_button(query, context, db, user_id, data)
+        or await _chart.handle_chart_button(query, context, db, user_id, data)
+        or await _chart.handle_chart_range(query, context, db, user_id, data)
         or await _keepa.handle_keepa_button(query, context, db, user_id, data)
         or await _product.handle_amazon_pref(query, context, db, user_id, data)
         or await _product.handle_track_choice(query, context, db, user_id, data)

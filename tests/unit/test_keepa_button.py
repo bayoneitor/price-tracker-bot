@@ -1,8 +1,11 @@
 """`keepa_<id>` — sends Keepa's own free PNG, no plugin involved.
 
-Same shape as the chart button (`_product.handle_chart_button`): the panel is
+Same shape as the chart button (`_chart.handle_chart_button`): the panel is
 deleted and the image sent, and the navigation trail moves with it so ◀️ Back
 reopens the panel rather than dead-ending on a deleted message.
+
+The button now also sits under the bot's own chart, so the message it arrives
+on may be a photo — and Telegram will not edit text into one.
 """
 
 from __future__ import annotations
@@ -16,11 +19,17 @@ from price_tracker.bot.handlers.callbacks._keepa import handle_keepa_button
 from price_tracker.bot.navigation import NAV_KEY
 
 
-def _query() -> MagicMock:
+def _query(*, photo: bool = False) -> MagicMock:
     message = MagicMock(message_id=10)
     message.delete = AsyncMock()
     message.reply_photo = AsyncMock(return_value=MagicMock(message_id=20))
-    return MagicMock(message=message, edit_message_text=AsyncMock())
+    # A text message from Telegram carries an empty `photo` tuple, not no
+    # attribute at all — which is exactly what the handler reads to decide
+    # whether it may edit text.
+    message.photo = (MagicMock(),) if photo else ()
+    return MagicMock(
+        message=message, edit_message_text=AsyncMock(), edit_message_caption=AsyncMock()
+    )
 
 
 def _db(product: dict[str, Any] | None) -> AsyncMock:
@@ -161,6 +170,21 @@ async def test_a_product_with_no_asin_says_so_rather_than_sending_nothing() -> N
     assert handled is True
     query.message.reply_photo.assert_not_awaited()
     assert "ASIN" in query.edit_message_text.await_args.args[0]
+
+
+@pytest.mark.asyncio
+async def test_a_refusal_on_a_chart_edits_the_caption_not_the_text() -> None:
+    """The button also sits under the bot's own chart. Telegram will not turn a
+    photo message back into a text one, so a refusal there has to be said in
+    the caption — `edit_message_text` would raise and lose the message."""
+    db = _db(_amazon_product())
+    query = _query(photo=True)
+    refused = MagicMock(status_code=403, content=b"<html>no</html>", headers={})
+
+    await handle_keepa_button(query, _context(db, response=refused), db, 1, "keepa_5")
+
+    query.edit_message_text.assert_not_awaited()
+    assert "Keepa" in query.edit_message_caption.await_args.kwargs["caption"]
 
 
 @pytest.mark.asyncio

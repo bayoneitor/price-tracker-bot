@@ -1,9 +1,9 @@
-"""A backfilled product's chart: two colours, a tracking-start line, a wider window.
+"""A backfilled product's chart: two colours and a tracking-start line.
 
-`generate_chart` decides all three from `product["history_source"]` alone —
-set once, at backfill time (`add_price_history_bulk`), and never touched
-again — so a product that was never backfilled asks exactly what it always
-asked and draws in exactly the one colour it always drew.
+`generate_chart` decides both from `product["history_source"]` alone — set
+once, at backfill time (`add_price_history_bulk`), and never touched again —
+so a product that was never backfilled draws in exactly the one colour it
+always drew. The window is the caller's business, not the backfill's.
 """
 
 from __future__ import annotations
@@ -33,7 +33,7 @@ def _db(points: list[dict[str, Any]]) -> AsyncMock:
     return db
 
 
-async def _rendered(db: Any, product: dict[str, Any]) -> dict[str, Any]:
+async def _rendered(db: Any, product: dict[str, Any], **kwargs: Any) -> dict[str, Any]:
     """Render a chart and hand back what `_render_chart` was actually called with."""
     captured: dict[str, Any] = {}
     real_render = charts._render_chart
@@ -46,7 +46,7 @@ async def _rendered(db: Any, product: dict[str, Any]) -> dict[str, Any]:
     original = charts._render_chart
     charts._render_chart = spy
     try:
-        await charts.generate_chart(db, 1, product)
+        await charts.generate_chart(db, 1, product, **kwargs)
     finally:
         charts._render_chart = original
     return captured
@@ -56,14 +56,11 @@ async def _rendered(db: Any, product: dict[str, Any]) -> dict[str, Any]:
 
 
 @pytest.mark.asyncio
-async def test_a_product_with_no_backfill_asks_the_usual_window() -> None:
+async def test_a_product_with_no_backfill_draws_no_tracking_line() -> None:
     db = _db([_reading(80, "100"), _reading(1, "90")])
 
     kwargs = (await _rendered(db, {"id": 1, "name": "Widget"}))["kwargs"]
 
-    call_kwargs = db.get_price_change_points.await_args.kwargs
-    since = datetime.strptime(call_kwargs["since"], "%Y-%m-%d %H:%M:%S").replace(tzinfo=UTC)
-    assert (datetime.now(UTC) - since).days == charts.CHART_WINDOW_DAYS
     assert kwargs["tracking_started_at"] is None
 
 
@@ -77,11 +74,11 @@ async def test_a_product_with_no_backfill_draws_no_boundary() -> None:
     assert kwargs["sources"] == [None, None]
 
 
-# ── The wider window ─────────────────────────────────────────────────────
+# ── The window ───────────────────────────────────────────────────────────
 
 
 @pytest.mark.asyncio
-async def test_a_backfilled_product_asks_the_wider_window() -> None:
+async def test_the_whole_imported_memory_is_asked_for_by_default() -> None:
     db = _db([_reading(500, "100", source="keepa"), _reading(1, "90")])
     product = {"id": 1, "name": "Widget", "history_source": "keepa", "created_at": None}
 
@@ -90,6 +87,17 @@ async def test_a_backfilled_product_asks_the_wider_window() -> None:
     call_kwargs = db.get_price_change_points.await_args.kwargs
     assert call_kwargs["since"] is None
     assert call_kwargs["limit_per_product"] == charts.CHART_MAX_ROWS
+
+
+@pytest.mark.asyncio
+async def test_a_range_crops_a_backfilled_product_like_any_other() -> None:
+    """Imported history does not exempt a product from the range buttons."""
+    db = _db([_reading(500, "100", source="keepa"), _reading(1, "90")])
+    product = {"id": 1, "name": "Widget", "history_source": "keepa", "created_at": None}
+
+    await _rendered(db, product, days=30)
+
+    assert db.get_price_change_points.await_args.kwargs["since"] is not None
 
 
 @pytest.mark.asyncio

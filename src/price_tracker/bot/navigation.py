@@ -148,15 +148,20 @@ NAV_DEPTH = 8
 
 
 def _family(token: str) -> str:
-    """Which screen a token renders, ignoring which page of it.
+    """Which screen a token renders, ignoring which page or range of it.
 
     Paging through a listing re-renders the same screen, so the pages must
     collapse onto one stack entry — otherwise "back" would walk the user through
-    every page turn before leaving the listing.
+    every page turn before leaving the listing. A chart's range buttons are the
+    same story: `chartr|7|30d` redraws the chart that `chart_7` opened, so it
+    reports itself as `chart_7` and ◀️ Back leads to the panel behind the chart
+    rather than to the same chart at the zoom before last.
     """
     for prefix in ("list_go_", "grp_go_"):
         if token.startswith(prefix):
             return prefix
+    if token.startswith("chartr|"):
+        return f"chart_{token.removeprefix('chartr|').partition('|')[0]}"
     return token
 
 

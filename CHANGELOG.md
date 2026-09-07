@@ -131,6 +131,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Ranges under every chart: **30 days · 6 months · 1 year · All**, with All the default.
+  The window used to be picked for you — 90 days, or 730 for a backfilled product — which
+  meant the one number nobody could see was how far back the data actually went. Tapping a
+  range swaps the picture inside the same message rather than sending a second one, so a
+  product examined at four zooms leaves one chart in the chat, and ◀️ Back still leads to
+  the panel the chart was opened from rather than walking back through every zoom tried on
+  the way. Amazon products get **📈 Keepa graph** on the same row, so Keepa's own drawing
+  is one tap from this one.
+
 - A history-provider plugin seam, so adding a product can import its past prices instead of
   starting from zero. Shape mirrors the scraper plugin it sits beside:
   `AbstractHistoryProvider`, `can_handle` + `fetch`, registered by priority, discovered from
@@ -143,9 +152,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   product behaves exactly as it does today.
 
   A backfilled product's chart draws the imported stretch in a muted grey and the bot's own
-  reads in the usual accent colour, with a dashed line at the moment tracking started, and
-  opens a 730-day window instead of the usual 90 — its memory can run past 90 days, which is
-  the whole point of importing it. The confirmation card gains a fact block (count, first
+  reads in the usual accent colour, with a dashed line at the moment tracking started. The
+  confirmation card gains a fact block (count, first
   date, source, the imported floor) and a one-tap "alert at its lowest ever" button, on top
   of the two that already existed (every drop, pick a target).
 

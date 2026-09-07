@@ -14,7 +14,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from price_tracker.bot.handlers.callbacks import _actions, _admin, _product
+from price_tracker.bot.handlers.callbacks import _actions, _admin, _chart, _product
 
 if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable
@@ -33,7 +33,8 @@ CASES: list[tuple[Any, str]] = [
     # callbacks/_product.py
     (_product.handle_delete_flow, "confirm_delete_abc"),
     (_product.handle_check_button, "check_NaN"),
-    (_product.handle_chart_button, "chart_abc"),
+    # callbacks/_chart.py
+    (_chart.handle_chart_button, "chart_abc"),
     (_product.handle_amazon_pref, "pref_new_abc"),
     (_product.handle_track_choice, "track_any_abc"),
     (_product.handle_track_choice, "track_threshold_NaN"),

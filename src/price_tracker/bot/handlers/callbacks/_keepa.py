@@ -58,9 +58,8 @@ async def handle_keepa_button(
     asin = extract_amazon_asin(url)
     code = keepa_domain_code(url)
     if asin is None or code is None:
-        await query.edit_message_text(
-            _("❌ No Amazon ASIN found for this product."),
-            reply_markup=result_keyboard(context, _message_id(query)),
+        await _report(
+            query, context, _("❌ No Amazon ASIN found for this product."), _message_id(query)
         )
         return True
 
@@ -75,9 +74,8 @@ async def handle_keepa_button(
     # is deleted, instead of losing the panel to an unhandled BadRequest.
     image = await _fetch_graph(context, graph_url)
     if image is None:
-        await query.edit_message_text(
-            _("📉 Keepa has no graph for this product right now."),
-            reply_markup=result_keyboard(context, origin_id),
+        await _report(
+            query, context, _("📉 Keepa has no graph for this product right now."), origin_id
         )
         return True
 
@@ -97,6 +95,22 @@ async def handle_keepa_button(
     if origin_id is not None:
         transfer_nav(context, origin_id, photo.message_id)
     return True
+
+
+async def _report(
+    query: Any, context: ContextTypes.DEFAULT_TYPE, text: str, origin_id: int | None
+) -> None:
+    """Say why there is no Keepa graph, on a panel or on a chart alike.
+
+    This button now sits under the bot's own chart as well as on the product
+    panel, and Telegram will not edit text into a photo message — so which
+    call to make depends on what the button is sitting on.
+    """
+    keyboard = result_keyboard(context, origin_id)
+    if getattr(getattr(query, "message", None), "photo", None):
+        await query.edit_message_caption(caption=text, reply_markup=keyboard)
+        return
+    await query.edit_message_text(text, reply_markup=keyboard)
 
 
 async def _fetch_graph(context: ContextTypes.DEFAULT_TYPE, graph_url: str) -> io.BytesIO | None:

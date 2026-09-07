@@ -1,4 +1,4 @@
-"""Product-scoped callback handlers (delete/check/chart/edit/pause/remove/...).
+"""Product-scoped callback handlers (delete/check/edit/pause/remove/...).
 
 Split out of `handlers/callbacks/__init__.py` to keep the dispatcher under
 the 500-LOC budget [Task 17]. Each function takes the `(query, context, db,
@@ -8,19 +8,15 @@ otherwise — keeps the dispatcher a thin if/elif on prefixes.
 
 from __future__ import annotations
 
-import contextlib
 import logging
 from typing import TYPE_CHECKING, Any
 
 from telegram import (
     InlineKeyboardButton,
     InlineKeyboardMarkup,
-    InputFile,
 )
 from telegram.constants import ParseMode
-from telegram.error import TelegramError
 
-from price_tracker.bot.charts import generate_chart
 from price_tracker.bot.decorators import (
     _convert_display,
 )
@@ -38,7 +34,7 @@ from price_tracker.bot.keyboards import (
 )
 from price_tracker.bot.labels import product_label
 from price_tracker.bot.messages import _
-from price_tracker.bot.navigation import forget_product, set_pending, transfer_nav
+from price_tracker.bot.navigation import forget_product, set_pending
 
 if TYPE_CHECKING:
     from telegram.ext import ContextTypes
@@ -241,61 +237,6 @@ async def handle_check_button(
         [InlineKeyboardButton(_("📊 Price history"), callback_data=f"chart_{product_id}")],
     )
     await query.edit_message_text(text, parse_mode=ParseMode.HTML, reply_markup=keyboard)
-    return True
-
-
-async def handle_chart_button(
-    query: Any, context: ContextTypes.DEFAULT_TYPE, db: Any, user_id: int, data: str
-) -> bool:
-    """Handle the per-product 'Price history' button (`chart_<id>`).
-
-    The chart replaces the panel it was opened from rather than piling up under
-    it. Telegram cannot edit a text message into a photo, so the panel is deleted
-    and the photo sent — and the navigation trail moves with it, which is what
-    lets ◀️ Back reopen the panel afterwards.
-    """
-    if not data.startswith("chart_"):
-        return False
-
-    resolved = await resolve_owned_product(query, context, data, "chart_", user_id)
-    if resolved is None:
-        return True
-    product_id, product = resolved
-
-    origin_id = _message_id(query)
-    chart = await generate_chart(db, product_id, product)
-    if not chart:
-        await query.edit_message_text(
-            _("📭 Not enough data to generate the chart (at least 2 points needed)."),
-            reply_markup=result_keyboard(context, origin_id),
-        )
-        return True
-
-    # The image itself carries only "#id · shop"; the caption has room for the
-    # name and for the numbers the picture cannot state exactly — the floor,
-    # the day it happened, and what it has averaged over each window.
-    from price_tracker.bot.handlers.product_list import (  # noqa: PLC0415 — cycle
-        price_summary,
-        summary_lines,
-    )
-
-    caption = f"📊 <b>#{product_id}</b> {_escape_html(product_label(product))}"
-    stats = summary_lines(await price_summary(db, product), product.get("currency", "") or "EUR")
-    if stats:
-        caption += "\n" + "\n".join(stats)
-
-    # Built against the panel's trail, which the photo is about to inherit.
-    keyboard = result_keyboard(context, origin_id)
-    with contextlib.suppress(TelegramError):
-        await query.message.delete()
-    photo = await query.message.reply_photo(
-        photo=InputFile(chart, filename=f"chart_{product_id}.png"),
-        caption=caption,
-        parse_mode=ParseMode.HTML,
-        reply_markup=keyboard,
-    )
-    if origin_id is not None:
-        transfer_nav(context, origin_id, photo.message_id)
     return True
 
 

@@ -39,18 +39,20 @@ def _db(points: list[dict[str, Any]]) -> AsyncMock:
     return db
 
 
-async def _series(db: Any) -> Any:
+async def _series(db: Any, **kwargs: Any) -> Any:
     """Render a chart and hand back the points it was asked to draw."""
     captured: dict[str, Any] = {}
 
-    def spy(dates: list[Any], prices: list[float], target: Any, name: str, **kwargs: Any) -> Any:
+    def spy(dates: list[Any], prices: list[float], target: Any, name: str, **_kw: Any) -> Any:
         captured["points"] = list(zip(dates, prices, strict=True))
         return charts._to_png(_blank_figure())
 
     original = charts._render_chart
     charts._render_chart = spy
     try:
-        await charts.generate_chart(db, 1, {"id": 1, "name": "Widget", "domain": "example.com"})
+        await charts.generate_chart(
+            db, 1, {"id": 1, "name": "Widget", "domain": "example.com"}, **kwargs
+        )
     finally:
         charts._render_chart = original
     return captured.get("points", [])
@@ -66,15 +68,26 @@ def _blank_figure() -> Any:
 
 
 @pytest.mark.asyncio
-async def test_the_window_is_asked_for_in_time_not_in_rows() -> None:
+async def test_a_bounded_window_is_asked_for_in_time_not_in_rows() -> None:
     db = _db([_reading(80, "100"), _reading(1, "90")])
 
-    await _series(db)
+    await _series(db, days=charts.CHART_WINDOW_DAYS)
 
     kwargs = db.get_price_change_points.await_args.kwargs
     assert "since" in kwargs, "the chart must bound its query by date"
     since = datetime.strptime(kwargs["since"], "%Y-%m-%d %H:%M:%S").replace(tzinfo=UTC)
     assert (datetime.now(UTC) - since).days == charts.CHART_WINDOW_DAYS
+
+
+@pytest.mark.asyncio
+async def test_the_default_window_is_everything_the_product_remembers() -> None:
+    """A reader who wants less says so with the range buttons; the first
+    picture shows the whole memory rather than guessing at a slice of it."""
+    db = _db([_reading(800, "100"), _reading(1, "90")])
+
+    await _series(db)
+
+    assert db.get_price_change_points.await_args.kwargs["since"] is None
 
 
 @pytest.mark.asyncio

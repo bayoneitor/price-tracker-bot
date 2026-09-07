@@ -70,16 +70,11 @@ SERIES_ALIASES = "ABCDEFGH"
 # history held several distinct prices.
 CHART_WINDOW_DAYS = 90
 
-# A backfilled product's memory can run far past 90 days — that is the whole
-# point of importing it — so a chart with imported history opens the window
-# this wide instead. Read only when `products.history_source` is set; a
-# product with no backfill never asks for more than the default.
-CHART_MAX_WINDOW_DAYS = 730
-
 # `get_price_change_points` defaults to 500 change-points per product, plenty
-# for 90 days of live checks. A wider window can hold more distinct changes
-# without holding more *rows* proportionally — a change-point query already
-# collapses unchanged runs — but the cap still wants raising to match.
+# for 90 days of live checks. The default chart draws *everything* a product
+# remembers, and a backfilled one remembers years, so the cap is raised to
+# match — a change-point query already collapses unchanged runs, so this is
+# distinct prices, not readings.
 CHART_MAX_ROWS = 1000
 
 
@@ -283,19 +278,17 @@ def _parse_db_ts(value: str | None) -> datetime | None:
     return parsed if parsed.tzinfo else parsed.replace(tzinfo=UTC)
 
 
-async def generate_chart(db: Any, product_id: int, product: dict[str, Any]) -> io.BytesIO | None:
+async def generate_chart(
+    db: Any, product_id: int, product: dict[str, Any], *, days: int | None = None
+) -> io.BytesIO | None:
     """One product's price history as a PNG. None when the data is too sparse.
 
-    A backfilled product opens a wider window (`CHART_MAX_WINDOW_DAYS`) and a
-    higher row cap than a live-only one — its memory can run past 90 days,
-    which is the whole point of importing it.
+    `days` bounds the window; None — the default — draws everything there is.
+    Whatever a product knows about itself is the honest first answer, and a
+    reader who wants less has the range buttons under the picture to say so.
     """
-    backfilled = bool(product.get("history_source"))
-    # Imported history is the reason the chart exists on add day: crop nothing.
-    # Live-only products still sit in the 90-day window so a long-tracked item
-    # does not flatten into a decade of noise.
-    since = None if backfilled else chart_window(CHART_WINDOW_DAYS)
-    limit = CHART_MAX_ROWS if backfilled else 500
+    since = chart_window(days) if days is not None else None
+    limit = CHART_MAX_ROWS
     histories = await db.get_price_change_points([product_id], since=since, limit_per_product=limit)
     dates, prices, sources = _points(histories.get(product_id, ()))
     if len(dates) < 2:
@@ -308,7 +301,9 @@ async def generate_chart(db: Any, product_id: int, product: dict[str, Any]) -> i
         product.get("target_price"),
         chart_title(product),
         sources=sources,
-        tracking_started_at=_parse_db_ts(product.get("created_at")) if backfilled else None,
+        tracking_started_at=(
+            _parse_db_ts(product.get("created_at")) if product.get("history_source") else None
+        ),
     )
 
 

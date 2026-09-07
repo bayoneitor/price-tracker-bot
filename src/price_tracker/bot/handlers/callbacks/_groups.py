@@ -18,6 +18,7 @@ from telegram.error import TelegramError
 
 from price_tracker.bot.charts import MAX_SERIES, generate_comparison_chart
 from price_tracker.bot.handlers._helpers import _escape_html, _parse_id, _safe_dec
+from price_tracker.bot.handlers.callbacks._picker import resolve_picker
 from price_tracker.bot.handlers.groups_view import (
     GROUP_OPEN_PREFIX,
     build_comparison_table,
@@ -26,6 +27,7 @@ from price_tracker.bot.handlers.groups_view import (
     build_leader_timeline,
     render_leader_timeline,
 )
+from price_tracker.bot.handlers.product_list import build_picker_view
 from price_tracker.bot.keyboards import prompt_keyboard, result_keyboard
 from price_tracker.bot.labels import product_label
 from price_tracker.bot.messages import _
@@ -283,59 +285,56 @@ async def open_add_picker(
     Public because creating a group lands here directly: an empty group is the
     middle of the task, not the end of it.
     """
-    members = {int(p["id"]) for p in await db.list_group_products(group.id, user_id=user_id)}
-    candidates = [p for p in await db.get_active_products(user_id) if int(p["id"]) not in members]
-    if not candidates:
-        await query.edit_message_text(
-            _("📭 Every tracked product is already in this group."),
-            reply_markup=result_keyboard(context, _message_id(query)),
-        )
-        return True
-    rows = [
-        [
-            InlineKeyboardButton(
-                f"#{p['id']} {product_label(p)}",
-                callback_data=f"grp_put_{group.id}_{p['id']}",
-            )
-        ]
-        for p in candidates[:20]
-    ]
-    await query.edit_message_text(
-        _("➕ <b>{name}</b>\n\nPick a product to add:").format(
-            name=_escape_html(truncate_visible(group.name, 40))
-        ),
-        parse_mode=ParseMode.HTML,
-        reply_markup=result_keyboard(context, _message_id(query), *rows),
-    )
-    return True
+    return await _membership_picker(query, context, db, user_id, group, adding=True)
 
 
 async def _remove_picker(
     query: Any, context: ContextTypes.DEFAULT_TYPE, db: Any, user_id: int, group: Any
 ) -> bool:
-    members = await db.list_group_products(group.id, user_id=user_id)
-    if not members:
+    """Offer the products this group holds."""
+    return await _membership_picker(query, context, db, user_id, group, adding=False)
+
+
+async def _membership_picker(
+    query: Any,
+    context: ContextTypes.DEFAULT_TYPE,
+    db: Any,
+    user_id: int,
+    group: Any,
+    *,
+    adding: bool,
+) -> bool:
+    """One screen for both directions: the prefix decides which way it moves.
+
+    Rendered through `build_picker_view`, so it pages like every other picker and
+    its buttons stay the `grp_put_<gid>_<pid>` / `grp_pull_<gid>_<pid>` that
+    `_set_membership` already reads.
+    """
+    prefix = f"{'grp_put_' if adding else 'grp_pull_'}{group.id}_"
+    resolved = await resolve_picker(db, user_id, prefix)
+    if resolved is None:
+        await query.edit_message_text(_("❌ Group not found."))
+        return True
+
+    title, products = resolved
+    if not products:
         await query.edit_message_text(
-            _("📭 Nothing in this group yet."),
+            _("📭 Every tracked product is already in this group.")
+            if adding
+            else _("📭 Nothing in this group yet."),
             reply_markup=result_keyboard(context, _message_id(query)),
         )
         return True
-    rows = [
-        [
-            InlineKeyboardButton(
-                f"➖ #{p['id']} {product_label(p)}",
-                callback_data=f"grp_pull_{group.id}_{p['id']}",
-            )
-        ]
-        for p in members[:20]
-    ]
-    await query.edit_message_text(
-        _("➖ <b>{name}</b>\n\nPick a product to remove:").format(
-            name=_escape_html(truncate_visible(group.name, 40))
-        ),
-        parse_mode=ParseMode.HTML,
-        reply_markup=result_keyboard(context, _message_id(query), *rows),
+
+    text, keyboard = build_picker_view(
+        products,
+        0,
+        prefix=prefix,
+        title=title,
+        context=context,
+        message_id=_message_id(query),
     )
+    await query.edit_message_text(text, parse_mode=ParseMode.HTML, reply_markup=keyboard)
     return True
 
 

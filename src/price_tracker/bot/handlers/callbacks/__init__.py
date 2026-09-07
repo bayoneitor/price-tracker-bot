@@ -28,6 +28,7 @@ from price_tracker.bot.handlers.callbacks import (
     _menu,
     _nav,
     _ops,
+    _picker,
     _product,
 )
 from price_tracker.bot.navigation import push_nav, restore_nav, snapshot_nav
@@ -67,6 +68,7 @@ async def _dispatch(
         or await _delivery.handle_delivery_menu(query, context, db, user_id, data)
         or await _groups.handle_group_buttons(query, context, db, user_id, data)
         or await _admin.handle_admin_menu(query, context, db, user_id, data)
+        or await _picker.handle_picker_page(query, context, db, user_id, data)
         or await _actions.handle_picker(query, context, db, user_id, data)
     )
 

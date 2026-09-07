@@ -38,6 +38,7 @@ from price_tracker.bot.handlers._helpers import (
 from price_tracker.bot.keyboards import (
     LIST_CURSOR_PREFIX,
     LIST_GOTO_PREFIX,
+    PICKER_PREFIX,
     PRODUCT_PREFIX,
     close_button,
     nav_row,
@@ -67,6 +68,10 @@ PAGE_SIZE = 10
 # to this budget rather than letting the send fail. Naming a product yourself is
 # the better answer, which is what the alias is for.
 INDEX_NAME_BUDGET = 46
+
+# A picker's name lives in a button, which wraps rather than truncating: three
+# lines per product is the wall this screen exists to avoid.
+PICKER_NAME_BUDGET = 30
 
 
 def _product_card(product: dict[str, Any]) -> list[str]:
@@ -224,23 +229,77 @@ def build_index_view(
     if pages > 1:
         # Jump: a page at a time, and labelled as pages so the two rows cannot be
         # read as the same control.
-        rows.append(
-            [
-                InlineKeyboardButton("⏪", callback_data=f"{LIST_GOTO_PREFIX}{(page - 1) % pages}"),
-                InlineKeyboardButton(
-                    _("Page {page}/{pages}").format(page=page + 1, pages=pages),
-                    callback_data=f"{LIST_GOTO_PREFIX}{page}",
-                ),
-                InlineKeyboardButton("⏩", callback_data=f"{LIST_GOTO_PREFIX}{(page + 1) % pages}"),
-            ]
-        )
+        rows.append(_page_row(page, pages, prefix=LIST_GOTO_PREFIX))
 
     return text, InlineKeyboardMarkup([*rows, *extra_rows, exits])
+
+
+def _page_row(current: int, pages: int, *, prefix: str) -> list[InlineKeyboardButton]:
+    """The page control. Wraps, so it keeps its shape at both ends — an arrow
+    that vanishes moves every button beside it."""
+    return [
+        InlineKeyboardButton("⏪", callback_data=f"{prefix}{(current - 1) % pages}"),
+        InlineKeyboardButton(
+            _("Page {page}/{pages}").format(page=current + 1, pages=pages),
+            callback_data=f"{prefix}{current}",
+        ),
+        InlineKeyboardButton("⏩", callback_data=f"{prefix}{(current + 1) % pages}"),
+    ]
 
 
 def _price_tag(product: dict[str, Any]) -> str:
     price = _safe_dec(product.get("current_price"))
     return f" — €{price:.2f}" if price else ""
+
+
+def build_picker_view(
+    products: Sequence[dict[str, Any]],
+    page: int = 0,
+    *,
+    prefix: str,
+    title: str,
+    context: ContextTypes.DEFAULT_TYPE | None = None,
+    message_id: int | None = None,
+) -> tuple[str, InlineKeyboardMarkup]:
+    """Choose one product: a page of buttons, and tapping one acts.
+
+    Not the index's cursor. There you navigate; here you pick, and a cursor would
+    cost two steps — move it, then confirm — for what is one tap.
+
+    Each button's callback is `<prefix><id>`, so every action handler keeps
+    receiving exactly what it received before: `check_3`, `settarget_3`,
+    `grp_put_7_3`. Only the page turning is new.
+    """
+    exits = (nav_row(context, message_id) if context is not None else [close_button()]) or [
+        close_button()
+    ]
+    if not products:
+        return _("📭 You have no tracked products."), InlineKeyboardMarkup([exits])
+
+    pages = page_count(len(products))
+    current = max(0, min(page, pages - 1))
+    shown = products[current * PAGE_SIZE : (current + 1) * PAGE_SIZE]
+
+    rows = [
+        [
+            InlineKeyboardButton(
+                f"#{product['id']} {product_label(product, PICKER_NAME_BUDGET)}"
+                f"{_price_tag(product)}",
+                callback_data=f"{prefix}{product['id']}",
+            )
+        ]
+        for product in shown
+    ]
+    if pages > 1:
+        rows.append(_page_row(current, pages, prefix=f"{PICKER_PREFIX}{prefix}|"))
+
+    # The same msgid the index uses, not one with the newlines baked in: a
+    # near-identical string is a second thing to translate and a second thing to
+    # forget.
+    text = f"<b>{title}</b>"
+    if pages > 1:
+        text += "\n\n" + _("Page {page} of {pages}").format(page=current + 1, pages=pages)
+    return text, InlineKeyboardMarkup([*rows, exits])
 
 
 def build_product_view(

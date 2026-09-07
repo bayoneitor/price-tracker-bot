@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import logging
 
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup, InputFile, Update
+from telegram import InlineKeyboardMarkup, InputFile, Update
 from telegram.constants import ParseMode
 from telegram.ext import Application, CommandHandler, ContextTypes
 
@@ -19,6 +19,7 @@ from price_tracker.bot.handlers._helpers import (
     _get_user_product,
     _parse_id,
     _safe_dec,
+    product_picker,
 )
 from price_tracker.bot.keyboards import close_button
 from price_tracker.bot.labels import product_label
@@ -32,31 +33,7 @@ logger = logging.getLogger(__name__)
 async def cmd_history(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Send a price-history chart for a product."""
     if not context.args:
-        # Show product picker
-        db = _db(context)
-        user_id = update.effective_user.id
-        products = await db.get_active_products(user_id)
-        if not products:
-            await update.message.reply_text(_("📭 You have no tracked products."))
-            return
-
-        buttons = []
-        for p in products:
-            buttons.append(
-                [
-                    InlineKeyboardButton(
-                        f"#{p['id']} {product_label(p)}",
-                        callback_data=f"chart_{p['id']}",
-                    )
-                ]
-            )
-        buttons.append([close_button()])
-
-        await update.message.reply_text(
-            _("📊 <b>Pick a product to see its history:</b>"),
-            parse_mode=ParseMode.HTML,
-            reply_markup=InlineKeyboardMarkup(buttons),
-        )
+        await product_picker(update, context, _("Pick a product to see its history"), "chart")
         return
     product_id = _parse_id(context.args[0])
     if product_id is None:

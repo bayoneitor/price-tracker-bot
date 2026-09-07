@@ -9,7 +9,6 @@ from datetime import UTC, datetime
 from decimal import Decimal, InvalidOperation
 from typing import TYPE_CHECKING, Any, cast
 
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.constants import ParseMode
 
 from price_tracker.bot.messages import _
@@ -167,38 +166,22 @@ async def product_picker(
     label: str,
     callback_prefix: str,
 ) -> bool:
-    """Ask which product a command applies to, as one button per product.
+    """Ask which product a command applies to: a page of buttons, one tap to act.
 
     `product.py` and `monitoring.py` each carried a byte-identical copy of this,
-    both with an `action` parameter no caller ever used differently from the
-    callback prefix. One copy, one parameter.
+    and `history.py` a third. One copy, and since it renders through
+    `build_picker_view` the page turning comes with it.
     """
     from price_tracker.bot.decorators import _db  # noqa: PLC0415 — module-load cycle
-    from price_tracker.bot.keyboards import close_button  # noqa: PLC0415 — module-load cycle
-    from price_tracker.bot.labels import product_label  # noqa: PLC0415 — module-load cycle
+    from price_tracker.bot.handlers.product_list import (  # noqa: PLC0415 — cycle
+        build_picker_view,
+    )
 
     products = await _db(context).get_active_products(update.effective_user.id)
     if not products:
         await update.message.reply_text(_("📭 You have no tracked products."))
         return True
 
-    buttons = []
-    for product in products:
-        current = _safe_dec(product.get("current_price"))
-        price_tag = f" €{current:.2f}" if current else ""
-        buttons.append(
-            [
-                InlineKeyboardButton(
-                    f"#{product['id']} {product_label(product)}{price_tag}",
-                    callback_data=f"{callback_prefix}_{product['id']}",
-                )
-            ]
-        )
-
-    buttons.append([close_button()])
-    await update.message.reply_text(
-        f"📦 <b>{label}:</b>",
-        parse_mode=ParseMode.HTML,
-        reply_markup=InlineKeyboardMarkup(buttons),
-    )
+    text, keyboard = build_picker_view(products, 0, prefix=f"{callback_prefix}_", title=label)
+    await update.message.reply_text(text, parse_mode=ParseMode.HTML, reply_markup=keyboard)
     return True

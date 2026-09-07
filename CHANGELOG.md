@@ -132,6 +132,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Acting on a product happens on the product's own screen, where every button sits under
   the name it applies to. Typing a number opens that product by id, which is what each
   line shows, rather than by a position nothing on screen carried.
+- Picking a product is a short screen and one tap, in all six places you pick one. The
+  pickers behind `/check`, `/pause`, `/target`, `/threshold`, `/refresh`, `/history` and
+  a group's add/remove screens put the whole product name inside a button and listed
+  every product with no page at all — a shop's own title wraps to three lines, so
+  twenty-five products meant seventy-five lines of keyboard. They now page ten at a time,
+  with the same wrapping page row the listing uses, and each button carries the id, the
+  trimmed name, the shop and the current price. Tapping still performs the action
+  directly: choosing is one step, not move-then-confirm.
+
+  `/history` had its own hand-written copy of the picker; it uses the shared one now.
+
 - The menu is organised around the product rather than the verb. It held four separate
   "pick a product" screens — Products, Prices, Price history, Notifications — each capped
   at eight or ten products and none able to page, jump or close, while the listing that

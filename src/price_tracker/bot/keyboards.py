@@ -38,6 +38,11 @@ LIST_GOTO_PREFIX = "list_go_"
 # One product's own screen, opened from the index.
 PRODUCT_PREFIX = "prod_"
 
+# Turn a page in a product picker: `pick|<action prefix>|<page>`. A pipe separates
+# because the action prefixes already carry underscores (`grp_put_7_`), which
+# leaves no unambiguous place to split on.
+PICKER_PREFIX = "pick|"
+
 # Move the index's cursor one product at a time. Separate from LIST_GOTO_PREFIX,
 # which moves a whole page: two speeds, two rows of buttons, so neither is
 # mistaken for the other.

@@ -254,8 +254,16 @@ scrapers.
   same-named method across classes in one module misresolves its own return
   annotation to itself. Noted in a comment on the method.
 
-- [ ] **2.** **Migration 020 + repository.** Bulk insert, new columns, `ProductRecord` /
+- [x] **2.** **Migration 020 + repository.** Bulk insert, new columns, `ProductRecord` /
    `_PRODUCT_COLS` in lockstep. Migration test against a copy of the schema.
+
+  Also exposed `products.created_at` (existed in schema, never selected) —
+  needed for the chart's tracking-start line and the backfill's own-timestamp
+  filter in step 3. Ran migration 020 against a copy of the live database:
+  schema_version 20, both products and their 28 price_history rows intact.
+  `get_price_change_points` now selects `source` too, threaded through all
+  three CTEs, so the chart (step 4) can tell an imported point from a live one
+  per row rather than only per product.
 
 - [ ] **3.** **Backfill on add.** Walk `resolve_all`, filter, persist, silent on miss.
    Tests inject a fake registry; no network.

@@ -82,6 +82,12 @@ class ProductRecord(_DictCompatMixin):
     suspension_reason: str | None = None
     alias: str | None = None
     """What the user calls it. Displayed instead of `name`, which is kept."""
+    created_at: str | None = None
+    """When the product was first tracked — the line a chart draws between a
+    backfilled past and the bot's own memory of it."""
+    history_source: str | None = None
+    """Name of the provider that last backfilled this product, or None."""
+    history_backfilled_at: str | None = None
 
 
 @dataclass(frozen=True)
@@ -90,6 +96,8 @@ class PriceHistoryRecord(_DictCompatMixin):
     product_id: int
     price: Decimal
     checked_at: str
+    source: str | None = None
+    """Which history provider wrote this row, or None for the bot's own check."""
 
 
 @dataclass(frozen=True, slots=True)

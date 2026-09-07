@@ -23,6 +23,8 @@ from price_tracker.db.models import (
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
+    from price_tracker.core.history_base import HistoryPoint
+
 logger = logging.getLogger(__name__)
 
 
@@ -62,7 +64,8 @@ _PRODUCT_COLS = (
     "currency, check_interval_minutes, last_checked_at, last_notified_at, "
     "pending_alert_price, pending_alert_at, preferred_condition, preferred_seller, "
     "pending_read_price, pending_read_count, pending_read_streak, last_error, "
-    "last_error_at, gone_streak, suspension_kind, suspension_reason, alias"
+    "last_error_at, gone_streak, suspension_kind, suspension_reason, alias, "
+    "created_at, history_source, history_backfilled_at"
 )
 
 # The same list qualified, for the queries that join products to another table.
@@ -108,6 +111,9 @@ def _row_to_product(row: tuple[Any, ...]) -> ProductRecord:
         suspension_kind=row[29],
         suspension_reason=row[30],
         alias=row[31],
+        created_at=row[32],
+        history_source=row[33],
+        history_backfilled_at=row[34],
     )
 
 
@@ -557,11 +563,54 @@ class Repository:
         )
         await self._conn.commit()
 
+    async def add_price_history_bulk(
+        self,
+        product_id: int,
+        points: Sequence[HistoryPoint],
+        *,
+        source: str,
+    ) -> int:
+        """Backfill imported readings in one transaction. Returns the count written.
+
+        `add_price_history` cannot set `checked_at` — every row it writes gets
+        the moment it runs, which is right for a live check and wrong for a
+        point a provider says happened months ago. This writes the point's own
+        timestamp, tagged with `source` so the row is never mistaken for one
+        the bot read itself (`source IS NULL`), and folds the batch's own low
+        and high into the product's `lowest_price` / `highest_price` — the same
+        `products` row a live check updates, so an imported floor counts
+        immediately rather than waiting for a live read to happen to beat it.
+
+        A no-op on an empty `points`, rather than an empty transaction and a
+        products row updated against nothing.
+        """
+        if not points:
+            return 0
+        rows = [(product_id, _dec_str(p.price), p.observed_at.isoformat(), source) for p in points]
+        await self._conn.executemany(
+            "INSERT INTO price_history(product_id, price, checked_at, source) VALUES(?, ?, ?, ?)",
+            rows,
+        )
+        low = min(p.price for p in points)
+        high = max(p.price for p in points)
+        await self._conn.execute(
+            "UPDATE products SET "
+            "lowest_price = CASE WHEN lowest_price IS NULL OR "
+            "CAST(? AS REAL) < CAST(lowest_price AS REAL) THEN ? ELSE lowest_price END, "
+            "highest_price = CASE WHEN highest_price IS NULL OR "
+            "CAST(? AS REAL) > CAST(highest_price AS REAL) THEN ? ELSE highest_price END, "
+            "history_source = ?, history_backfilled_at = datetime('now') "
+            "WHERE id = ?",
+            (_dec_str(low), _dec_str(low), _dec_str(high), _dec_str(high), source, product_id),
+        )
+        await self._conn.commit()
+        return len(rows)
+
     async def get_price_history(
         self, product_id: int, *, limit: int = 100
     ) -> list[PriceHistoryRecord]:
         cursor = await self._conn.execute(
-            "SELECT id, product_id, price, checked_at FROM price_history "
+            "SELECT id, product_id, price, checked_at, source FROM price_history "
             "WHERE product_id = ? ORDER BY checked_at DESC, id DESC LIMIT ?",
             (product_id, limit),
         )
@@ -572,6 +621,7 @@ class Repository:
                 product_id=r[1],
                 price=_dec(r[2]) or Decimal("0"),
                 checked_at=r[3],
+                source=r[4],
             )
             for r in rows
         ]
@@ -615,14 +665,14 @@ class Repository:
             f"""
             WITH windowed AS (
                 SELECT
-                    id, product_id, price, checked_at,
+                    id, product_id, price, checked_at, source,
                     replace(replace(checked_at, 'T', ' '), 'Z', '') AS at
                 FROM price_history
                 WHERE product_id IN ({placeholders})
                   AND (? IS NULL OR replace(replace(checked_at, 'T', ' '), 'Z', '') >= ?)
             ), numbered AS (
                 SELECT
-                    id, product_id, price, checked_at, at,
+                    id, product_id, price, checked_at, source, at,
                     LAG(price) OVER (PARTITION BY product_id ORDER BY at ASC, id ASC)
                         AS previous_price,
                     ROW_NUMBER() OVER (PARTITION BY product_id ORDER BY at ASC, id ASC)
@@ -631,7 +681,7 @@ class Repository:
                 FROM windowed
             ), changes AS (
                 SELECT
-                    id, product_id, price, checked_at, at,
+                    id, product_id, price, checked_at, source, at,
                     ROW_NUMBER() OVER (PARTITION BY product_id ORDER BY at DESC, id DESC)
                         AS recency
                 FROM numbered
@@ -639,7 +689,7 @@ class Repository:
                    OR price <> previous_price
                    OR row_number = window_row_count
             )
-            SELECT id, product_id, price, checked_at FROM changes
+            SELECT id, product_id, price, checked_at, source FROM changes
             WHERE recency <= ?
             ORDER BY product_id ASC, at ASC, id ASC
             """,
@@ -650,7 +700,11 @@ class Repository:
         for r in rows:
             histories[r[1]].append(
                 PriceHistoryRecord(
-                    id=r[0], product_id=r[1], price=_dec(r[2]) or Decimal("0"), checked_at=r[3]
+                    id=r[0],
+                    product_id=r[1],
+                    price=_dec(r[2]) or Decimal("0"),
+                    checked_at=r[3],
+                    source=r[4],
                 )
             )
         return histories

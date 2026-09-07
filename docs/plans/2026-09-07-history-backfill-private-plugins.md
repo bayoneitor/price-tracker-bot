@@ -291,8 +291,21 @@ scrapers.
   second function, since the two only differ by what the caller does with one
   extra column already in the row.
 
-- [ ] **5.** **`all_time_low` + confirmation-card buttons.** Pin "evaluate before
+- [x] **5.** **`all_time_low` + confirmation-card buttons.** Pin "evaluate before
    `update_price`".
+
+  Evaluated alongside `target_hit`, not inside `crosses_threshold` (which
+  only ever sees `old`/`new`): `atl_hit = threshold_type == "all_time_low"
+  and p.lowest_price is not None and info.price < p.lowest_price`, reading
+  `p.lowest_price` from the record fetched at the top of the call — `update_price`
+  already ran earlier in the same function and rewrote the row, but `p` was
+  never re-read, so the comparison still uses the floor from before this
+  tick. Test pins it with a spy on `repo.update_price` that proves the DB row
+  really did change first. Caught one regression of my own along the way: the
+  formatter-selection line landed *outside* `async with self._as_reader(user_id)`,
+  so the choice of formatter — and the `_()` calls inside both — ran under
+  whatever locale happened to be active rather than the reader's; moved
+  inside, with a test pinning it (`test_the_all_time_low_alert_speaks_the_readers_language`).
 
 - [ ] **6.** **Keepa PNG button** and the public ASIN helper.
 

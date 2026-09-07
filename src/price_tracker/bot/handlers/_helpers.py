@@ -89,6 +89,10 @@ def _format_threshold(threshold_type: str, threshold_value: str) -> str:
     """Render a threshold tuple as a user-facing string."""
     if threshold_type == "any_drop":
         return _("\U0001f514 Every drop")
+    if threshold_type == "all_time_low":
+        # threshold_value carries no meaning for this type — the trigger is a
+        # comparison against products.lowest_price, not a stored number.
+        return _("\U0001f3c6 All-time low")
     if threshold_type == "percentage":
         return f"-{threshold_value}%"
     return f"-€{Decimal(threshold_value):.2f}"

@@ -136,6 +136,12 @@ def build_threshold_keyboard(
         ],
         [
             InlineKeyboardButton(
+                _("\U0001f3c6 All-time low"),
+                callback_data=f"track_atl_{product_id}",
+            ),
+        ],
+        [
+            InlineKeyboardButton(
                 _("\U0001f44d -10% is fine (default)"),
                 callback_data=f"track_default_{product_id}",
             ),

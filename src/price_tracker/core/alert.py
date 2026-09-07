@@ -26,7 +26,7 @@ from price_tracker.core.textlimits import (
 )
 from price_tracker.core.url_utils import store_label
 
-ThresholdType = Literal["percentage", "absolute", "target", "any_drop"]
+ThresholdType = Literal["percentage", "absolute", "target", "any_drop", "all_time_low"]
 
 
 _CURRENCY_SYMBOLS: dict[str, str] = {
@@ -256,6 +256,9 @@ class PriceAlert:
     currency: str
     threshold_type: ThresholdType
     threshold_value: Decimal
+    previous_low: Decimal | None = None
+    """The floor `new_price` just beat. Only set — and only meaningful — when
+    `threshold_type == "all_time_low"`; every other trigger has no use for it."""
 
 
 def crosses_threshold(
@@ -320,6 +323,31 @@ def format_alert(alert: PriceAlert) -> str:
         sym=sym,
         pct=drop_pct,
     )
+
+
+def format_all_time_low(alert: PriceAlert) -> str:
+    """Format an all-time-low alert — genuinely different news from an ordinary drop.
+
+    Every other trigger is "it moved by enough to be worth a message"; this one
+    is "it has never been this cheap since you started watching". Sharing
+    `format_alert`'s wording would bury that under identical phrasing every
+    other drop already uses.
+    """
+    sym = _currency_symbol(alert.currency)
+    name = _escape_html(alert.product_name)
+    lines = [
+        _("🏆 <b>All-time low!</b>"),
+        "",
+        f"<b>{name}</b>",
+        _product_link(alert.url),
+        "",
+        _("Now: <b>{new} {sym}</b> — the cheapest it has ever been.").format(
+            new=alert.new_price, sym=sym
+        ),
+    ]
+    if alert.previous_low is not None:
+        lines.append(_("Previous floor: {low} {sym}").format(low=alert.previous_low, sym=sym))
+    return "\n".join(lines)
 
 
 def format_back_in_stock(*, product_name: str, url: str, price: Decimal, currency: str) -> str:

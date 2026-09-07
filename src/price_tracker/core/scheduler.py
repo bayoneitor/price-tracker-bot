@@ -33,6 +33,7 @@ from price_tracker.core.alert import (
     _why,
     crosses_threshold,
     format_alert,
+    format_all_time_low,
     format_back_in_stock,
     format_operational_notice,
     format_quarantine_notification,
@@ -846,7 +847,18 @@ class Scheduler:
         # above it to at-or-below it, so a product parked under its target does
         # not re-announce itself every cooldown window.
         target_hit = p.target_price is not None and info.price <= p.target_price < old_price
-        if not (threshold_hit or target_hit):
+        # `p.lowest_price` here is the floor from *before* this tick — `update_price`
+        # already ran (above) and rewrote the row, but `p` is the record fetched at
+        # the top of this call and was never re-read, so this still compares
+        # against the old floor rather than the one it may just have become.
+        # `crosses_threshold` cannot make this call itself: it only ever sees
+        # `old`/`new`, never the product's own history.
+        atl_hit = (
+            threshold_type == "all_time_low"
+            and p.lowest_price is not None
+            and info.price < p.lowest_price
+        )
+        if not (threshold_hit or target_hit or atl_hit):
             return (p.user_id, None, False)
         alert = PriceAlert(
             product_id=p.id,
@@ -857,6 +869,7 @@ class Scheduler:
             currency=p.currency,
             threshold_type=threshold_type,
             threshold_value=p.threshold_value,
+            previous_low=p.lowest_price if atl_hit else None,
         )
         return (p.user_id, alert, False)
 
@@ -1004,9 +1017,17 @@ class Scheduler:
                 self.deps.metrics.notification_skipped_total.labels(reason="cooldown").inc()
             return
         async with self._as_reader(user_id):
+            # Selected inside the reader's locale, not before it: both
+            # formatters translate through `_()`, so choosing which one to
+            # call is part of composing the message, not a step before it.
+            text = (
+                format_all_time_low(alert)
+                if alert.threshold_type == "all_time_low"
+                else format_alert(alert)
+            )
             delivered = await self._notify(
                 user_id,
-                format_alert(alert),
+                text,
                 product_id=alert.product_id,
                 payload=_alert_payload(alert, domain=domain),
             )

@@ -374,6 +374,28 @@ async def handle_track_choice(
         )
         return True
 
+    if data.startswith("track_atl_"):
+        # `threshold_value` is unused for this type — the scheduler compares
+        # against `products.lowest_price` directly, not a stored number — but
+        # every other threshold_type stores one, so "0" keeps the column's
+        # shape rather than leaving it NULL for one type alone.
+        resolved = await resolve_owned_product(query, context, data, "track_atl_", user_id)
+        if resolved is None:
+            return True
+        product_id, product = resolved
+        await db.set_threshold(product_id, "all_time_low", "0")
+        name = (product.get("name") or _("Unknown"))[:60]
+        await query.edit_message_text(
+            _(
+                "🏆 <b>All-time low</b> enabled for #{pid}\n"
+                "📦 {name}\n\n"
+                "You will be alerted the moment it beats its lowest price on record."
+            ).format(pid=product_id, name=_escape_html(name)),
+            parse_mode=ParseMode.HTML,
+            reply_markup=result_keyboard(context, _message_id(query)),
+        )
+        return True
+
     if data.startswith("track_threshold_"):
         resolved = await resolve_owned_product(query, context, data, "track_threshold_", user_id)
         if resolved is None:

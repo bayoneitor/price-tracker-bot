@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Security
+
+- CSV import applies the same URL boundary as an interactive addition. `/aggiungi`
+  rejected loopback, link-local and private addresses before resolving or fetching a
+  URL, but `/importa` went straight from a CSV row to the scraper — and any host with a
+  `/products/<slug>` path is claimed by the Shopify scraper, which fetches it. A crafted
+  file was enough to make the bot request an internal address.
+
+### Fixed
+
+- Price charts covered a window measured in readings, not in time. History records every
+  check rather than every price change, so the last 100 rows spanned about four days on a
+  real deployment and nearly every product drew a flat line. Charts now cover 90 days,
+  with the price changes collapsed in SQL so a long window is never silently truncated.
+- Chart rendering no longer rebuilds a matplotlib cache on every call: `MPLCONFIGDIR`
+  points at the writable cache directory, which the read-only root filesystem denied.
+
 ### Added
 
 - Removed-listing detection: a product whose page answers HTTP 404/410 for three
@@ -52,6 +69,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   literal percent in prose ("-10% since tracking") as a printf template and then refuses
   any translation whose following word starts with a different letter. Compilation now
   goes through the Babel API instead.
+
+### Fixed
+
+- **MediaMarkt products no longer track.** Their pages moved the JSON-LD `Product`
+  inside a `BuyAction` and dropped the DOM wrapper the price fallback selected, so
+  every MediaMarkt product reported "Price not found in page" while still resolving
+  its name. Both page shapes are supported now.
+- **A valid offer could be discarded as monthly financing.** Any JSON-LD offer
+  carrying a `UnitPriceSpecification` was filtered out, which is how retailers state
+  ordinary strikethrough and loyalty-tier prices. Financing now has to be stated as
+  such — a billing period, a reference quantity, or "/mo"-style wording. This
+  affected every scraper that reads a JSON-LD offer, not only MediaMarkt.
 
 ## [1.0.0] - 2026-09-02
 

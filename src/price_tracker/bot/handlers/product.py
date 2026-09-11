@@ -33,6 +33,7 @@ from price_tracker.bot.decorators import (
 )
 from price_tracker.bot.handlers._helpers import (
     _escape_html,
+    _format_scraper_error,
     _format_threshold,
     _get_user_product,
     _parse_id,
@@ -371,7 +372,7 @@ async def _add_product(
         return
 
     if result.price is None:
-        error_msg = result.error or _("Price not found")
+        error_msg = _format_scraper_error(result.error) if result.error else _("Price not found")
         await msg.edit_text(
             _(
                 "❌ I could not find the price.\n"

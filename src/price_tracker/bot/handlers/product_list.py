@@ -81,11 +81,11 @@ async def cmd_list(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
                 )
 
         if lowest and current and lowest < current:
-            parts.append(f"📉 Min: €{lowest:.2f}")
+            parts.append(_("📉 Min: €{price:.2f}").format(price=lowest))
 
         parts.append(_("🎯 Threshold: {threshold}").format(threshold=threshold))
         if target:
-            parts.append(f"🏁 Target: €{target:.2f}")
+            parts.append(_("🏁 Target: €{price:.2f}").format(price=target))
 
         custom_int = p.get("check_interval_minutes")
         if custom_int:

@@ -2185,3 +2185,273 @@ msgstr "Use /reactivate or /errors for details."
 #~ msgid "❌ ID non valido."
 #~ msgstr "❌ ID non valido."
 
+
+msgid "🆕 Preference: <b>New only</b>"
+msgstr "🆕 Preference: <b>New only</b>"
+
+msgid "♻️ Preference: <b>Used only</b>"
+msgstr "♻️ Preference: <b>Used only</b>"
+
+msgid "📦 Preference: <b>Sold by Amazon only</b>"
+msgstr "📦 Preference: <b>Sold by Amazon only</b>"
+
+msgid "🏪 Preference: <b>Any seller</b>"
+msgstr "🏪 Preference: <b>Any seller</b>"
+
+msgid "👍 Preference: <b>No filter</b>"
+msgstr "👍 Preference: <b>No filter</b>"
+
+msgid "Usage: /mute [product_id|all] [hours|forever]"
+msgstr "Usage: /mute [product_id|all] [hours|forever]"
+
+msgid "Duration must be a number of hours or 'forever'"
+msgstr "Duration must be a number of hours or 'forever'"
+
+msgid "Duration must be a positive number of hours or 'forever'"
+msgstr "Duration must be a positive number of hours or 'forever'"
+
+msgid "Usage: /unmute [product_id|all]"
+msgstr "Usage: /unmute [product_id|all]"
+
+msgid "Unmuted."
+msgstr "Unmuted."
+
+msgid "Usage: /digest_mode on|off [interval_min]"
+msgstr "Usage: /digest_mode on|off [interval_min]"
+
+msgid "interval_min must be a positive integer"
+msgstr "interval_min must be a positive integer"
+
+msgid "interval_min must be > 0"
+msgstr "interval_min must be > 0"
+
+msgid "Usage: /quiet_hours HH:MM-HH:MM | off"
+msgstr "Usage: /quiet_hours HH:MM-HH:MM | off"
+
+msgid "Quiet hours disabled."
+msgstr "Quiet hours disabled."
+
+msgid "Format: HH:MM-HH:MM (e.g. 22:00-08:00)"
+msgstr "Format: HH:MM-HH:MM (e.g. 22:00-08:00)"
+
+msgid "Invalid time format. Use 24h HH:MM."
+msgstr "Invalid time format. Use 24h HH:MM."
+
+msgid "Quiet hours start and end cannot be the same time"
+msgstr "Quiet hours start and end cannot be the same time"
+
+msgid "Usage: /timezone <TZ name>"
+msgstr "Usage: /timezone <TZ name>"
+
+msgid "Usage: /throttle <N> | off"
+msgstr "Usage: /throttle <N> | off"
+
+msgid "N must be a positive integer"
+msgstr "N must be a positive integer"
+
+msgid "N must be > 0"
+msgstr "N must be > 0"
+
+msgid "Throttle updated."
+msgstr "Throttle updated."
+
+msgid "product_id must be an integer"
+msgstr "product_id must be an integer"
+
+msgid "product_id must be a positive integer"
+msgstr "product_id must be a positive integer"
+
+msgid "<b>Effective preferences</b>"
+msgstr "<b>Effective preferences</b>"
+
+msgid "Muted {scope} {when}."
+msgstr "Muted {scope} {when}."
+
+msgid "all products"
+msgstr "all products"
+
+msgid "product {pid}"
+msgstr "product {pid}"
+
+msgid "forever"
+msgstr "forever"
+
+msgid "until {when}"
+msgstr "until {when}"
+
+msgid " (interval {minutes}m)"
+msgstr " (interval {minutes}m)"
+
+msgid "on"
+msgstr "on"
+
+msgid "off"
+msgstr "off"
+
+msgid "Digest mode {state}{suffix}."
+msgstr "Digest mode {state}{suffix}."
+
+msgid "Quiet hours set to {start}-{end}."
+msgstr "Quiet hours set to {start}-{end}."
+
+msgid "Unknown timezone: {tz}"
+msgstr "Unknown timezone: {tz}"
+
+msgid "Timezone set to {tz}."
+msgstr "Timezone set to {tz}."
+
+msgid "Flushed {count} pending digest entries."
+msgstr "Flushed {count} pending digest entries."
+
+msgid "global"
+msgstr "global"
+
+msgid "  scope: {scope}"
+msgstr "  scope: {scope}"
+
+msgid "True"
+msgstr "True"
+
+msgid "False"
+msgstr "False"
+
+msgid "  mute: {enabled}"
+msgstr "  mute: {enabled}"
+
+msgid "  digest_mode: {enabled} (interval {minutes}m)"
+msgstr "  digest_mode: {enabled} (interval {minutes}m)"
+
+msgid "  quiet_hours: {start}–{end}"
+msgstr "  quiet_hours: {start}–{end}"
+
+msgid "unlimited"
+msgstr "unlimited"
+
+msgid "  throttle_per_hour: {limit}"
+msgstr "  throttle_per_hour: {limit}"
+
+msgid "  timezone: {timezone}"
+msgstr "  timezone: {timezone}"
+
+msgid "expired"
+msgstr "expired"
+
+msgid "Metrics unavailable"
+msgstr "Metrics unavailable"
+
+msgid "<b>📡 Bot Status</b>"
+msgstr "<b>📡 Bot Status</b>"
+
+msgid "📊 <b>Bot Status</b>"
+msgstr "📊 <b>Bot Status</b>"
+
+msgid "T1 half-open"
+msgstr "T1 half-open"
+
+msgid "T2 half-open"
+msgstr "T2 half-open"
+
+msgid "T3 half-open"
+msgstr "T3 half-open"
+
+msgid "🏥 <b>Scraper Health Report</b>"
+msgstr "🏥 <b>Scraper Health Report</b>"
+
+msgid "<b>Locked:</b>"
+msgstr "<b>Locked:</b>"
+
+msgid "<b>Half-open:</b>"
+msgstr "<b>Half-open:</b>"
+
+msgid "<b>Last 5 block events:</b>"
+msgstr "<b>Last 5 block events:</b>"
+
+msgid "Uptime: {uptime}"
+msgstr "Uptime: {uptime}"
+
+msgid "Products tracked: {count}"
+msgstr "Products tracked: {count}"
+
+msgid "✅ Healthy domains: {count}"
+msgstr "✅ Healthy domains: {count}"
+
+msgid "⚠️ Half-open: {count}"
+msgstr "⚠️ Half-open: {count}"
+
+msgid "🔒 Locked: {count}"
+msgstr "🔒 Locked: {count}"
+
+msgid "  • {domain} — {tier}, expires in {remaining}"
+msgstr "  • {domain} — {tier}, expires in {remaining}"
+
+msgid "  • {domain} — probing on next tick"
+msgstr "  • {domain} — probing on next tick"
+
+msgid "🔍 <b>Debug scraping</b>\n🔗 {url}\n"
+msgstr "🔍 <b>Debug scraping</b>\n🔗 {url}\n"
+
+msgid "\n📝 Title: {title}"
+msgstr "\n📝 Title: {title}"
+
+msgid "📡 httpx shared: <b>HTTP {status}</b> ({count} chars)"
+msgstr "📡 httpx shared: <b>HTTP {status}</b> ({count} chars)"
+
+msgid "📡 httpx fresh: <b>HTTP {status}</b> ({count} chars)"
+msgstr "📡 httpx fresh: <b>HTTP {status}</b> ({count} chars)"
+
+msgid "📡 curl_cffi: <b>HTTP {status}</b> ({count} chars)"
+msgstr "📡 curl_cffi: <b>HTTP {status}</b> ({count} chars)"
+
+msgid "📡 Scrapling: <b>HTTP {status}</b> ({count} chars)"
+msgstr "📡 Scrapling: <b>HTTP {status}</b> ({count} chars)"
+
+msgid "📦 JSON-LD #{n}: parse error: {error}"
+msgstr "📦 JSON-LD #{n}: parse error: {error}"
+
+msgid "❌ httpx fresh: {error}"
+msgstr "❌ httpx fresh: {error}"
+
+msgid "Target €{price:.2f}"
+msgstr "Target €{price:.2f}"
+
+msgid "📉 Min: €{price:.2f}"
+msgstr "📉 Min: €{price:.2f}"
+
+msgid "🏁 Target: €{price:.2f}"
+msgstr "🏁 Target: €{price:.2f}"
+
+msgid "Price not found (product unavailable?)"
+msgstr "Price not found (product unavailable?)"
+
+msgid "Price not found on eBay"
+msgstr "Price not found on eBay"
+
+msgid "Price not found on the page"
+msgstr "Price not found on the page"
+
+msgid "Price not found (Nove25)"
+msgstr "Price not found (Nove25)"
+
+msgid "Price not found (Shopify)"
+msgstr "Price not found (Shopify)"
+
+msgid "Price not found (Playwright fallback too)"
+msgstr "Price not found (Playwright fallback too)"
+
+msgid "Could not load the Amazon page"
+msgstr "Could not load the Amazon page"
+
+msgid "Could not load the eBay page"
+msgstr "Could not load the eBay page"
+
+msgid "Could not load the page"
+msgstr "Could not load the page"
+
+msgid "Playwright unavailable"
+msgstr "Playwright unavailable"
+
+msgid "HTTP error: {detail}"
+msgstr "HTTP error: {detail}"
+
+msgid "Playwright import error: {detail}"
+msgstr "Playwright import error: {detail}"

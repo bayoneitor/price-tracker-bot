@@ -9,7 +9,7 @@ from datetime import UTC, datetime
 from decimal import Decimal, InvalidOperation
 from typing import TYPE_CHECKING, Any, cast
 
-from price_tracker.bot.messages import _
+from price_tracker.bot.messages import N_, _
 
 if TYPE_CHECKING:
     from telegram.ext import ContextTypes
@@ -124,3 +124,33 @@ async def _get_product_name(db: Any, product_id: int) -> str:
     if product:
         return (product.get("name") or _("Unknown"))[:60]
     return _("Unknown")
+
+
+# Raw scraper diagnostics are stable data; translate only when showing them.
+_SCRAPER_ERROR_COPY: dict[str, str] = {
+    "Price not found (product unavailable?)": N_("Price not found (product unavailable?)"),
+    "Price not found on eBay": N_("Price not found on eBay"),
+    "Price not found on the page": N_("Price not found on the page"),
+    "Price not found in page": N_("Price not found on the page"),
+    "Price not found (Nove25)": N_("Price not found (Nove25)"),
+    "Price not found (Shopify)": N_("Price not found (Shopify)"),
+    "Price not found (Playwright fallback too)": N_("Price not found (Playwright fallback too)"),
+    "Impossibile caricare la pagina Amazon": N_("Could not load the Amazon page"),
+    "Impossibile caricare la pagina eBay": N_("Could not load the eBay page"),
+    "Impossibile caricare la pagina": N_("Could not load the page"),
+    "Playwright non disponibile": N_("Playwright unavailable"),
+}
+
+
+def _format_scraper_error(error: str) -> str:
+    """Localize known copy while preserving raw exception/plugin details."""
+    msgid = _SCRAPER_ERROR_COPY.get(error)
+    if msgid is not None:
+        return _(msgid)
+    if error.startswith("HTTP error: "):
+        return _("HTTP error: {detail}").format(detail=error.removeprefix("HTTP error: "))
+    if error.startswith("Playwright import error: "):
+        return _("Playwright import error: {detail}").format(
+            detail=error.removeprefix("Playwright import error: ")
+        )
+    return error

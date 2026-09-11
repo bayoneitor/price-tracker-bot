@@ -65,7 +65,7 @@ def _render_chart(
                 linestyle="--",
                 linewidth=1,
                 alpha=0.8,
-                label=f"Target €{target_f:.2f}",
+                label=_("Target €{price:.2f}").format(price=target_f),
             )
             ax.legend(facecolor="#000000", edgecolor="#333", labelcolor="white", fontsize=8)
         except (ValueError, TypeError):

@@ -2187,3 +2187,273 @@ msgstr "Usa /reactivate o /errori per i dettagli."
 #~ msgid "❌ ID non valido."
 #~ msgstr "❌ ID non valido."
 
+
+msgid "🆕 Preference: <b>New only</b>"
+msgstr "🆕 Preferenza: <b>Solo Nuovo</b>"
+
+msgid "♻️ Preference: <b>Used only</b>"
+msgstr "♻️ Preferenza: <b>Solo Usato</b>"
+
+msgid "📦 Preference: <b>Sold by Amazon only</b>"
+msgstr "📦 Preferenza: <b>Solo venduto da Amazon</b>"
+
+msgid "🏪 Preference: <b>Any seller</b>"
+msgstr "🏪 Preferenza: <b>Qualsiasi venditore</b>"
+
+msgid "👍 Preference: <b>No filter</b>"
+msgstr "👍 Preferenza: <b>Nessun filtro</b>"
+
+msgid "Usage: /mute [product_id|all] [hours|forever]"
+msgstr "Uso: /mute [product_id|all] [hours|forever]"
+
+msgid "Duration must be a number of hours or 'forever'"
+msgstr "La durata deve essere un numero di ore oppure 'forever'"
+
+msgid "Duration must be a positive number of hours or 'forever'"
+msgstr "La durata deve essere un numero positivo di ore oppure 'forever'"
+
+msgid "Usage: /unmute [product_id|all]"
+msgstr "Uso: /unmute [product_id|all]"
+
+msgid "Unmuted."
+msgstr "Notifiche riattivate."
+
+msgid "Usage: /digest_mode on|off [interval_min]"
+msgstr "Uso: /digest_mode on|off [interval_min]"
+
+msgid "interval_min must be a positive integer"
+msgstr "interval_min deve essere un intero positivo"
+
+msgid "interval_min must be > 0"
+msgstr "interval_min deve essere > 0"
+
+msgid "Usage: /quiet_hours HH:MM-HH:MM | off"
+msgstr "Uso: /quiet_hours HH:MM-HH:MM | off"
+
+msgid "Quiet hours disabled."
+msgstr "Ore di silenzio disattivate."
+
+msgid "Format: HH:MM-HH:MM (e.g. 22:00-08:00)"
+msgstr "Formato: HH:MM-HH:MM (es. 22:00-08:00)"
+
+msgid "Invalid time format. Use 24h HH:MM."
+msgstr "Formato orario non valido. Usa HH:MM su 24 ore."
+
+msgid "Quiet hours start and end cannot be the same time"
+msgstr "Inizio e fine delle ore di silenzio non possono coincidere"
+
+msgid "Usage: /timezone <TZ name>"
+msgstr "Uso: /timezone <nome TZ>"
+
+msgid "Usage: /throttle <N> | off"
+msgstr "Uso: /throttle <N> | off"
+
+msgid "N must be a positive integer"
+msgstr "N deve essere un intero positivo"
+
+msgid "N must be > 0"
+msgstr "N deve essere > 0"
+
+msgid "Throttle updated."
+msgstr "Limite notifiche aggiornato."
+
+msgid "product_id must be an integer"
+msgstr "product_id deve essere un intero"
+
+msgid "product_id must be a positive integer"
+msgstr "product_id deve essere un intero positivo"
+
+msgid "<b>Effective preferences</b>"
+msgstr "<b>Preferenze effettive</b>"
+
+msgid "Muted {scope} {when}."
+msgstr "Notifiche silenziate per {scope} {when}."
+
+msgid "all products"
+msgstr "tutti i prodotti"
+
+msgid "product {pid}"
+msgstr "prodotto {pid}"
+
+msgid "forever"
+msgstr "per sempre"
+
+msgid "until {when}"
+msgstr "fino a {when}"
+
+msgid " (interval {minutes}m)"
+msgstr " (intervallo {minutes}m)"
+
+msgid "on"
+msgstr "attiva"
+
+msgid "off"
+msgstr "disattiva"
+
+msgid "Digest mode {state}{suffix}."
+msgstr "Modalità riepilogo {state}{suffix}."
+
+msgid "Quiet hours set to {start}-{end}."
+msgstr "Ore di silenzio impostate su {start}-{end}."
+
+msgid "Unknown timezone: {tz}"
+msgstr "Fuso orario sconosciuto: {tz}"
+
+msgid "Timezone set to {tz}."
+msgstr "Fuso orario impostato su {tz}."
+
+msgid "Flushed {count} pending digest entries."
+msgstr "Inviate {count} voci di riepilogo in attesa."
+
+msgid "global"
+msgstr "globale"
+
+msgid "  scope: {scope}"
+msgstr "  ambito: {scope}"
+
+msgid "True"
+msgstr "Sì"
+
+msgid "False"
+msgstr "No"
+
+msgid "  mute: {enabled}"
+msgstr "  silenzioso: {enabled}"
+
+msgid "  digest_mode: {enabled} (interval {minutes}m)"
+msgstr "  riepilogo: {enabled} (intervallo {minutes}m)"
+
+msgid "  quiet_hours: {start}–{end}"
+msgstr "  ore di silenzio: {start}–{end}"
+
+msgid "unlimited"
+msgstr "illimitato"
+
+msgid "  throttle_per_hour: {limit}"
+msgstr "  limite per ora: {limit}"
+
+msgid "  timezone: {timezone}"
+msgstr "  fuso orario: {timezone}"
+
+msgid "expired"
+msgstr "scaduto"
+
+msgid "Metrics unavailable"
+msgstr "Metriche non disponibili"
+
+msgid "<b>📡 Bot Status</b>"
+msgstr "<b>📡 Stato del bot</b>"
+
+msgid "📊 <b>Bot Status</b>"
+msgstr "📊 <b>Stato del bot</b>"
+
+msgid "T1 half-open"
+msgstr "T1 in verifica"
+
+msgid "T2 half-open"
+msgstr "T2 in verifica"
+
+msgid "T3 half-open"
+msgstr "T3 in verifica"
+
+msgid "🏥 <b>Scraper Health Report</b>"
+msgstr "🏥 <b>Stato degli scraper</b>"
+
+msgid "<b>Locked:</b>"
+msgstr "<b>Bloccati:</b>"
+
+msgid "<b>Half-open:</b>"
+msgstr "<b>In verifica:</b>"
+
+msgid "<b>Last 5 block events:</b>"
+msgstr "<b>Ultimi 5 blocchi:</b>"
+
+msgid "Uptime: {uptime}"
+msgstr "Tempo di attività: {uptime}"
+
+msgid "Products tracked: {count}"
+msgstr "Prodotti tracciati: {count}"
+
+msgid "✅ Healthy domains: {count}"
+msgstr "✅ Domini funzionanti: {count}"
+
+msgid "⚠️ Half-open: {count}"
+msgstr "⚠️ In verifica: {count}"
+
+msgid "🔒 Locked: {count}"
+msgstr "🔒 Bloccati: {count}"
+
+msgid "  • {domain} — {tier}, expires in {remaining}"
+msgstr "  • {domain} — {tier}, scade tra {remaining}"
+
+msgid "  • {domain} — probing on next tick"
+msgstr "  • {domain} — verifica al prossimo ciclo"
+
+msgid "🔍 <b>Debug scraping</b>\n🔗 {url}\n"
+msgstr "🔍 <b>Diagnostica scraping</b>\n🔗 {url}\n"
+
+msgid "\n📝 Title: {title}"
+msgstr "\n📝 Titolo: {title}"
+
+msgid "📡 httpx shared: <b>HTTP {status}</b> ({count} chars)"
+msgstr "📡 httpx condiviso: <b>HTTP {status}</b> ({count} caratteri)"
+
+msgid "📡 httpx fresh: <b>HTTP {status}</b> ({count} chars)"
+msgstr "📡 httpx nuovo: <b>HTTP {status}</b> ({count} caratteri)"
+
+msgid "📡 curl_cffi: <b>HTTP {status}</b> ({count} chars)"
+msgstr "📡 curl_cffi: <b>HTTP {status}</b> ({count} caratteri)"
+
+msgid "📡 Scrapling: <b>HTTP {status}</b> ({count} chars)"
+msgstr "📡 Scrapling: <b>HTTP {status}</b> ({count} caratteri)"
+
+msgid "📦 JSON-LD #{n}: parse error: {error}"
+msgstr "📦 JSON-LD #{n}: errore di parsing: {error}"
+
+msgid "❌ httpx fresh: {error}"
+msgstr "❌ httpx nuovo: {error}"
+
+msgid "Target €{price:.2f}"
+msgstr "Obiettivo €{price:.2f}"
+
+msgid "📉 Min: €{price:.2f}"
+msgstr "📉 Min: €{price:.2f}"
+
+msgid "🏁 Target: €{price:.2f}"
+msgstr "🏁 Obiettivo: €{price:.2f}"
+
+msgid "Price not found (product unavailable?)"
+msgstr "Prezzo non trovato (prodotto non disponibile?)"
+
+msgid "Price not found on eBay"
+msgstr "Prezzo non trovato su eBay"
+
+msgid "Price not found on the page"
+msgstr "Prezzo non trovato nella pagina"
+
+msgid "Price not found (Nove25)"
+msgstr "Prezzo non trovato (Nove25)"
+
+msgid "Price not found (Shopify)"
+msgstr "Prezzo non trovato (Shopify)"
+
+msgid "Price not found (Playwright fallback too)"
+msgstr "Prezzo non trovato (anche via Playwright)"
+
+msgid "Could not load the Amazon page"
+msgstr "Impossibile caricare la pagina Amazon"
+
+msgid "Could not load the eBay page"
+msgstr "Impossibile caricare la pagina eBay"
+
+msgid "Could not load the page"
+msgstr "Impossibile caricare la pagina"
+
+msgid "Playwright unavailable"
+msgstr "Playwright non disponibile"
+
+msgid "HTTP error: {detail}"
+msgstr "Errore HTTP: {detail}"
+
+msgid "Playwright import error: {detail}"
+msgstr "Errore di importazione Playwright: {detail}"

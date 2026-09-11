@@ -116,7 +116,7 @@ async def mute_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         try:
             product_id = int(target)
         except ValueError:
-            await update.message.reply_text("Usage: /mute [product_id|all] [hours|forever]")
+            await update.message.reply_text(_("Usage: /mute [product_id|all] [hours|forever]"))
             return
 
     mute_until: datetime | None
@@ -126,11 +126,11 @@ async def mute_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         try:
             hours = int(duration)
         except ValueError:
-            await update.message.reply_text("Duration must be a number of hours or 'forever'")
+            await update.message.reply_text(_("Duration must be a number of hours or 'forever'"))
             return
         if hours <= 0:
             await update.message.reply_text(
-                "Duration must be a positive number of hours or 'forever'"
+                _("Duration must be a positive number of hours or 'forever'")
             )
             return
         mute_until = datetime.now(UTC) + timedelta(hours=hours)
@@ -149,9 +149,13 @@ async def mute_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
             mute_until=mute_until,
         )
     await repo.upsert_notification_prefs(prefs)
-    scope = "all products" if product_id is None else f"product {product_id}"
-    when = "forever" if mute_until is None else f"until {mute_until.isoformat()}"
-    await update.message.reply_text(f"Muted {scope} {when}.")
+    scope = _("all products") if product_id is None else _("product {pid}").format(pid=product_id)
+    when = (
+        _("forever")
+        if mute_until is None
+        else _("until {when}").format(when=mute_until.isoformat())
+    )
+    await update.message.reply_text(_("Muted {scope} {when}.").format(scope=scope, when=when))
 
 
 @with_locale
@@ -166,7 +170,7 @@ async def unmute_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         try:
             product_id = int(target)
         except ValueError:
-            await update.message.reply_text("Usage: /unmute [product_id|all]")
+            await update.message.reply_text(_("Usage: /unmute [product_id|all]"))
             return
     user_id = update.effective_user.id
     # Read-before-write: preserve digest_mode/timezone/throttle/quiet_hours
@@ -182,7 +186,7 @@ async def unmute_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             mute_until=None,
         )
     await repo.upsert_notification_prefs(prefs)
-    await update.message.reply_text("Unmuted.")
+    await update.message.reply_text(_("Unmuted."))
 
 
 @with_locale
@@ -192,7 +196,7 @@ async def digest_mode_command(update: Update, context: ContextTypes.DEFAULT_TYPE
     repo = context.bot_data["repository"]
     args = context.args or []
     if not args or args[0] not in ("on", "off"):
-        await update.message.reply_text("Usage: /digest_mode on|off [interval_min]")
+        await update.message.reply_text(_("Usage: /digest_mode on|off [interval_min]"))
         return
     enabled = args[0] == "on"
     interval = 60
@@ -200,10 +204,10 @@ async def digest_mode_command(update: Update, context: ContextTypes.DEFAULT_TYPE
         try:
             interval = int(args[1])
         except ValueError:
-            await update.message.reply_text("interval_min must be a positive integer")
+            await update.message.reply_text(_("interval_min must be a positive integer"))
             return
         if interval <= 0:
-            await update.message.reply_text("interval_min must be > 0")
+            await update.message.reply_text(_("interval_min must be > 0"))
             return
 
     user_id = update.effective_user.id
@@ -218,8 +222,12 @@ async def digest_mode_command(update: Update, context: ContextTypes.DEFAULT_TYPE
             digest_interval_minutes=interval,
         )
     await repo.upsert_notification_prefs(prefs)
-    suffix = f" (interval {interval}m)" if enabled else ""
-    await update.message.reply_text(f"Digest mode {'on' if enabled else 'off'}{suffix}.")
+    suffix = _(" (interval {minutes}m)").format(minutes=interval) if enabled else ""
+    await update.message.reply_text(
+        _("Digest mode {state}{suffix}.").format(
+            state=_("on") if enabled else _("off"), suffix=suffix
+        )
+    )
 
 
 @with_locale
@@ -229,7 +237,7 @@ async def quiet_hours_command(update: Update, context: ContextTypes.DEFAULT_TYPE
     repo = context.bot_data["repository"]
     args = context.args or []
     if not args:
-        await update.message.reply_text("Usage: /quiet_hours HH:MM-HH:MM | off")
+        await update.message.reply_text(_("Usage: /quiet_hours HH:MM-HH:MM | off"))
         return
     user_id = update.effective_user.id
     existing = await repo.get_notification_prefs(user_id=user_id, product_id=None)
@@ -245,19 +253,19 @@ async def quiet_hours_command(update: Update, context: ContextTypes.DEFAULT_TYPE
                 quiet_hours_end=None,
             )
         await repo.upsert_notification_prefs(prefs)
-        await update.message.reply_text("Quiet hours disabled.")
+        await update.message.reply_text(_("Quiet hours disabled."))
         return
 
     spec = args[0]
     if "-" not in spec:
-        await update.message.reply_text("Format: HH:MM-HH:MM (e.g. 22:00-08:00)")
+        await update.message.reply_text(_("Format: HH:MM-HH:MM (e.g. 22:00-08:00)"))
         return
     start, end = spec.split("-", 1)
     if not _valid_hhmm(start) or not _valid_hhmm(end):
-        await update.message.reply_text("Invalid time format. Use 24h HH:MM.")
+        await update.message.reply_text(_("Invalid time format. Use 24h HH:MM."))
         return
     if start == end:
-        await update.message.reply_text("Quiet hours start and end cannot be the same time")
+        await update.message.reply_text(_("Quiet hours start and end cannot be the same time"))
         return
     if existing is not None:
         prefs = dataclasses.replace(existing, quiet_hours_start=start, quiet_hours_end=end)
@@ -269,7 +277,9 @@ async def quiet_hours_command(update: Update, context: ContextTypes.DEFAULT_TYPE
             quiet_hours_end=end,
         )
     await repo.upsert_notification_prefs(prefs)
-    await update.message.reply_text(f"Quiet hours set to {start}-{end}.")
+    await update.message.reply_text(
+        _("Quiet hours set to {start}-{end}.").format(start=start, end=end)
+    )
 
 
 @with_locale
@@ -279,11 +289,11 @@ async def timezone_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     repo = context.bot_data["repository"]
     args = context.args or []
     if not args:
-        await update.message.reply_text("Usage: /timezone <TZ name>")
+        await update.message.reply_text(_("Usage: /timezone <TZ name>"))
         return
     tz = args[0]
     if tz not in _VALID_TIMEZONES:
-        await update.message.reply_text(f"Unknown timezone: {tz}")
+        await update.message.reply_text(_("Unknown timezone: {tz}").format(tz=tz))
         return
     user_id = update.effective_user.id
     existing = await repo.get_notification_prefs(user_id=user_id, product_id=None)
@@ -292,7 +302,7 @@ async def timezone_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     else:
         prefs = NotificationPrefs(user_id=user_id, product_id=None, timezone=tz)
     await repo.upsert_notification_prefs(prefs)
-    await update.message.reply_text(f"Timezone set to {tz}.")
+    await update.message.reply_text(_("Timezone set to {tz}.").format(tz=tz))
 
 
 @with_locale
@@ -302,7 +312,7 @@ async def throttle_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     repo = context.bot_data["repository"]
     args = context.args or []
     if not args:
-        await update.message.reply_text("Usage: /throttle <N> | off")
+        await update.message.reply_text(_("Usage: /throttle <N> | off"))
         return
     user_id = update.effective_user.id
     existing = await repo.get_notification_prefs(user_id=user_id, product_id=None)
@@ -315,17 +325,17 @@ async def throttle_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         try:
             limit = int(args[0])
         except ValueError:
-            await update.message.reply_text("N must be a positive integer")
+            await update.message.reply_text(_("N must be a positive integer"))
             return
         if limit <= 0:
-            await update.message.reply_text("N must be > 0")
+            await update.message.reply_text(_("N must be > 0"))
             return
         if existing is not None:
             prefs = dataclasses.replace(existing, throttle_per_hour=limit)
         else:
             prefs = NotificationPrefs(user_id=user_id, product_id=None, throttle_per_hour=limit)
     await repo.upsert_notification_prefs(prefs)
-    await update.message.reply_text("Throttle updated.")
+    await update.message.reply_text(_("Throttle updated."))
 
 
 @with_locale
@@ -342,22 +352,27 @@ async def prefs_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         try:
             product_id = int(args[0])
         except ValueError:
-            await update.message.reply_text("product_id must be an integer")
+            await update.message.reply_text(_("product_id must be an integer"))
             return
         if product_id <= 0:
-            await update.message.reply_text("product_id must be a positive integer")
+            await update.message.reply_text(_("product_id must be a positive integer"))
             return
     prefs_mgr = PreferencesManager(repo=repo)
     eff = await prefs_mgr.resolve(user_id=user_id, product_id=product_id or 0)
-    scope = f"product {product_id}" if product_id else "global"
+    scope = _("product {pid}").format(pid=product_id) if product_id else _("global")
     lines = [
-        "<b>Effective preferences</b>",
-        f"  scope: {scope}",
-        f"  mute: {eff.mute}",
-        f"  digest_mode: {eff.digest_mode} (interval {eff.digest_interval_minutes}m)",
-        f"  quiet_hours: {eff.quiet_hours_start or '—'}–{eff.quiet_hours_end or '—'}",
-        f"  throttle_per_hour: {eff.throttle_per_hour or 'unlimited'}",
-        f"  timezone: {eff.timezone}",
+        _("<b>Effective preferences</b>"),
+        _("  scope: {scope}").format(scope=scope),
+        _("  mute: {enabled}").format(enabled=_("True") if eff.mute else _("False")),
+        _("  digest_mode: {enabled} (interval {minutes}m)").format(
+            enabled=_("True") if eff.digest_mode else _("False"),
+            minutes=eff.digest_interval_minutes,
+        ),
+        _("  quiet_hours: {start}–{end}").format(
+            start=eff.quiet_hours_start or "—", end=eff.quiet_hours_end or "—"
+        ),
+        _("  throttle_per_hour: {limit}").format(limit=eff.throttle_per_hour or _("unlimited")),
+        _("  timezone: {timezone}").format(timezone=eff.timezone),
     ]
     await update.message.reply_html("\n".join(lines))
 
@@ -369,7 +384,9 @@ async def digest_now_command(update: Update, context: ContextTypes.DEFAULT_TYPE)
     digest_svc = context.bot_data["digest_service"]
     user_id = update.effective_user.id
     flushed = await digest_svc.flush_user(user_id=user_id)
-    await update.message.reply_text(f"Flushed {flushed} pending digest entries.")
+    await update.message.reply_text(
+        _("Flushed {count} pending digest entries.").format(count=flushed)
+    )
 
 
 def register(app: Application) -> None:

@@ -27,7 +27,11 @@ from price_tracker.bot.decorators import (
     restricted,
     with_locale,
 )
-from price_tracker.bot.handlers._helpers import _escape_html, _format_relative_time
+from price_tracker.bot.handlers._helpers import (
+    _escape_html,
+    _format_relative_time,
+    _format_scraper_error,
+)
 from price_tracker.bot.messages import _
 
 if TYPE_CHECKING:
@@ -45,7 +49,7 @@ def _format_remaining(until: datetime | None) -> str:
         return "—"
     delta = until - datetime.now(UTC)
     if delta.total_seconds() <= 0:
-        return "expired"
+        return _("expired")
     hours, rem = divmod(int(delta.total_seconds()), 3600)
     minutes = rem // 60
     if hours:
@@ -78,7 +82,7 @@ def _render_metrics_lines(
     current Gauge value (no public read API exists on Gauge).
     """
     if metrics is None:
-        return ["Metrics unavailable"]
+        return [_("Metrics unavailable")]
     try:
         if start_time is not None:
             metrics.bot_uptime_seconds.set(time.monotonic() - start_time)
@@ -87,11 +91,11 @@ def _render_metrics_lines(
         uptime = metrics.bot_uptime_seconds._value.get()
         tracked = metrics.products_tracked_total._value.get()
     except (AttributeError, TypeError):
-        return ["Metrics unavailable"]
+        return [_("Metrics unavailable")]
     return [
-        "<b>📡 Bot Status</b>",
-        f"Uptime: {_format_uptime(float(uptime or 0))}",
-        f"Products tracked: {int(tracked or 0)}",
+        _("<b>📡 Bot Status</b>"),
+        _("Uptime: {uptime}").format(uptime=_format_uptime(float(uptime or 0))),
+        _("Products tracked: {count}").format(count=int(tracked or 0)),
     ]
 
 
@@ -103,9 +107,9 @@ def _tier_label(state: str) -> str:
         QuarantineState.LOCKED_T1.value: "T1 (1h)",
         QuarantineState.LOCKED_T2.value: "T2 (6h)",
         QuarantineState.LOCKED_T3.value: "T3 (24h)",
-        QuarantineState.HALF_OPEN_T1.value: "T1 half-open",
-        QuarantineState.HALF_OPEN_T2.value: "T2 half-open",
-        QuarantineState.HALF_OPEN_T3.value: "T3 half-open",
+        QuarantineState.HALF_OPEN_T1.value: _("T1 half-open"),
+        QuarantineState.HALF_OPEN_T2.value: _("T2 half-open"),
+        QuarantineState.HALF_OPEN_T3.value: _("T3 half-open"),
     }.get(state, state)
 
 
@@ -114,7 +118,7 @@ def _tier_label(state: str) -> str:
 async def cmd_debug(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Debug scraping for a URL — shows what each strategy finds."""
     if not context.args:
-        await update.message.reply_text(_("❌ Usage: /debug <url>"), parse_mode=ParseMode.HTML)
+        await update.message.reply_text(_("❌ Usage: /debug <url>"))
         return
 
     url = context.args[0]
@@ -125,13 +129,17 @@ async def cmd_debug(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     from price_tracker.core.scraper_base import get_headers  # noqa: PLC0415
 
     client = _client(context)
-    lines = [f"🔍 <b>Debug scraping</b>\n🔗 {_escape_html(url[:80])}\n"]
+    lines = [_("🔍 <b>Debug scraping</b>\n🔗 {url}\n").format(url=_escape_html(url[:80]))]
 
     # Step 1: Fetch with httpx
     html = None
     try:
         resp = await client.get(url, headers=get_headers(), follow_redirects=True)
-        lines.append(f"📡 httpx shared: <b>HTTP {resp.status_code}</b> ({len(resp.text)} chars)")
+        lines.append(
+            _("📡 httpx shared: <b>HTTP {status}</b> ({count} chars)").format(
+                status=resp.status_code, count=len(resp.text)
+            )
+        )
         if resp.status_code == 200:
             html = resp.text
             # If suspiciously small, try fresh client
@@ -156,13 +164,17 @@ async def cmd_debug(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
                             },
                         )
                         lines.append(
-                            f"📡 httpx fresh: <b>HTTP {r2.status_code}</b> ({len(r2.text)} chars)"
+                            _("📡 httpx fresh: <b>HTTP {status}</b> ({count} chars)").format(
+                                status=r2.status_code, count=len(r2.text)
+                            )
                         )
                         if r2.status_code == 200 and len(r2.text) > len(html):
                             html = r2.text
                             lines.append(_("✅ The fresh client got more data!"))
                 except Exception as e:  # noqa: BLE001 — debug surface, never crash
-                    lines.append(f"❌ httpx fresh: {str(e)[:60]}")
+                    lines.append(
+                        _("❌ httpx fresh: {error}").format(error=_escape_html(str(e)[:60]))
+                    )
         elif resp.status_code == 403:
             lines.append(_("⚠️ 403 — trying curl_cffi..."))
             try:
@@ -171,7 +183,9 @@ async def cmd_debug(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
                 async with AsyncSession(impersonate="chrome") as session:
                     r2 = await session.get(url, allow_redirects=True, timeout=30)
                     lines.append(
-                        f"📡 curl_cffi: <b>HTTP {r2.status_code}</b> ({len(r2.text)} chars)"
+                        _("📡 curl_cffi: <b>HTTP {status}</b> ({count} chars)").format(
+                            status=r2.status_code, count=len(r2.text)
+                        )
                     )
                     if r2.status_code == 200:
                         html = r2.text
@@ -187,8 +201,9 @@ async def cmd_debug(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
                         url, stealthy_headers=True, follow_redirects=True, timeout=30
                     )
                     lines.append(
-                        f"📡 Scrapling: <b>HTTP {page.status}</b> "
-                        f"({len(page.text) if page.text else 0} chars)"
+                        _("📡 Scrapling: <b>HTTP {status}</b> ({count} chars)").format(
+                            status=page.status, count=len(page.text) if page.text else 0
+                        )
                     )
                     if page.status == 200 and page.text:
                         html = page.text
@@ -244,7 +259,11 @@ async def cmd_debug(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
                         for o in offers[:2]:
                             lines.append(f"   → price: {o.get('price', '?')}")
             except Exception as e:  # noqa: BLE001 — debug parse surface
-                lines.append(f"📦 JSON-LD #{i + 1}: parse error: {str(e)[:40]}")
+                lines.append(
+                    _("📦 JSON-LD #{n}: parse error: {error}").format(
+                        n=i + 1, error=_escape_html(str(e)[:40])
+                    )
+                )
     else:
         lines.append(_("📦 JSON-LD: ❌ not found"))
 
@@ -301,7 +320,7 @@ async def cmd_debug(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     # Step 7: Title
     title = soup.find("title")
     if title and title.string:
-        lines.append(f"\n📝 Title: {_escape_html(title.string.strip()[:80])}")
+        lines.append(_("\n📝 Title: {title}").format(title=_escape_html(title.string.strip()[:80])))
 
     # Step 8: Run actual scraper
     scraper = _scraper(context)
@@ -312,7 +331,11 @@ async def cmd_debug(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     else:
         result = await scraper_for_url.scrape(url, client)
         lines.append(_("   Name: {name}").format(name=_escape_html((result.name or "❌")[:60])))
-        price_repr = "€" + str(result.price) if result.price else "❌ " + (result.error or "")
+        price_repr = (
+            "€" + str(result.price)
+            if result.price
+            else "❌ " + (_escape_html(_format_scraper_error(result.error)) if result.error else "")
+        )
         lines.append(_("   Price: {price}").format(price=price_repr))
 
     await msg.edit_text("\n".join(lines), parse_mode=ParseMode.HTML, disable_web_page_preview=True)
@@ -375,6 +398,7 @@ async def cmd_status(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
     await update.message.reply_text("\n".join(lines), parse_mode=ParseMode.HTML)
 
 
+@with_locale
 async def status_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Render a metrics-only snapshot (uptime + products tracked).
 
@@ -384,7 +408,7 @@ async def status_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     """
     metrics = context.bot_data.get("metrics")
     start_time = context.bot_data.get("start_time")
-    lines = ["📊 <b>Bot Status</b>", ""]
+    lines = [_("📊 <b>Bot Status</b>"), ""]
     lines.extend(_render_metrics_lines(metrics, start_time=start_time))
     await update.message.reply_html("\n".join(lines))
 
@@ -415,25 +439,30 @@ async def health_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     locked = [r for r in records if effective[r.domain] in locked_states]
     half_open = [r for r in records if effective[r.domain] in half_open_states]
 
-    lines: list[str] = ["🏥 <b>Scraper Health Report</b>", ""]
-    lines.append(f"✅ Healthy domains: {len(healthy)}")
-    lines.append(f"⚠️ Half-open: {len(half_open)}")
-    lines.append(f"🔒 Locked: {len(locked)}")
+    lines: list[str] = [_("🏥 <b>Scraper Health Report</b>"), ""]
+    lines.append(_("✅ Healthy domains: {count}").format(count=len(healthy)))
+    lines.append(_("⚠️ Half-open: {count}").format(count=len(half_open)))
+    lines.append(_("🔒 Locked: {count}").format(count=len(locked)))
     lines.append("")
 
     if locked:
-        lines.append("<b>Locked:</b>")
+        lines.append(_("<b>Locked:</b>"))
         for r in sorted(locked, key=lambda x: x.locked_until or datetime.max.replace(tzinfo=UTC)):
             lines.append(
-                f"  • {r.domain} — {_tier_label(effective[r.domain].value)}, "
-                f"expires in {_format_remaining(r.locked_until)}"
+                _("  • {domain} — {tier}, expires in {remaining}").format(
+                    domain=_escape_html(r.domain),
+                    tier=_tier_label(effective[r.domain].value),
+                    remaining=_format_remaining(r.locked_until),
+                )
             )
         lines.append("")
 
     if half_open:
-        lines.append("<b>Half-open:</b>")
+        lines.append(_("<b>Half-open:</b>"))
         for r in half_open:
-            lines.append(f"  • {r.domain} — probing on next tick")
+            lines.append(
+                _("  • {domain} — probing on next tick").format(domain=_escape_html(r.domain))
+            )
         lines.append("")
 
     recent_blocks = sorted(
@@ -442,7 +471,7 @@ async def health_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         reverse=True,
     )[:5]
     if recent_blocks:
-        lines.append("<b>Last 5 block events:</b>")
+        lines.append(_("<b>Last 5 block events:</b>"))
         for r in recent_blocks:
             ts = r.last_block_at.strftime("%Y-%m-%d %H:%M:%SZ") if r.last_block_at else "—"
             lines.append(f"  • {r.domain} — {r.last_block_reason or '?'} — {ts}")

@@ -30,7 +30,7 @@ from price_tracker.bot.handlers._helpers import (
 )
 from price_tracker.bot.handlers.history import _generate_chart
 from price_tracker.bot.keyboards import build_threshold_keyboard
-from price_tracker.bot.messages import _
+from price_tracker.bot.messages import N_, _
 
 if TYPE_CHECKING:
     from telegram.ext import ContextTypes
@@ -208,11 +208,11 @@ async def handle_chart_button(
 # msgid strings, translated lazily at call time so the module-level table does
 # not freeze the locale that happened to be active at import.
 _PREF_PROMPTS: dict[str, tuple[str | None, str | None, str]] = {
-    "pref_new_": ("new", None, "🆕 Preference: <b>New only</b>"),
-    "pref_used_": ("used", None, "♻️ Preference: <b>Used only</b>"),
-    "pref_amazon_": (None, "amazon", "📦 Preference: <b>Sold by Amazon only</b>"),
-    "pref_anyseller_": (None, "any", "🏪 Preference: <b>Any seller</b>"),
-    "pref_default_": (None, None, "👍 Preference: <b>No filter</b>"),
+    "pref_new_": ("new", None, N_("🆕 Preference: <b>New only</b>")),
+    "pref_used_": ("used", None, N_("♻️ Preference: <b>Used only</b>")),
+    "pref_amazon_": (None, "amazon", N_("📦 Preference: <b>Sold by Amazon only</b>")),
+    "pref_anyseller_": (None, "any", N_("🏪 Preference: <b>Any seller</b>")),
+    "pref_default_": (None, None, N_("👍 Preference: <b>No filter</b>")),
 }
 
 

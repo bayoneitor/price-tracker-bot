@@ -104,3 +104,34 @@ def test_unwrap_jsonld_graph_keeps_non_action_object_property_opaque() -> None:
     nodes = unwrap_jsonld_graph(payload)
     assert len(nodes) == 1
     assert nodes[0].get("name") is None
+
+
+def test_unwrap_jsonld_graph_survives_deep_nesting() -> None:
+    """A crafted page can nest ``@graph`` arbitrarily deep; unwrapping must not crash.
+
+    ``scrape()`` is contracted to raise only ``BlockEvent``/``ListingGone`` subclasses,
+    and ``RecursionError`` is neither.
+    """
+    payload: dict[str, object] = {"@type": "Product"}
+    node = payload
+    for _ in range(3000):
+        child: dict[str, object] = {}
+        node["@graph"] = [child]
+        node = child
+
+    assert unwrap_jsonld_graph(payload)
+
+
+def test_unwrap_jsonld_graph_keeps_graph_before_action_object() -> None:
+    """Order is part of the contract: callers take the first matching Product.
+
+    A node carrying both ``@graph`` and an Action ``object`` must yield the ``@graph``
+    entry first, as the recursive walk did.
+    """
+    payload: dict[str, object] = {
+        "@type": "BuyAction",
+        "object": {"@type": "Product", "name": "from-object"},
+        "@graph": [{"@type": "Product", "name": "from-graph"}],
+    }
+    names = [n.get("name") for n in unwrap_jsonld_graph(payload)]
+    assert names == [None, "from-graph", "from-object"]

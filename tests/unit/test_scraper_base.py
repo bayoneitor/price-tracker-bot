@@ -485,3 +485,24 @@ def test_brotli_available_for_httpx_decompression() -> None:
             "brotli/brotlicffi not installed — httpx cannot decode "
             "br-encoded responses (which get_headers() advertises)"
         )
+
+
+def test_select_jsonld_offer_rejects_lone_financing_offer_without_keywords_or_billing():
+    """A single UnitPriceSpecification offer, with no billing fields and no financing
+    wording anywhere, must still be rejected.
+
+    This is the Apple/Google leak (#9) the shared filter exists to prevent: a monthly
+    financing entry shaped that way does not always spell out "/mo" or set
+    ``billingDuration``, and every scraper that is not MediaMarkt passes a single
+    ``Offer`` here.
+    """
+    offer = {
+        "price": "54.08",
+        "priceCurrency": "USD",
+        "priceSpecification": {
+            "@type": "UnitPriceSpecification",
+            "price": "54.08",
+            "priceCurrency": "USD",
+        },
+    }
+    assert select_jsonld_offer(offer) is None
